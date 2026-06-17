@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../services/auth_service.dart';
+import '../services/profile_service.dart';
 import '../../modules/personal/shell/personal_shell.dart';
 import '../../modules/personal/home/home_screen.dart';
 import '../../modules/personal/alunos/add_aluno_screen.dart';
@@ -30,6 +32,26 @@ import '../../modules/personal/alunos/avaliacao_neuromotores_carga_screen.dart';
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/login',
+    redirect: (context, state) async {
+      final loggedIn = AuthService.isLoggedIn;
+      final path = state.matchedLocation;
+
+      if (!loggedIn) {
+        return path == '/login' ? null : '/login';
+      }
+
+      // Already logged in — skip the login screen
+      if (path == '/login') {
+        try {
+          final role = await ProfileService.getRole();
+          return role == 'personal' ? '/home' : '/aluno/home';
+        } catch (_) {
+          return '/home';
+        }
+      }
+
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/login',

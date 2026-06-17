@@ -30,7 +30,9 @@ class ProgressoService {
     String? observacoes,
   }) async {
     final bytes = await foto.readAsBytes();
-    final ext = foto.path.split('.').last.toLowerCase();
+    // foto.name has the real filename on all platforms (web uses blob URLs in .path)
+    final rawName = foto.name.isNotEmpty ? foto.name : foto.path;
+    final ext = rawName.contains('.') ? rawName.split('.').last.toLowerCase() : 'jpg';
     final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
     final fileName = '${alunoId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
 
