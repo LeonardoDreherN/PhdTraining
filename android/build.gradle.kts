@@ -19,6 +19,15 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Force all plugin subprojects to compileSdk 36 to satisfy flutter_plugin_android_lifecycle
+subprojects {
+    afterEvaluate {
+        extensions.findByType(com.android.build.gradle.BaseExtension::class.java)?.apply {
+            compileSdkVersion(36)
+        }
+    }
+}
+
 
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
