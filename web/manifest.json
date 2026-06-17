@@ -3,7 +3,7 @@
     "short_name": "PHD",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#000000",
+    "background_color": "#FFFFFF",
     "theme_color": "#000000",
     "description": "PHD Personal — Gestão para personal trainers e acompanhamento de alunos.",
     "orientation": "portrait-primary",
