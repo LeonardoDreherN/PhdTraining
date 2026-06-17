@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -950,6 +950,16 @@ class _FotoFormDialog extends StatefulWidget {
 class _FotoFormDialogState extends State<_FotoFormDialog> {
   final _pesoCtrl = TextEditingController();
   final _obsCtrl = TextEditingController();
+  Uint8List? _previewBytes;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.foto.readAsBytes().then((bytes) {
+      if (mounted) setState(() => _previewBytes = bytes);
+    });
+  }
+
   @override
   void dispose() {
     _pesoCtrl.dispose();
@@ -973,7 +983,9 @@ class _FotoFormDialogState extends State<_FotoFormDialog> {
               borderRadius: BorderRadius.circular(12),
               child: SizedBox(
                 width: double.infinity, height: 180,
-                child: Image.file(File(widget.foto.path), fit: BoxFit.cover),
+                child: _previewBytes != null
+                    ? Image.memory(_previewBytes!, fit: BoxFit.cover)
+                    : const Center(child: CircularProgressIndicator()),
               ),
             ),
             const SizedBox(height: 20),
