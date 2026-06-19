@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/aluno_service.dart';
 
@@ -132,24 +133,7 @@ class _AlunosScreenState extends State<AlunosScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha:0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                aluno['nome'].toString().substring(0, 1).toUpperCase(),
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                ),
-              ),
-            ),
-          ),
+          _buildAvatar(aluno),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -212,6 +196,35 @@ class _AlunosScreenState extends State<AlunosScreen> {
             style: ElevatedButton.styleFrom(minimumSize: const Size(180, 44)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar(Map<String, dynamic> aluno) {
+    final fotoUrl = aluno['foto_url'] as String?;
+    final inicial = aluno['nome'].toString().substring(0, 1).toUpperCase();
+    final placeholder = Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(inicial,
+            style: const TextStyle(
+                color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 18)),
+      ),
+    );
+    if (fotoUrl == null) return placeholder;
+    return ClipOval(
+      child: CachedNetworkImage(
+        imageUrl: fotoUrl,
+        width: 44,
+        height: 44,
+        fit: BoxFit.cover,
+        placeholder: (_, __) => placeholder,
+        errorWidget: (_, __, ___) => placeholder,
       ),
     );
   }

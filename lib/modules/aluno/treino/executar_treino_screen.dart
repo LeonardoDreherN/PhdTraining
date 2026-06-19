@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/ficha_service.dart';
 import '../../../core/services/treino_service.dart';
@@ -436,6 +436,7 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
   Widget _buildDemo() {
     final ex = _exercicios[_exercicioAtual];
     final exercicio = ex['exercicios'] as Map<String, dynamic>;
+    final videoUrl = exercicio['video_url'] as String?;
     final midia = exercicio['midia_url'] as String?;
     final isFirst = _exercicioAtual == 0;
 
@@ -457,22 +458,29 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                Container(
-                  width: double.infinity,
-                  height: 220,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
+                // Vídeo tutorial tem prioridade; foto como fallback
+                if (videoUrl != null)
+                  ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.divider),
+                    child: _VideoPlayer(url: videoUrl),
+                  )
+                else
+                  Container(
+                    width: double.infinity,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: midia != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.network(midia, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const _SemMidia()),
+                          )
+                        : const _SemMidia(),
                   ),
-                  child: midia != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.network(midia, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const _SemMidia()),
-                        )
-                      : const _SemMidia(),
-                ),
                 const SizedBox(height: 20),
                 Text(
                   exercicio['nome'] ?? '',
@@ -485,12 +493,20 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha:0.15),
+                      color: AppColors.primary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(exercicio['grupo_muscular'],
                         style: const TextStyle(
                             color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w500)),
+                  ),
+                ],
+                if ((exercicio['descricao'] as String?)?.isNotEmpty == true) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    exercicio['descricao'],
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
+                    textAlign: TextAlign.center,
                   ),
                 ],
                 const SizedBox(height: 24),
@@ -507,29 +523,7 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
                       _buildInfoChip(Icons.monitor_weight_outlined, '${ex['carga']}kg sugerido'),
                   ],
                 ),
-                if (midia != null) ...[
-                  const SizedBox(height: 28),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final uri = Uri.tryParse(midia);
-                        if (uri != null) {
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
-                        }
-                      },
-                      icon: const Icon(Icons.play_circle_outline, size: 20),
-                      label: const Text('Assistir execução'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: AppColors.divider),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 28),
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -766,6 +760,74 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
                         : 'Série $_serieAtual concluída — Próxima',
                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
               ),
+      ),
+    );
+  }
+}
+
+// ── VIDEO PLAYER ──────────────────────────────────────────────
+class _VideoPlayer extends StatefulWidget {
+  final String url;
+  const _VideoPlayer({required this.url});
+  @override
+  State<_VideoPlayer> createState() => _VideoPlayerState();
+}
+
+class _VideoPlayerState extends State<_VideoPlayer> {
+  late VideoPlayerController _ctrl;
+  bool _pronto = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() => _pronto = true);
+          _ctrl.setLooping(true);
+          _ctrl.play();
+        }
+      });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_pronto) {
+      return const SizedBox(
+        width: double.infinity,
+        height: 220,
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+    return GestureDetector(
+      onTap: () => setState(() {
+        _ctrl.value.isPlaying ? _ctrl.pause() : _ctrl.play();
+      }),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          AspectRatio(aspectRatio: _ctrl.value.aspectRatio, child: VideoPlayer(_ctrl)),
+          AnimatedOpacity(
+            opacity: _ctrl.value.isPlaying ? 0.0 : 1.0,
+            duration: const Duration(milliseconds: 250),
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white24),
+              ),
+              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 38),
+            ),
+          ),
+        ],
       ),
     );
   }

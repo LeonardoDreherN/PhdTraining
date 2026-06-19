@@ -39,6 +39,7 @@ dependencies:
   mask_text_input_formatter: ^2.9.0
   google_fonts: ^6.1.0
   timezone: ^0.9.0
+  video_player: ^2.9.2
 
 dev_dependencies:
   flutter_test:

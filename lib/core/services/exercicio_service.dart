@@ -167,6 +167,7 @@ class ExercicioService {
     required String grupoMuscular,
     String? descricao,
     String? midiaUrl,
+    String? videoUrl,
   }) async {
     return await _db.from('exercicios').insert({
       'personal_id': _personalId,
@@ -174,6 +175,7 @@ class ExercicioService {
       'grupo_muscular': grupoMuscular,
       'descricao': descricao,
       'midia_url': midiaUrl,
+      'video_url': videoUrl,
     }).select().single();
   }
 
@@ -185,9 +187,23 @@ class ExercicioService {
     await _db.from('exercicios').delete().eq('id', id).eq('personal_id', _personalId);
   }
 
-  static Future<String?> uploadImagem(String path, List<int> bytes) async {
-    final fileName = '${_personalId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    await _db.storage.from('exercicios').uploadBinary(fileName, bytes as Uint8List);
-    return _db.storage.from('exercicios').getPublicUrl(fileName);
+  static Future<String?> uploadImagem(String nome, List<int> bytes) async {
+    final ext = nome.contains('.') ? nome.split('.').last.toLowerCase() : 'jpg';
+    final fileName = '${_personalId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+    await _db.storage.from('exercicios-midia').uploadBinary(
+      fileName, bytes as Uint8List,
+      fileOptions: FileOptions(contentType: 'image/$ext', upsert: false),
+    );
+    return _db.storage.from('exercicios-midia').getPublicUrl(fileName);
+  }
+
+  static Future<String?> uploadVideo(String nome, Uint8List bytes) async {
+    final ext = nome.contains('.') ? nome.split('.').last.toLowerCase() : 'mp4';
+    final fileName = 'vid_${_personalId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+    await _db.storage.from('exercicios-midia').uploadBinary(
+      fileName, bytes,
+      fileOptions: FileOptions(contentType: 'video/$ext', upsert: false),
+    );
+    return _db.storage.from('exercicios-midia').getPublicUrl(fileName);
   }
 }

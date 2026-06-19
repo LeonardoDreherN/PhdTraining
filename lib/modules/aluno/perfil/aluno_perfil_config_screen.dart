@@ -56,6 +56,11 @@ class _AlunoPerfilConfigScreenState extends State<AlunoPerfilConfigScreen> {
       final url = await ProfileService.uploadAvatar(img.name, bytes);
       if (url != null) {
         await ProfileService.atualizar({'avatar_url': url});
+        // Atualiza foto_url em alunos para o personal ver na lista
+        final user = _db.auth.currentUser;
+        if (user != null) {
+          await _db.from('alunos').update({'foto_url': url}).eq('user_id', user.id);
+        }
         await _carregar();
       }
     } catch (e) {

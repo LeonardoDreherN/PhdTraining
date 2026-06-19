@@ -19,6 +19,7 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
   final _descricaoController = TextEditingController();
   String? _grupoSelecionado;
   String? _midiaUrl;
+  String? _videoUrl;
   bool _salvando = false;
 
   bool get _editando => widget.exercicio != null;
@@ -31,6 +32,7 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
       _descricaoController.text = widget.exercicio!['descricao'] ?? '';
       _grupoSelecionado = widget.exercicio!['grupo_muscular'];
       _midiaUrl = widget.exercicio!['midia_url'];
+      _videoUrl = widget.exercicio!['video_url'];
     }
   }
 
@@ -51,6 +53,7 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
           'grupo_muscular': _grupoSelecionado,
           'descricao': _descricaoController.text.trim(),
           'midia_url': _midiaUrl,
+          'video_url': _videoUrl,
         });
       } else {
         await ExercicioService.cadastrar(
@@ -58,6 +61,7 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
           grupoMuscular: _grupoSelecionado ?? '',
           descricao: _descricaoController.text.trim(),
           midiaUrl: _midiaUrl,
+          videoUrl: _videoUrl,
         );
       }
       if (mounted) {
@@ -113,6 +117,8 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
               ),
               const SizedBox(height: 24),
               _buildImagePicker(),
+              const SizedBox(height: 12),
+              _buildVideoPicker(),
               const SizedBox(height: 20),
               _buildLabel('Nome do Exercício'),
               const SizedBox(height: 6),
@@ -203,21 +209,75 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked != null) {
-      final bytes = await picked.readAsBytes();
-      setState(() => _salvando = true);
-      try {
-        final url = await ExercicioService.uploadImagem(picked.path, bytes);
-        if (mounted) setState(() => _midiaUrl = url);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro ao fazer upload: $e'), backgroundColor: AppColors.error),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _salvando = false);
+    if (picked == null) return;
+    final bytes = await picked.readAsBytes();
+    setState(() => _salvando = true);
+    try {
+      final url = await ExercicioService.uploadImagem(picked.name, bytes);
+      if (mounted) setState(() => _midiaUrl = url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao fazer upload: $e'), backgroundColor: AppColors.error),
+        );
       }
+    } finally {
+      if (mounted) setState(() => _salvando = false);
+    }
+  }
+
+  Widget _buildVideoPicker() {
+    return GestureDetector(
+      onTap: _pickVideo,
+      child: Container(
+        width: double.infinity,
+        height: 56,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _videoUrl != null ? AppColors.active : AppColors.divider,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _videoUrl != null ? Icons.check_circle_outline : Icons.video_library_outlined,
+              color: _videoUrl != null ? AppColors.active : AppColors.primary,
+              size: 22,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              _videoUrl != null ? 'Vídeo tutorial adicionado' : 'Adicionar vídeo tutorial (opcional)',
+              style: TextStyle(
+                color: _videoUrl != null ? AppColors.active : AppColors.textSecondary,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickVideo() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickVideo(source: ImageSource.gallery);
+    if (picked == null) return;
+    final bytes = await picked.readAsBytes();
+    setState(() => _salvando = true);
+    try {
+      final url = await ExercicioService.uploadVideo(picked.name, bytes);
+      if (mounted) setState(() => _videoUrl = url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao fazer upload do vídeo: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _salvando = false);
     }
   }
 }
