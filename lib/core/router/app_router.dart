@@ -18,6 +18,7 @@ import '../../modules/aluno/home/aluno_home_screen.dart';
 import '../../modules/aluno/treino/executar_treino_screen.dart';
 import '../../modules/aluno/treino/treino_simples_screen.dart';
 import '../../modules/aluno/progresso/progresso_screen.dart';
+import '../../modules/auth/cadastro_screen.dart';
 import '../../modules/auth/login_screen.dart';
 import '../../modules/personal/alunos/avaliacao_screen.dart';
 import '../../modules/personal/alunos/avaliacao_morfologica_screen.dart';
@@ -36,12 +37,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final loggedIn = AuthService.isLoggedIn;
       final path = state.matchedLocation;
 
+      // Rotas que existem antes de haver conta. Sem `/cadastro` aqui, o
+      // redirect devolveria o visitante para o login justamente quando ele
+      // tenta se cadastrar.
+      const publicas = {'/login', '/cadastro'};
+
       if (!loggedIn) {
-        return path == '/login' ? null : '/login';
+        return publicas.contains(path) ? null : '/login';
       }
 
       // Already logged in — skip the login screen
-      if (path == '/login') {
+      if (publicas.contains(path)) {
         try {
           final role = await ProfileService.getRole();
           return role == 'personal' ? '/home' : '/aluno/home';
@@ -57,12 +63,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (context, state) => const LoginScreen(),
       ),
+      GoRoute(
+        path: '/cadastro',
+        builder: (context, state) => const CadastroScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) => PersonalShell(child: child),
         routes: [
           GoRoute(
             path: '/home',
             builder: (context, state) => const HomeScreen(),
+          ),
+          // `/fichas` e `/exercicios` ficam dentro do Shell para manter a
+          // barra inferior visível: as duas são destino de aba, e sair da
+          // navegação no meio do fluxo desorienta.
+          GoRoute(
+            path: '/fichas',
+            builder: (context, state) => const FichasScreen(),
           ),
           GoRoute(
             path: '/exercicios',
@@ -161,10 +178,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => AddExercicioScreen(
           exercicio: state.extra as Map<String, dynamic>?,
         ),
-      ),
-      GoRoute(
-        path: '/fichas',
-        builder: (context, state) => const FichasScreen(),
       ),
       GoRoute(
         path: '/fichas/detalhe',

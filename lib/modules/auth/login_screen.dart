@@ -87,6 +87,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 _buildEsqueceuSenha(),
                 const SizedBox(height: 32),
                 _buildBotaoEntrar(),
+                const SizedBox(height: 18),
+                _buildCriarConta(),
                 const SizedBox(height: 40),
               ],
             ),
@@ -232,6 +234,28 @@ class _LoginScreenState extends State<LoginScreen> {
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCriarConta() {
+    return TextButton(
+      onPressed: _carregando ? null : () => context.push('/cadastro'),
+      child: const Text.rich(
+        TextSpan(
+          text: 'Ainda não tem conta? ',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 13.5),
+          children: [
+            TextSpan(
+              text: 'Criar agora',
+              style: TextStyle(
+                color: AppColors.accent,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
       ),
     );

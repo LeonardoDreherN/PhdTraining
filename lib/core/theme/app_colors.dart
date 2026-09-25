@@ -1,32 +1,70 @@
 import 'package:flutter/material.dart';
 
+/// Paleta do PHD.
+///
+/// Os nomes no bloco "Legado" existem porque 59 arquivos já os usam. Eles
+/// continuam funcionando, mas agora apontam para os tokens novos — então o
+/// app inteiro adota a linguagem nova sem precisar migrar tela por tela.
+/// Conforme cada tela for reescrita, troque o nome legado pelo token e, no
+/// fim, o bloco desaparece.
 abstract class AppColors {
-  // Brand — monocromático PHD
-  static const Color primary = Color(0xFFFFFFFF);
-  static const Color primaryDark = Color(0xFFCCCCCC);
-  static const Color primaryLight = Color(0xFFFFFFFF);
+  // ── Superfícies ───────────────────────────────────────────
+  // Preto profundo, não preto puro: no OLED, #000 encosta em qualquer
+  // borda clara e o olho vê a borda "vibrar".
+  static const Color bg = Color(0xFF0A0A0B);
+  static const Color surface = Color(0xFF141417);
+  static const Color surfaceHigh = Color(0xFF1D1D21);
 
-  // Background
-  static const Color background = Color(0xFF000000);
-  static const Color surface = Color(0xFF0F0F0F);
-  static const Color surfaceVariant = Color(0xFF1A1A1A);
-  static const Color bottomNav = Color(0xFF000000);
+  // ── Traços ────────────────────────────────────────────────
+  static const Color line = Color(0xFF27272B);
+  static const Color lineStrong = Color(0xFF3A3A40);
 
-  // Text
-  static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFF888888);
-  static const Color textHint = Color(0xFF444444);
+  // ── Texto ─────────────────────────────────────────────────
+  // Todos conferidos sobre `bg`: textPrimary 18:1, textSecondary 7:1,
+  // textMuted 4.6:1. Abaixo disso não entra texto de leitura.
+  static const Color textPrimary = Color(0xFFF4F4F5);
+  static const Color textSecondary = Color(0xFF9A9AA2);
+  static const Color textMuted = Color(0xFF7A7A83);
 
-  // Status (mantidos coloridos para legibilidade funcional)
-  static const Color active = Color(0xFF4CAF50);
-  static const Color inactive = Color(0xFF888888);
-  static const Color error = Color(0xFFFF5252);
+  // ── Acento ────────────────────────────────────────────────
+  // Só aparece onde há decisão a tomar: ação primária, métrica que
+  // importa, item selecionado. Se estiver em tudo, não destaca nada.
+  static const Color accent = Color(0xFFD7FF3E);
+  static const Color onAccent = Color(0xFF0A0A0B);
 
-  // Input
-  static const Color inputFill = Color(0xFF0F0F0F);
-  static const Color inputBorder = Color(0xFF2A2A2A);
-  static const Color inputFocused = Color(0xFFFFFFFF);
+  // ── Estado ────────────────────────────────────────────────
+  // O par é proposital: o tom cheio pinta ponto, barra e borda; o tom
+  // `...Text` é o que passa contraste quando vira texto ou ícone.
+  static const Color success = Color(0xFF4ADE80);
+  static const Color successText = Color(0xFF7DEBA8);
+  static const Color warning = Color(0xFFFBBF24);
+  static const Color warningText = Color(0xFFFCD34D);
+  static const Color danger = Color(0xFFF87171);
+  static const Color dangerText = Color(0xFFFCA5A5);
 
-  // Divider
-  static const Color divider = Color(0xFF1C1C1C);
+  /// Fundo translúcido para chip de estado.
+  static Color tint(Color c) => c.withValues(alpha: 0.14);
+
+  // ── Legado ────────────────────────────────────────────────
+  // `primary` era branco. Agora é o acento — é isso que faz os botões,
+  // a navegação e os indicadores do app atual virarem Volt de uma vez.
+  static const Color primary = accent;
+  static const Color primaryDark = Color(0xFFB8DB2A);
+  static const Color primaryLight = Color(0xFFE8FF7A);
+
+  static const Color background = bg;
+  static const Color surfaceVariant = surfaceHigh;
+  static const Color bottomNav = bg;
+
+  static const Color textHint = textMuted;
+
+  static const Color active = success;
+  static const Color inactive = textSecondary;
+  static const Color error = danger;
+
+  static const Color inputFill = surface;
+  static const Color inputBorder = line;
+  static const Color inputFocused = accent;
+
+  static const Color divider = line;
 }

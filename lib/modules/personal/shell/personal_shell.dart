@@ -1,71 +1,137 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text.dart';
+import '../../../core/theme/app_tokens.dart';
 
 class PersonalShell extends StatelessWidget {
-  final Widget child;
   const PersonalShell({super.key, required this.child});
 
-  static const _tabs = [
-    ('/home', Icons.home_outlined, Icons.home, 'Início'),
-    ('/exercicios', Icons.fitness_center_outlined, Icons.fitness_center, 'Treinos'),
-    ('/alunos', Icons.people_outline, Icons.people, 'Alunos'),
-    ('/relatorios', Icons.bar_chart_outlined, Icons.bar_chart, 'Relatórios'),
-    ('/perfil', Icons.person_outline, Icons.person, 'Perfil'),
+  final Widget child;
+
+  static const _abas = <_Aba>[
+    _Aba('/home', Icons.home_outlined, Icons.home_rounded, 'Início'),
+    _Aba('/alunos', Icons.people_outline_rounded, Icons.people_rounded, 'Alunos'),
+    // A aba Treinos abre as fichas, mas também fica acesa na biblioteca de
+    // exercícios — senão, entrar na biblioteca acenderia "Início" e a
+    // pessoa perderia a noção de onde está.
+    _Aba('/fichas', Icons.fitness_center_outlined, Icons.fitness_center_rounded,
+        'Treinos', ['/exercicios']),
+    _Aba('/relatorios', Icons.bar_chart_outlined, Icons.bar_chart_rounded, 'Relatórios'),
+    _Aba('/perfil', Icons.person_outline_rounded, Icons.person_rounded, 'Perfil'),
   ];
 
-  int _currentIndex(BuildContext context) {
-    final location = GoRouterState.of(context).uri.toString();
-    for (var i = 0; i < _tabs.length; i++) {
-      if (location.startsWith(_tabs[i].$1)) return i;
+  int _indiceAtual(BuildContext context) {
+    final rota = GoRouterState.of(context).uri.path;
+    for (var i = 0; i < _abas.length; i++) {
+      if (_abas[i].cobre(rota)) return i;
     }
     return 0;
   }
 
   @override
   Widget build(BuildContext context) {
-    final index = _currentIndex(context);
+    final atual = _indiceAtual(context);
+
     return Scaffold(
+      backgroundColor: AppColors.bg,
       body: child,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          color: AppColors.bottomNav,
-          border: Border(top: BorderSide(color: AppColors.divider, width: 0.5)),
+          color: AppColors.bg,
+          border: Border(top: BorderSide(color: AppColors.line)),
         ),
         child: SafeArea(
+          top: false,
           child: SizedBox(
-            height: 60,
+            height: 62,
             child: Row(
-              children: List.generate(_tabs.length, (i) {
-                final tab = _tabs[i];
-                final selected = i == index;
-                return Expanded(
-                  child: InkWell(
-                    onTap: () => context.go(tab.$1),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          selected ? tab.$3 : tab.$2,
-                          color: selected ? AppColors.primary : AppColors.textSecondary,
-                          size: 22,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          tab.$4,
-                          style: TextStyle(
-                            color: selected ? AppColors.primary : AppColors.textSecondary,
-                            fontSize: 11,
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                          ),
-                        ),
-                      ],
+              children: [
+                for (var i = 0; i < _abas.length; i++)
+                  Expanded(
+                    child: _BotaoAba(
+                      aba: _abas[i],
+                      selecionado: i == atual,
+                      // `go` e não `push`: as abas trocam a tela, não
+                      // empilham. Com push, o botão "voltar" do navegador
+                      // percorreria todas as abas já visitadas.
+                      onTap: () => context.go(_abas[i].rota),
                     ),
                   ),
-                );
-              }),
+              ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Aba {
+  const _Aba(this.rota, this.icone, this.iconeCheio, this.rotulo,
+      [this.tambem = const []]);
+
+  /// Para onde o toque leva.
+  final String rota;
+
+  /// Outras rotas que mantêm esta aba acesa.
+  final List<String> tambem;
+
+  final IconData icone;
+  final IconData iconeCheio;
+  final String rotulo;
+
+  bool cobre(String caminho) =>
+      caminho.startsWith(rota) || tambem.any(caminho.startsWith);
+}
+
+class _BotaoAba extends StatelessWidget {
+  const _BotaoAba({
+    required this.aba,
+    required this.selecionado,
+    required this.onTap,
+  });
+
+  final _Aba aba;
+  final bool selecionado;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cor = selecionado ? AppColors.accent : AppColors.textMuted;
+
+    return Semantics(
+      button: true,
+      selected: selecionado,
+      label: aba.rotulo,
+      child: InkWell(
+        onTap: onTap,
+        // Sem respingo nem realce: numa barra de 5 itens, o retângulo cinza
+        // do Material aparece antes da troca de tela e parece travamento.
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: Colors.transparent,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedScale(
+              scale: selecionado ? 1 : 0.94,
+              duration: AppDuration.fast,
+              child: Icon(
+                selecionado ? aba.iconeCheio : aba.icone,
+                size: 22,
+                color: cor,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs + 1),
+            Text(
+              aba.rotulo,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: selecionado
+                  ? AppText.bodyStrong(10.5, color: cor)
+                  : AppText.caption(10.5, color: cor),
+            ),
+          ],
         ),
       ),
     );
