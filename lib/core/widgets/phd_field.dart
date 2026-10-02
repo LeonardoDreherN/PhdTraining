@@ -24,6 +24,7 @@ class PhdField extends StatefulWidget {
     this.enabled = true,
     this.ajuda,
     this.onSubmitted,
+    this.onChanged,
   });
 
   final String label;
@@ -45,6 +46,10 @@ class PhdField extends StatefulWidget {
   final String? ajuda;
 
   final VoidCallback? onSubmitted;
+
+  /// Chamado a cada tecla. Campo de busca precisa disso para
+  /// filtrar enquanto a pessoa digita.
+  final ValueChanged<String>? onChanged;
 
   @override
   State<PhdField> createState() => _PhdFieldState();
@@ -71,6 +76,7 @@ class _PhdFieldState extends State<PhdField> {
           style: AppText.body(15),
           cursorColor: AppColors.accent,
           onFieldSubmitted: widget.onSubmitted == null ? null : (_) => widget.onSubmitted!(),
+          onChanged: widget.onChanged,
           validator: (v) {
             final e = widget.validator?.call(v);
             // Guardado no estado só para decidir se a linha de ajuda aparece.

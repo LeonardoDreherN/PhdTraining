@@ -75,7 +75,17 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 60),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    onPressed: () => context.go('/'),
+                    icon: const Icon(Icons.arrow_back_rounded,
+                        color: AppColors.textSecondary, size: 20),
+                    tooltip: 'Voltar',
+                  ),
+                ),
+                const SizedBox(height: 28),
                 _buildLogo(),
                 const SizedBox(height: 12),
                 _buildSubtitle(),
@@ -244,7 +254,10 @@ class _LoginScreenState extends State<LoginScreen> {
       onPressed: _carregando ? null : () => context.push('/cadastro'),
       child: const Text.rich(
         TextSpan(
-          text: 'Ainda não tem conta? ',
+          // O aluno não se cadastra: quem cria o acesso dele é o personal.
+          // Sem dizer "de personal" aqui, o aluno clica, cria uma conta de
+          // personal vazia e fica com dois acessos sem entender por quê.
+          text: 'É personal e ainda não tem conta? ',
           style: TextStyle(color: AppColors.textSecondary, fontSize: 13.5),
           children: [
             TextSpan(

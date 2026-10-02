@@ -24,7 +24,7 @@ class _TreinoSimplesScreenState extends State<TreinoSimplesScreen> {
   }
 
   Future<void> _carregar() async {
-    final lista = await FichaService.listarExercicios(widget.ficha['id']);
+    final lista = await FichaService.listarExerciciosBruto(widget.ficha['id']);
     if (!mounted) return;
     setState(() {
       _exercicios = lista;

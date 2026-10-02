@@ -114,8 +114,24 @@ class AlunoService {
       }),
     );
 
-    final authData = jsonDecode(authResponse.body);
+    final authData = jsonDecode(authResponse.body) as Map<String, dynamic>;
+
+    // Sem esta checagem, um signup recusado passava em silêncio: o aluno
+    // entrava na lista com `user_id` nulo, o personal lia "cadastrado com
+    // sucesso" e só descobria quando o aluno dissesse que não consegue entrar.
+    if (authResponse.statusCode != 200) {
+      final msg = authData['msg'] ?? authData['error_description'] ??
+          authData['error'] ?? 'erro ${authResponse.statusCode}';
+      throw Exception('Não consegui criar o acesso de $nome: $msg');
+    }
+
     final userId = authData['user']?['id'] as String?;
+    if (userId == null) {
+      throw Exception(
+        'O servidor aceitou o cadastro mas não devolveu um usuário para '
+        '$nome. O aluno não foi salvo — tente de novo.',
+      );
+    }
 
     // Cria o registro na tabela alunos
     final data = await _db.from('alunos').insert({

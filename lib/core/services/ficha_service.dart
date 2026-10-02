@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/ficha.dart';
+import '../models/ficha_exercicio.dart';
 
 class FichaService {
   static final _db = Supabase.instance.client;
@@ -90,12 +91,30 @@ class FichaService {
 
   // ── Exercícios da ficha ──────────────────────────────────
 
-  static Future<List<Map<String, dynamic>>> listarExercicios(String fichaId) async {
-    return await _db
+  static Future<List<FichaExercicio>> listarExercicios(String fichaId) async {
+    final linhas = await _db
         .from('ficha_exercicios')
         .select('*, exercicios(id, nome, grupo_muscular, midia_url)')
         .eq('ficha_id', fichaId)
         .order('ordem');
+    return List<Map<String, dynamic>>.from(linhas)
+        .map(FichaExercicio.doMapa)
+        .toList();
+  }
+
+  /// Mesma consulta, no formato `Map` cru.
+  ///
+  /// Existe só para `executar_treino_screen` e `treino_simples_screen`, que
+  /// ainda leem `item['series']` em dezenas de pontos. Some quando essas duas
+  /// telas do aluno forem reescritas sobre `FichaExercicio`.
+  static Future<List<Map<String, dynamic>>> listarExerciciosBruto(
+      String fichaId) async {
+    final linhas = await _db
+        .from('ficha_exercicios')
+        .select('*, exercicios(id, nome, grupo_muscular, midia_url)')
+        .eq('ficha_id', fichaId)
+        .order('ordem');
+    return List<Map<String, dynamic>>.from(linhas);
   }
 
   static Future<void> adicionarExercicio({
@@ -105,6 +124,7 @@ class FichaService {
     required String repeticoes,
     String? carga,
     int? descansoSegundos,
+    String? observacoes,
     required int ordem,
   }) async {
     await _db.from('ficha_exercicios').insert({
@@ -114,6 +134,7 @@ class FichaService {
       'repeticoes': repeticoes,
       'carga': carga,
       'descanso_segundos': descansoSegundos,
+      'observacoes': observacoes,
       'ordem': ordem,
     });
   }
@@ -124,6 +145,29 @@ class FichaService {
 
   static Future<void> atualizarExercicio(String id, Map<String, dynamic> dados) async {
     await _db.from('ficha_exercicios').update(dados).eq('id', id);
+  }
+
+  /// Grava a ordem da lista inteira numa ida só.
+  ///
+  /// Antes era um `update` por exercício, em sequência: arrastar um item numa
+  /// ficha de dez disparava dez requisições, e se uma falhasse no meio a ficha
+  /// ficava com a ordem pela metade — sem nada na tela dizendo isso.
+  ///
+  /// O `upsert` só escreve as colunas enviadas; `repeticoes`, `carga` e o
+  /// resto ficam intactos. `ficha_id`, `exercicio_id` e `series` vão junto
+  /// porque são NOT NULL e o upsert precisa deles no caminho de inserção.
+  static Future<void> reordenar(List<FichaExercicio> itens) async {
+    if (itens.isEmpty) return;
+    await _db.from('ficha_exercicios').upsert([
+      for (var i = 0; i < itens.length; i++)
+        {
+          'id': itens[i].id,
+          'ficha_id': itens[i].fichaId,
+          'exercicio_id': itens[i].exercicioId,
+          'series': itens[i].series,
+          'ordem': i,
+        },
+    ]);
   }
 
   // ── Atribuir ficha ao aluno ──────────────────────────────

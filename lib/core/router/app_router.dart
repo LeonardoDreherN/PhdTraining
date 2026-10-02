@@ -19,6 +19,7 @@ import '../../modules/aluno/treino/executar_treino_screen.dart';
 import '../../modules/aluno/treino/treino_simples_screen.dart';
 import '../../modules/aluno/progresso/progresso_screen.dart';
 import '../../modules/auth/cadastro_screen.dart';
+import '../../modules/auth/landing_screen.dart';
 import '../../modules/auth/login_screen.dart';
 import '../../modules/personal/alunos/avaliacao_screen.dart';
 import '../../modules/personal/alunos/avaliacao_morfologica_screen.dart';
@@ -32,7 +33,7 @@ import '../../modules/personal/alunos/avaliacao_neuromotores_carga_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/',
     redirect: (context, state) async {
       final loggedIn = AuthService.isLoggedIn;
       final path = state.matchedLocation;
@@ -40,10 +41,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Rotas que existem antes de haver conta. Sem `/cadastro` aqui, o
       // redirect devolveria o visitante para o login justamente quando ele
       // tenta se cadastrar.
-      const publicas = {'/login', '/cadastro'};
+      const publicas = {'/', '/login', '/cadastro'};
 
       if (!loggedIn) {
-        return publicas.contains(path) ? null : '/login';
+        // Quem chega sem conta cai na apresentação, não direto no
+        // formulário: o aluno precisa saber que quem cria o acesso dele
+        // é o personal, e o personal precisa saber o que é isto.
+        return publicas.contains(path) ? null : '/';
       }
 
       // Already logged in — skip the login screen
@@ -59,6 +63,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, state) => const LandingScreen(),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
