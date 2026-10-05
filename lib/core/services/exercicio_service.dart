@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/midia.dart';
 
 class ExercicioService {
   static final _db = Supabase.instance.client;
@@ -17,6 +18,8 @@ class ExercicioService {
     'Abdômen',
     'Cardio',
     'Funcional',
+    'Alongamento',
+    'Mobilidade',
   ];
 
   static const List<Map<String, String>> _exerciciosPadrao = [
@@ -188,21 +191,29 @@ class ExercicioService {
   }
 
   static Future<String?> uploadImagem(String nome, List<int> bytes) async {
-    final ext = nome.contains('.') ? nome.split('.').last.toLowerCase() : 'jpg';
+    final tipo = Midia.tipoDe(nome);
+    if (tipo == null || !tipo.startsWith('image/')) {
+      throw Exception(Midia.recusa(nome, video: false));
+    }
+    final ext = Midia.extensaoDe(nome);
     final fileName = '${_personalId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
     await _db.storage.from('exercicios-midia').uploadBinary(
       fileName, bytes as Uint8List,
-      fileOptions: FileOptions(contentType: 'image/$ext', upsert: false),
+      fileOptions: FileOptions(contentType: tipo, upsert: false),
     );
     return _db.storage.from('exercicios-midia').getPublicUrl(fileName);
   }
 
   static Future<String?> uploadVideo(String nome, Uint8List bytes) async {
-    final ext = nome.contains('.') ? nome.split('.').last.toLowerCase() : 'mp4';
+    final tipo = Midia.tipoDe(nome);
+    if (tipo == null || !tipo.startsWith('video/')) {
+      throw Exception(Midia.recusa(nome, video: true));
+    }
+    final ext = Midia.extensaoDe(nome);
     final fileName = 'vid_${_personalId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
     await _db.storage.from('exercicios-midia').uploadBinary(
       fileName, bytes,
-      fileOptions: FileOptions(contentType: 'video/$ext', upsert: false),
+      fileOptions: FileOptions(contentType: tipo, upsert: false),
     );
     return _db.storage.from('exercicios-midia').getPublicUrl(fileName);
   }

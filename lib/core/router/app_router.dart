@@ -30,6 +30,9 @@ import '../../modules/personal/alunos/avaliacao_neuromotores_flexibilidade_scree
 import '../../modules/personal/alunos/avaliacao_neuromotores_resistencia_screen.dart';
 import '../../modules/personal/alunos/avaliacao_neuromotores_impulsao_screen.dart';
 import '../../modules/personal/alunos/avaliacao_neuromotores_carga_screen.dart';
+import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
+import '../widgets/widgets.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -109,18 +112,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/alunos/arquivos',
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>;
-          return ArquivosScreen(
-            alunoId: extra['alunoId'] as String,
-            alunoNome: extra['alunoNome'] as String,
-          );
-        },
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => ArquivosScreen(
+            alunoId: e['alunoId'] as String,
+            alunoNome: e['alunoNome'] as String,
+          ),
+          voltarPara: '/alunos',
+        ),
       ),
       GoRoute(
         path: '/alunos/perfil',
-        builder: (context, state) => AlunoPerfilScreen(
-          aluno: state.extra as Map<String, dynamic>,
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AlunoPerfilScreen(aluno: e),
+          voltarPara: '/alunos',
         ),
       ),
       GoRoute(
@@ -129,56 +135,74 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/alunos/avaliacao',
-        builder: (context, state) => AvaliacaoScreen(
-          aluno: state.extra as Map<String, dynamic>,
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AvaliacaoScreen(aluno: e),
+          voltarPara: '/alunos',
         ),
       ),
       GoRoute(
         path: '/alunos/avaliacao/morfologica',
-        builder: (context, state) => AvaliacaoMorfologicaScreen(
-          aluno: state.extra as Map<String, dynamic>,
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AvaliacaoMorfologicaScreen(aluno: e),
+          voltarPara: '/alunos',
         ),
       ),
       GoRoute(
         path: '/alunos/avaliacao/morfologica/dobras',
-        builder: (context, state) => AvaliacaoDobraScreen(
-          aluno: state.extra as Map<String, dynamic>,
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AvaliacaoDobraScreen(aluno: e),
+          voltarPara: '/alunos',
         ),
       ),
       GoRoute(
         path: '/alunos/avaliacao/morfologica/bioimpedancia',
-        builder: (context, state) => AvaliacaoBioimpedanciaScreen(
-          aluno: state.extra as Map<String, dynamic>,
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AvaliacaoBioimpedanciaScreen(aluno: e),
+          voltarPara: '/alunos',
         ),
       ),
       GoRoute(
         path: '/alunos/avaliacao/neuromotores',
-        builder: (context, state) => AvaliacaoNeuromotoresScreen(
-          aluno: state.extra as Map<String, dynamic>,
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AvaliacaoNeuromotoresScreen(aluno: e),
+          voltarPara: '/alunos',
         ),
       ),
       GoRoute(
         path: '/alunos/avaliacao/neuromotores/flexibilidade',
-        builder: (context, state) => AvaliacaoFlexibilidadeScreen(
-          aluno: state.extra as Map<String, dynamic>,
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AvaliacaoFlexibilidadeScreen(aluno: e),
+          voltarPara: '/alunos',
         ),
       ),
       GoRoute(
         path: '/alunos/avaliacao/neuromotores/resistencia',
-        builder: (context, state) => AvaliacaoResistenciaScreen(
-          aluno: state.extra as Map<String, dynamic>,
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AvaliacaoResistenciaScreen(aluno: e),
+          voltarPara: '/alunos',
         ),
       ),
       GoRoute(
         path: '/alunos/avaliacao/neuromotores/impulsao',
-        builder: (context, state) => AvaliacaoImpulsaoScreen(
-          aluno: state.extra as Map<String, dynamic>,
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AvaliacaoImpulsaoScreen(aluno: e),
+          voltarPara: '/alunos',
         ),
       ),
       GoRoute(
         path: '/alunos/avaliacao/neuromotores/carga',
-        builder: (context, state) => AvaliacaoCargaScreen(
-          aluno: state.extra as Map<String, dynamic>,
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AvaliacaoCargaScreen(aluno: e),
+          voltarPara: '/alunos',
         ),
       ),
       GoRoute(
@@ -189,8 +213,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/fichas/detalhe',
-        builder: (context, state) => FichaDetalheScreen(
-          ficha: state.extra as Map<String, dynamic>,
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => FichaDetalheScreen(ficha: e),
+          voltarPara: '/fichas',
         ),
       ),
       GoRoute(
@@ -199,8 +225,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/aluno/treino-simples',
-        builder: (context, state) => TreinoSimplesScreen(
-          ficha: state.extra as Map<String, dynamic>,
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => TreinoSimplesScreen(ficha: e),
+          voltarPara: '/aluno/home',
         ),
       ),
       GoRoute(
@@ -209,15 +237,62 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/aluno/treino',
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>;
-          return ExecutarTreinoScreen(
-            ficha: extra['ficha'] as Map<String, dynamic>,
-            modoVideo: extra['modoVideo'] as bool? ?? false,
-            diaSelecionado: extra['diaSelecionado'] as int? ?? DateTime.now().weekday % 7,
-          );
-        },
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => ExecutarTreinoScreen(
+            ficha: e['ficha'] as Map<String, dynamic>,
+            modoVideo: e['modoVideo'] as bool? ?? false,
+            diaSelecionado:
+                e['diaSelecionado'] as int? ?? DateTime.now().weekday % 7,
+          ),
+          voltarPara: '/aluno/home',
+        ),
       ),
     ],
   );
 });
+
+/// Protege as rotas que dependem de `state.extra`.
+///
+/// `extra` é um objeto Dart em memória: ele **não** sobrevive a um
+/// recarregamento do navegador nem a um link colado. Quando isso acontece o
+/// Flutter web reconstrói a rota com `extra` nulo, e o `as Map<String,
+/// dynamic>` lançava dentro do `builder` — o que no navegador aparece como
+/// tela preta, sem mensagem nenhuma. Foi o que o personal viu.
+///
+/// A correção de fundo é passar o id pela URL (`/fichas/:id`) e buscar os
+/// dados na tela. Enquanto essa mudança não acontece, isto garante que a
+/// pessoa veja o que houve e tenha como voltar.
+Widget _exigeExtra(
+  GoRouterState state,
+  Widget Function(Map<String, dynamic> extra) constroi, {
+  required String voltarPara,
+}) {
+  final extra = state.extra;
+  if (extra is Map<String, dynamic>) return constroi(extra);
+  return _ContextoPerdido(voltarPara: voltarPara);
+}
+
+class _ContextoPerdido extends StatelessWidget {
+  const _ContextoPerdido({required this.voltarPara});
+
+  final String voltarPara;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: PhdEmptyState(
+          icon: Icons.refresh_rounded,
+          title: 'Precisa abrir de novo',
+          message: 'Esta tela depende do item que você selecionou, e essa '
+              'informação se perde quando a página é recarregada. '
+              'Volte e escolha de novo.',
+          actionLabel: 'Voltar',
+          onAction: () => context.go(voltarPara),
+        ),
+      ),
+    );
+  }
+}

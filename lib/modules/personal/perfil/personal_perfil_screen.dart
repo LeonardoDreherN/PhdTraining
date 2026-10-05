@@ -69,11 +69,28 @@ class _PersonalPerfilScreenState extends State<PersonalPerfilScreen> {
 
   Future<void> _salvarNome() async {
     final nome = _nomeCtrl.text.trim();
-    if (nome.isEmpty) return;
-    await ProfileService.atualizar({'nome': nome});
-    if (mounted) {
+    if (nome.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Digite um nome antes de salvar.')),
+      );
+      return;
+    }
+    // Sem o try, uma recusa do banco saía como exceção não tratada: o botão
+    // não fazia nada visível e não havia como saber o motivo.
+    try {
+      await ProfileService.atualizar({'nome': nome});
+      if (!mounted) return;
+      setState(() => _perfil?['nome'] = nome);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nome atualizado!')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.danger,
+          content: Text('Não consegui salvar o nome: $e'),
+        ),
       );
     }
   }

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/midia.dart';
 
 class ProfileService {
   static final _db = Supabase.instance.client;
@@ -23,12 +24,16 @@ class ProfileService {
 
   static Future<String?> uploadAvatar(String nomeArquivo, Uint8List bytes) async {
     final userId = _db.auth.currentUser!.id;
-    final ext = nomeArquivo.contains('.') ? nomeArquivo.split('.').last.toLowerCase() : 'jpg';
+    final tipo = Midia.tipoDe(nomeArquivo);
+    if (tipo == null || !tipo.startsWith('image/')) {
+      throw Exception(Midia.recusa(nomeArquivo, video: false));
+    }
+    final ext = Midia.extensaoDe(nomeArquivo);
     final filePath = '$userId/avatar.$ext';
     await _db.storage.from('avatars').uploadBinary(
       filePath,
       bytes,
-      fileOptions: FileOptions(upsert: true, contentType: 'image/$ext'),
+      fileOptions: FileOptions(upsert: true, contentType: tipo),
     );
     return _db.storage.from('avatars').getPublicUrl(filePath);
   }
