@@ -15,6 +15,8 @@ No painel do Supabase → **SQL Editor** → cola e roda, **nesta ordem**:
 | 4 | `migrations/0004_storage.sql` | Os três buckets e suas policies |
 | 5 | `migrations/0005_grants.sql` | Privilégios explícitos e default privileges |
 | 6 | `migrations/0006_anamnese_unica.sql` | Corrige o índice da anamnese |
+| 7 | `migrations/0007_midia_formatos.sql` | HEIC/HEIF e outros formatos nos buckets |
+| 8 | `migrations/0008_profiles_recursao.sql` | Corrige a recursão infinita que impedia editar o perfil |
 
 A ordem importa: do 0002 em diante tudo usa funções criadas no 0001. Todos
 são seguros de rodar mais de uma vez.
