@@ -240,13 +240,13 @@ class _ExerciciosScreenState extends State<ExerciciosScreen> {
     if (action == 'deletar') {
       final confirmar = await showDialog<bool>(
         context: context,
-        builder: (_) => AlertDialog(
+        builder: (ctx) => AlertDialog(
           backgroundColor: AppColors.surface,
           title: const Text('Excluir exercício', style: TextStyle(color: AppColors.textPrimary)),
           content: Text('Deseja excluir "${exercicio['nome']}"?', style: const TextStyle(color: AppColors.textSecondary)),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Excluir', style: TextStyle(color: AppColors.error))),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir', style: TextStyle(color: AppColors.error))),
           ],
         ),
       );

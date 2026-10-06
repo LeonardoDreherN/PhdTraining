@@ -246,7 +246,7 @@ class FichasScreen extends ConsumerWidget {
       case 'deletar':
         final ok = await showDialog<bool>(
           context: context,
-          builder: (_) => AlertDialog(
+          builder: (ctx) => AlertDialog(
             title: Text('Excluir "${f.nome}"?', style: AppText.title(17)),
             content: Text(
               f.atribuida
@@ -259,12 +259,12 @@ class FichasScreen extends ConsumerWidget {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context, false),
+                onPressed: () => Navigator.pop(ctx, false),
                 child: Text('Cancelar',
                     style: AppText.bodyStrong(13.5, color: AppColors.textSecondary)),
               ),
               TextButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () => Navigator.pop(ctx, true),
                 child: Text('Excluir',
                     style: AppText.bodyStrong(13.5, color: AppColors.dangerText)),
               ),
@@ -297,7 +297,7 @@ class FichasScreen extends ConsumerWidget {
 
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: Text(titulo, style: AppText.title(17)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -319,12 +319,12 @@ class FichasScreen extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(ctx, false),
             child: Text('Cancelar',
                 style: AppText.bodyStrong(13.5, color: AppColors.textSecondary)),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(ctx, true),
             child: Text('Salvar',
                 style: AppText.bodyStrong(13.5, color: AppColors.accent)),
           ),

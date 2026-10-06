@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,15 +8,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/profile_service.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/providers/app_providers.dart';
 
-class PersonalPerfilScreen extends StatefulWidget {
+class PersonalPerfilScreen extends ConsumerStatefulWidget {
   const PersonalPerfilScreen({super.key});
 
   @override
-  State<PersonalPerfilScreen> createState() => _PersonalPerfilScreenState();
+  ConsumerState<PersonalPerfilScreen> createState() => _PersonalPerfilScreenState();
 }
 
-class _PersonalPerfilScreenState extends State<PersonalPerfilScreen> {
+class _PersonalPerfilScreenState extends ConsumerState<PersonalPerfilScreen> {
   final _nomeCtrl = TextEditingController();
   Map<String, dynamic>? _perfil;
   bool _carregando = true;
@@ -55,6 +57,8 @@ class _PersonalPerfilScreenState extends State<PersonalPerfilScreen> {
       final url = await ProfileService.uploadAvatar(img.name, bytes);
       if (url != null) {
         await ProfileService.atualizar({'avatar_url': url});
+        // O Início lê o perfil do provider, não desta tela.
+        ref.invalidate(perfilProvider);
         await _carregar();
       }
     } catch (e) {
@@ -80,6 +84,7 @@ class _PersonalPerfilScreenState extends State<PersonalPerfilScreen> {
     try {
       await ProfileService.atualizar({'nome': nome});
       if (!mounted) return;
+      ref.invalidate(perfilProvider);
       setState(() => _perfil?['nome'] = nome);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nome atualizado!')),

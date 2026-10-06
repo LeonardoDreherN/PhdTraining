@@ -19,7 +19,13 @@ class ProfileService {
   static Future<void> atualizar(Map<String, dynamic> dados) async {
     final user = _db.auth.currentUser;
     if (user == null) return;
-    await _db.from('profiles').update(dados).eq('id', user.id);
+    // Sem o `select`, um update barrado pelo RLS (ou sem linha em profiles)
+    // volta sem erro e sem alterar nada — a tela dizia "salvo" e não salvava.
+    final linhas =
+        await _db.from('profiles').update(dados).eq('id', user.id).select('id');
+    if (linhas.isEmpty) {
+      throw Exception('Seu perfil não foi encontrado para atualizar.');
+    }
   }
 
   static Future<String?> uploadAvatar(String nomeArquivo, Uint8List bytes) async {
@@ -35,6 +41,10 @@ class ProfileService {
       bytes,
       fileOptions: FileOptions(upsert: true, contentType: tipo),
     );
-    return _db.storage.from('avatars').getPublicUrl(filePath);
+    // O caminho é sempre o mesmo, então a URL também seria: o navegador, o
+    // CachedNetworkImage e o CDN do Supabase continuavam mostrando a foto
+    // antiga. O `v` muda a cada envio e força a imagem nova.
+    final url = _db.storage.from('avatars').getPublicUrl(filePath);
+    return '$url?v=${DateTime.now().millisecondsSinceEpoch}';
   }
 }

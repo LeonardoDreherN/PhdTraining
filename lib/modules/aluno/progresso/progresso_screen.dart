@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/progresso_service.dart';
+import '../../../core/utils/navegacao.dart';
 
 class ProgressoScreen extends StatefulWidget {
   const ProgressoScreen({super.key});
@@ -182,7 +182,7 @@ class _ProgressoScreenState extends State<ProgressoScreen>
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
-          onPressed: () => context.pop(),
+          onPressed: () => context.voltar(senaoPara: '/aluno/home'),
         ),
         title: Text('Meu Progresso',
             style: GoogleFonts.montserrat(

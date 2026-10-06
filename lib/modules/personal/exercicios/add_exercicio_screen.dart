@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/exercicio_service.dart';
 import '../home/widgets/phd_logo.dart';
+import '../../../core/utils/navegacao.dart';
 
 class AddExercicioScreen extends StatefulWidget {
   final Map<String, dynamic>? exercicio;
@@ -71,7 +71,7 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
             backgroundColor: AppColors.active,
           ),
         );
-        context.pop();
+        context.voltar(senaoPara: '/exercicios');
       }
     } catch (e) {
       if (mounted) {
@@ -91,7 +91,7 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         leading: GestureDetector(
-          onTap: () => context.pop(),
+          onTap: () => context.voltar(senaoPara: '/exercicios'),
           child: const Padding(
             padding: EdgeInsets.only(left: 12),
             child: Row(children: [

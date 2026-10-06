@@ -252,7 +252,7 @@ class _AlunosScreenState extends ConsumerState<AlunosScreen> {
 
     final confirmado = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: Text('Excluir ${a.nome}?', style: AppText.title(17)),
         content: Text(
           // O aviso é específico porque a ação é irreversível e leva junto
@@ -264,12 +264,12 @@ class _AlunosScreenState extends ConsumerState<AlunosScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(ctx, false),
             child: Text('Cancelar',
                 style: AppText.bodyStrong(13.5, color: AppColors.textSecondary)),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(ctx, true),
             child: Text('Excluir',
                 style: AppText.bodyStrong(13.5, color: AppColors.dangerText)),
           ),

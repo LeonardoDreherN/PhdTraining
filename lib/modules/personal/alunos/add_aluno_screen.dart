@@ -1,10 +1,10 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/services/aluno_service.dart';
 import '../home/widgets/phd_logo.dart';
+import '../../../core/utils/navegacao.dart';
 import 'widgets/credentials_modal.dart';
 
 class AddAlunoScreen extends StatefulWidget {
@@ -82,7 +82,7 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
         senhaGerada: dataSemBarra.isNotEmpty ? dataSemBarra : null,
         onClose: () {
           Navigator.of(context).pop();
-          context.pop();
+          context.voltar(senaoPara: '/alunos');
         },
       ),
     );
@@ -201,7 +201,7 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
       backgroundColor: AppColors.background,
       elevation: 0,
       leading: GestureDetector(
-        onTap: () => context.pop(),
+        onTap: () => context.voltar(senaoPara: '/alunos'),
         child: const Padding(
           padding: EdgeInsets.only(left: 12),
           child: Row(
