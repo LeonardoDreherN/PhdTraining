@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/ficha_service.dart';
-import '../../../core/services/treino_service.dart';
 import '../../../core/services/execucao_service.dart';
 
 class ExecutarTreinoScreen extends StatefulWidget {
@@ -326,8 +325,6 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
   Future<void> _finalizarTreino() async {
     _timer?.cancel();
     if (_seriesLog.isNotEmpty) _finalizarExercicioAtual();
-
-    await TreinoService.marcarConcluido(widget.ficha['id'].toString(), widget.diaSelecionado);
 
     try {
       await ExecucaoService.salvar(

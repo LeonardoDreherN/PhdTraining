@@ -11,6 +11,9 @@ class FichaExercicio {
     required this.nome,
     this.grupoMuscular,
     this.midiaUrl,
+    this.videoUrl,
+    this.instrucoes,
+    this.equipamento,
     this.series = 3,
     this.repeticoes,
     this.carga,
@@ -28,6 +31,14 @@ class FichaExercicio {
   final String nome;
   final String? grupoMuscular;
   final String? midiaUrl;
+
+  /// Vídeo da execução, gravado pelo personal. A consulta da ficha não
+  /// trazia esta coluna, então a tela de demonstração do aluno recebia
+  /// sempre nulo — o vídeo era enviado e nunca exibido.
+  final String? videoUrl;
+
+  final String? instrucoes;
+  final String? equipamento;
 
   final int series;
   final String? repeticoes;
@@ -77,6 +88,9 @@ class FichaExercicio {
       nome: ex['nome'] as String? ?? 'Exercício removido',
       grupoMuscular: ex['grupo_muscular'] as String?,
       midiaUrl: ex['midia_url'] as String?,
+      videoUrl: ex['video_url'] as String?,
+      instrucoes: ex['instrucoes'] as String?,
+      equipamento: ex['equipamento'] as String?,
       series: (m['series'] as num?)?.toInt() ?? 3,
       repeticoes: m['repeticoes'] as String?,
       carga: m['carga'] as String?,
@@ -94,6 +108,9 @@ class FichaExercicio {
         nome: nome,
         grupoMuscular: grupoMuscular,
         midiaUrl: midiaUrl,
+        videoUrl: videoUrl,
+        instrucoes: instrucoes,
+        equipamento: equipamento,
         series: series,
         repeticoes: repeticoes,
         carga: carga,

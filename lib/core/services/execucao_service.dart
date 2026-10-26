@@ -12,13 +12,32 @@ class ExecucaoService {
   }) async {
     final user = _db.auth.currentUser!;
 
-    final aluno = await _db
+    var aluno = await _db
         .from('alunos')
         .select('id, nome, personal_id')
         .eq('user_id', user.id)
         .maybeSingle();
 
-    if (aluno == null) return;
+    // Nem todo aluno tem `user_id` preenchido — quem foi cadastrado antes do
+    // vínculo automático só tem o e-mail. Sem este segundo caminho, o treino
+    // dessas pessoas nunca era gravado.
+    if (aluno == null && user.email != null) {
+      aluno = await _db
+          .from('alunos')
+          .select('id, nome, personal_id')
+          .eq('email', user.email!)
+          .maybeSingle();
+    }
+
+    // Antes era `return` seco: o aluno terminava o treino, lia "concluído" e
+    // nada ia para o banco. O personal não via a execução e ninguém
+    // descobria, porque não havia erro em lugar nenhum.
+    if (aluno == null) {
+      throw Exception(
+        'Sua conta ainda não está vinculada a um cadastro de aluno. '
+        'Peça ao seu personal para conferir seu e-mail no sistema.',
+      );
+    }
 
     await _db.from('treino_execucoes').insert({
       'aluno_user_id': user.id,

@@ -94,7 +94,7 @@ class FichaService {
   static Future<List<FichaExercicio>> listarExercicios(String fichaId) async {
     final linhas = await _db
         .from('ficha_exercicios')
-        .select('*, exercicios(id, nome, grupo_muscular, midia_url)')
+        .select('*, exercicios(id, nome, grupo_muscular, midia_url, video_url, thumb_url, instrucoes, equipamento)')
         .eq('ficha_id', fichaId)
         .order('ordem');
     return List<Map<String, dynamic>>.from(linhas)
@@ -111,7 +111,7 @@ class FichaService {
       String fichaId) async {
     final linhas = await _db
         .from('ficha_exercicios')
-        .select('*, exercicios(id, nome, grupo_muscular, midia_url)')
+        .select('*, exercicios(id, nome, grupo_muscular, midia_url, video_url, thumb_url, instrucoes, equipamento)')
         .eq('ficha_id', fichaId)
         .order('ordem');
     return List<Map<String, dynamic>>.from(linhas);
@@ -190,11 +190,45 @@ class FichaService {
     }, onConflict: 'aluno_id,ficha_id');
   }
 
+  /// Fichas ativas do aluno, já com quantos exercícios cada uma tem.
+  ///
+  /// A contagem vem numa segunda consulta, não num laço: o aluno costuma ter
+  /// três a cinco fichas, e uma requisição por cartão na rede da academia é
+  /// a diferença entre a tela abrir e a tela parecer travada.
   static Future<List<Map<String, dynamic>>> fichasDoAluno(String alunoId) async {
-    return await _db
-        .from('aluno_fichas')
-        .select('*, fichas(id, nome, descricao)')
-        .eq('aluno_id', alunoId)
-        .eq('ativa', true);
+    final linhas = List<Map<String, dynamic>>.from(
+      await _db
+          .from('aluno_fichas')
+          .select('*, fichas(id, nome, descricao)')
+          .eq('aluno_id', alunoId)
+          .eq('ativa', true),
+    );
+    if (linhas.isEmpty) return linhas;
+
+    final ids = linhas
+        .map((l) => (l['fichas'] as Map?)?['id'] as String?)
+        .whereType<String>()
+        .toList();
+    if (ids.isEmpty) return linhas;
+
+    final exercicios = List<Map<String, dynamic>>.from(
+      await _db
+          .from('ficha_exercicios')
+          .select('ficha_id')
+          .inFilter('ficha_id', ids),
+    );
+
+    final contagem = <String, int>{};
+    for (final e in exercicios) {
+      final fid = e['ficha_id'] as String?;
+      if (fid == null) continue;
+      contagem[fid] = (contagem[fid] ?? 0) + 1;
+    }
+
+    for (final l in linhas) {
+      final fid = (l['fichas'] as Map?)?['id'] as String?;
+      l['qtd_exercicios'] = fid == null ? 0 : (contagem[fid] ?? 0);
+    }
+    return linhas;
   }
 }

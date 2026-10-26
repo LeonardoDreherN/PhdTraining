@@ -3,38 +3,61 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class TreinoService {
   static final _db = Supabase.instance.client;
 
-  // diaSemana: 0=Dom, 1=Seg, ..., 6=Sáb  (DateTime.now().weekday % 7)
-  static DateTime _dataParaDia(int diaSemana) {
-    final now = DateTime.now();
-    // Monday of current week
-    final segunda = now.subtract(Duration(days: now.weekday - 1));
-    // diaSemana 1=Seg→+0, 2=Ter→+1, ..., 6=Sáb→+5, 0=Dom→+6
-    final offset = diaSemana == 0 ? 6 : diaSemana - 1;
-    final dia = segunda.add(Duration(days: offset));
-    return DateTime(dia.year, dia.month, dia.day);
+  /// Segunda-feira da semana corrente, à meia-noite local.
+  static DateTime _segundaDaSemana() {
+    final agora = DateTime.now();
+    final hoje = DateTime(agora.year, agora.month, agora.day);
+    return hoje.subtract(Duration(days: agora.weekday - 1));
   }
 
-  static Future<Set<String>> getConcluidos(int diaSemana) async {
+  /// Treinos já feitos nesta semana, agrupados por dia (0=Dom … 6=Sáb).
+  ///
+  /// Uma consulta para a semana inteira. A versão anterior chamava
+  /// `getConcluidos` dentro de um `List.generate(7, …)`: sete requisições
+  /// só para pintar os pontinhos da régua de dias, toda vez que o aluno
+  /// abria o app — na rede da academia, que raramente é boa.
+  static Future<Map<int, Set<String>>> concluidosDaSemana() async {
+    final vazio = {for (var i = 0; i < 7; i++) i: <String>{}};
+
     final user = _db.auth.currentUser;
-    if (user == null) return {};
+    if (user == null) return vazio;
 
-    final dia = _dataParaDia(diaSemana);
-    final inicio = dia.toUtc().toIso8601String();
-    final fim = dia.add(const Duration(days: 1)).toUtc().toIso8601String();
+    final segunda = _segundaDaSemana();
+    final fim = segunda.add(const Duration(days: 7));
 
-    final rows = await _db
+    final linhas = await _db
         .from('treino_execucoes')
-        .select('ficha_id')
+        .select('ficha_id, executado_em')
         .eq('aluno_user_id', user.id)
-        .gte('executado_em', inicio)
-        .lt('executado_em', fim);
+        .gte('executado_em', segunda.toUtc().toIso8601String())
+        .lt('executado_em', fim.toUtc().toIso8601String());
 
-    return (rows as List)
-        .map((r) => r['ficha_id']?.toString() ?? '')
-        .where((id) => id.isNotEmpty)
-        .toSet();
+    for (final r in List<Map<String, dynamic>>.from(linhas)) {
+      final fichaId = r['ficha_id']?.toString();
+      if (fichaId == null || fichaId.isEmpty) continue;
+
+      // `executado_em` chega em UTC; o dia da semana tem de ser lido no
+      // fuso do aluno, senão um treino da noite cai no dia seguinte.
+      final quando = DateTime.tryParse(r['executado_em'] as String? ?? '')
+          ?.toLocal();
+      if (quando == null) continue;
+
+      vazio[quando.weekday % 7]!.add(fichaId);
+    }
+
+    return vazio;
   }
 
-  // Mantido por compatibilidade — o dado real já vai ao Supabase via ExecucaoService
-  static Future<void> marcarConcluido(String fichaId, int diaSemana) async {}
+  /// Últimos treinos registrados, do mais recente para o mais antigo.
+  static Future<List<Map<String, dynamic>>> historico({int limite = 8}) async {
+    final user = _db.auth.currentUser;
+    if (user == null) return [];
+    final linhas = await _db
+        .from('treino_execucoes')
+        .select('ficha_nome, executado_em, duracao_minutos, total_exercicios')
+        .eq('aluno_user_id', user.id)
+        .order('executado_em', ascending: false)
+        .limit(limite);
+    return List<Map<String, dynamic>>.from(linhas);
+  }
 }
