@@ -1,16 +1,22 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/services/ficha_service.dart';
+import '../../../core/models/ficha_exercicio.dart';
 import '../../../core/services/execucao_service.dart';
+import '../../../core/services/ficha_service.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/widgets.dart';
 
+/// A tela mais usada do produto: o aluno com o celular na mão, no meio da
+/// academia, entre uma série e outra.
+///
+/// Tudo aqui é desenhado para ser lido de relance e tocado com a mão suada:
+/// um alvo grande para avançar, números grandes, e nenhuma decisão que possa
+/// ser tomada errada por acidente.
 class ExecutarTreinoScreen extends StatefulWidget {
-  final Map<String, dynamic> ficha;
-  final bool modoVideo;
-  final int diaSelecionado;
   const ExecutarTreinoScreen({
     super.key,
     required this.ficha,
@@ -18,43 +24,57 @@ class ExecutarTreinoScreen extends StatefulWidget {
     required this.diaSelecionado,
   });
 
+  final Map<String, dynamic> ficha;
+  final bool modoVideo;
+  final int diaSelecionado;
+
   @override
   State<ExecutarTreinoScreen> createState() => _ExecutarTreinoScreenState();
 }
 
 class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
     with TickerProviderStateMixin {
-  List<Map<String, dynamic>> _exercicios = [];
+  List<FichaExercicio> _itens = [];
   bool _carregando = true;
-  int _exercicioAtual = 0;
-  int _serieAtual = 1;
-  bool _processando = false;
+  String? _erro;
 
-  // Timer descanso
-  Timer? _timer;
-  int _segundosRestantes = 0;
-  bool _timerAtivo = false;
+  int _ix = 0;
+  int _serie = 1;
+  bool _ocupado = false;
 
-  // Countdown início
-  bool _showCountdown = true;
-  int _countdown = 3;
-  Timer? _countdownTimer;
-  late AnimationController _countdownController;
+  Timer? _descanso;
+  int _restam = 0;
+  bool _descansando = false;
 
-  // Modo demonstração
-  bool _mostrandoDemo = false;
+  bool _contando = true;
+  int _contagem = 3;
+  Timer? _timerContagem;
+  late final AnimationController _pulso;
 
-  // Log de execução
-  final List<Map<String, dynamic>> _execucaoLog = [];
-  List<Map<String, dynamic>> _seriesLog = [];
+  bool _demo = false;
 
-  final _inicioTreino = DateTime.now();
+  /// Séries já registradas do exercício atual.
+  List<Map<String, dynamic>> _seriesDoExercicio = [];
+
+  /// Exercícios já fechados, no formato que vai para `treino_execucoes`.
+  final List<Map<String, dynamic>> _log = [];
+
+  /// Última carga usada em cada exercício, para já vir preenchida na próxima
+  /// série. Entre séries do mesmo exercício a carga quase nunca muda, e
+  /// digitar de novo com a mão suada é o atrito que faz o aluno desistir de
+  /// registrar.
+  final Map<String, String> _ultimaCarga = {};
+
+  final _inicio = DateTime.now();
+
+  FichaExercicio get _atual => _itens[_ix];
+  bool get _ultimoExercicio => _ix == _itens.length - 1;
+  bool get _ultimaSerie => _serie >= _atual.series;
 
   @override
   void initState() {
     super.initState();
-    _mostrandoDemo = false; // ativa apenas após o countdown
-    _countdownController = AnimationController(
+    _pulso = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 950),
     );
@@ -63,765 +83,843 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _countdownTimer?.cancel();
-    _countdownController.dispose();
+    _descanso?.cancel();
+    _timerContagem?.cancel();
+    _pulso.dispose();
     super.dispose();
   }
 
   Future<void> _carregar() async {
-    final lista = await FichaService.listarExerciciosBruto(widget.ficha['id']);
-    if (!mounted) return;
     setState(() {
-      _exercicios = lista;
-      _carregando = false;
+      _carregando = true;
+      _erro = null;
     });
-    _iniciarContagem();
+    try {
+      final lista = await FichaService.listarExercicios(
+        widget.ficha['id'] as String,
+      );
+      if (!mounted) return;
+      setState(() => _itens = lista);
+      // Ficha vazia não tem contagem regressiva para quê.
+      if (lista.isNotEmpty) _iniciarContagem();
+    } catch (e) {
+      // Antes não havia `catch`: uma falha de rede deixava o aluno olhando
+      // para um indicador de carregamento que nunca terminava.
+      if (mounted) setState(() => _erro = '$e');
+    } finally {
+      if (mounted) setState(() => _carregando = false);
+    }
   }
 
   void _iniciarContagem() {
-    _countdownController.forward(from: 0);
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) { t.cancel(); return; }
-      if (_countdown > 1) {
-        setState(() => _countdown--);
-        _countdownController.forward(from: 0);
-      } else {
+    _pulso.forward(from: 0);
+    _timerContagem = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
         t.cancel();
-        setState(() => _countdown = 0);
-        Future.delayed(const Duration(milliseconds: 650), () {
-          if (mounted) {
-            setState(() {
-              _showCountdown = false;
-              _mostrandoDemo = widget.modoVideo;
-            });
-          }
+        return;
+      }
+      if (_contagem > 1) {
+        setState(() => _contagem--);
+        _pulso.forward(from: 0);
+        return;
+      }
+      t.cancel();
+      setState(() => _contagem = 0);
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (!mounted) return;
+        setState(() {
+          _contando = false;
+          _demo = widget.modoVideo;
         });
-      }
+      });
     });
   }
 
-  void _iniciarTimer(int segundos) {
-    _timer?.cancel();
+  void _comecarDescanso(int segundos) {
+    _descanso?.cancel();
+    if (segundos <= 0) return;
     setState(() {
-      _segundosRestantes = segundos;
-      _timerAtivo = true;
+      _restam = segundos;
+      _descansando = true;
     });
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (_segundosRestantes <= 0) {
+    _descanso = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
         t.cancel();
-        setState(() => _timerAtivo = false);
+        return;
+      }
+      if (_restam <= 1) {
+        t.cancel();
+        setState(() {
+          _restam = 0;
+          _descansando = false;
+        });
       } else {
-        setState(() => _segundosRestantes--);
+        setState(() => _restam--);
       }
     });
   }
 
-  Future<void> _proximaSerie() async {
-    if (_processando) return;
-    setState(() => _processando = true);
+  void _pularDescanso() {
+    _descanso?.cancel();
+    setState(() {
+      _descansando = false;
+      _restam = 0;
+    });
+  }
+
+  // ── Fluxo ───────────────────────────────────────────────────
+
+  Future<void> _concluirSerie() async {
+    if (_ocupado) return;
+    setState(() => _ocupado = true);
     try {
-      final ex = _exercicios[_exercicioAtual];
-      final exercicio = ex['exercicios'] as Map<String, dynamic>;
-      final totalSeries = ex['series'] as int? ?? 3;
-
-      final carga = await _mostrarInputCarga(
-        serieNum: _serieAtual,
-        exercicioNome: exercicio['nome'] ?? '',
+      final item = _atual;
+      final carga = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: _FolhaCarga(
+            serie: _serie,
+            total: item.series,
+            exercicio: item.nome,
+            repeticoes: item.repeticoes,
+            sugestao: _ultimaCarga[item.id] ?? item.carga,
+          ),
+        ),
       );
+      // Fechar a folha arrastando cancela a série, em vez de registrar uma
+      // série sem carga que o aluno não confirmou.
+      if (carga == null || !mounted) return;
 
-      if (!mounted) return;
+      if (carga.trim().isNotEmpty) _ultimaCarga[item.id] = carga.trim();
 
-      _seriesLog.add({
-        'numero': _serieAtual,
-        'carga_kg': carga,
-        'repeticoes': ex['repeticoes'] ?? '-',
+      _seriesDoExercicio.add({
+        'numero': _serie,
+        'carga': carga.trim(),
+        'repeticoes': item.repeticoes ?? '-',
       });
 
-      if (_serieAtual < totalSeries) {
-        final descanso = ex['descanso_segundos'] as int? ?? 60;
-        setState(() => _serieAtual++);
-        _iniciarTimer(descanso);
+      if (!_ultimaSerie) {
+        setState(() => _serie++);
+        _comecarDescanso(item.descansoSegundos ?? 60);
+        return;
+      }
+
+      _fecharExercicio();
+      if (!_ultimoExercicio) {
+        _descanso?.cancel();
+        setState(() {
+          _ix++;
+          _serie = 1;
+          _descansando = false;
+          _demo = widget.modoVideo;
+        });
       } else {
-        _finalizarExercicioAtual();
-        if (_exercicioAtual < _exercicios.length - 1) {
-          _timer?.cancel();
-          setState(() {
-            _exercicioAtual++;
-            _serieAtual = 1;
-            _timerAtivo = false;
-            if (widget.modoVideo) _mostrandoDemo = true;
-          });
-        } else {
-          await _finalizarTreino();
-        }
+        await _finalizar();
       }
     } finally {
-      if (mounted) setState(() => _processando = false);
+      if (mounted) setState(() => _ocupado = false);
     }
   }
 
-  void _finalizarExercicioAtual() {
-    final ex = _exercicios[_exercicioAtual];
-    final exercicio = ex['exercicios'] as Map<String, dynamic>;
-    _execucaoLog.add({
-      'exercicio_id': exercicio['id']?.toString() ?? '',
-      'exercicio_nome': exercicio['nome'] ?? '',
-      'grupo_muscular': exercicio['grupo_muscular'] ?? '',
-      'series': List<Map<String, dynamic>>.from(_seriesLog),
+  /// Desfaz a última série registrada deste exercício.
+  ///
+  /// Toque errado acontece o tempo todo com a mão suada, e sem isto o aluno
+  /// só podia seguir adiante com o número errado gravado.
+  void _desfazerSerie() {
+    if (_seriesDoExercicio.isEmpty) return;
+    _descanso?.cancel();
+    setState(() {
+      _seriesDoExercicio.removeLast();
+      _serie = _seriesDoExercicio.length + 1;
+      _descansando = false;
+      _restam = 0;
     });
-    _seriesLog = [];
   }
 
-  Future<double?> _mostrarInputCarga({
-    required int serieNum,
-    required String exercicioNome,
-  }) async {
-    if (!mounted) return null;
-    final ctrl = TextEditingController();
-    return showModalBottomSheet<double?>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          margin: const EdgeInsets.all(12),
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppColors.active.withValues(alpha:0.25)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: AppColors.active.withValues(alpha:0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.check_rounded, color: AppColors.active, size: 24),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Série $serieNum concluída!',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
-                        Text(exercicioNome,
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Qual foi a carga desta série?',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: ctrl,
-                      autofocus: true,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 40, fontWeight: FontWeight.w800),
-                      textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                        hintText: '0',
-                        hintStyle: TextStyle(color: AppColors.textHint, fontSize: 40),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                      ),
-                    ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 10),
-                    child: Text('kg',
-                        style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w600)),
-                  ),
-                ],
-              ),
-              const Divider(color: AppColors.divider),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx, null),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textSecondary,
-                        side: const BorderSide(color: AppColors.divider),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        minimumSize: const Size(0, 50),
-                      ),
-                      child: const Text('Sem carga'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final val = double.tryParse(ctrl.text.replaceAll(',', '.'));
-                        Navigator.pop(ctx, val);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        minimumSize: const Size(0, 50),
-                      ),
-                      child: const Text('Confirmar',
-                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void _fecharExercicio() {
+    final item = _atual;
+    _log.add({
+      'exercicio_id': item.exercicioId,
+      'exercicio_nome': item.nome,
+      'grupo_muscular': item.grupoMuscular ?? '',
+      'series': List<Map<String, dynamic>>.from(_seriesDoExercicio),
+    });
+    _seriesDoExercicio = [];
   }
 
-  Future<void> _confirmarEncerrar() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Encerrar treino?',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-        content: const Text('O progresso até aqui será salvo no relatório.',
-            style: TextStyle(color: AppColors.textSecondary)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Continuar')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Encerrar', style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) await _finalizarTreino();
-  }
+  Future<void> _finalizar() async {
+    _descanso?.cancel();
+    if (_seriesDoExercicio.isNotEmpty) _fecharExercicio();
 
-  Future<void> _finalizarTreino() async {
-    _timer?.cancel();
-    if (_seriesLog.isNotEmpty) _finalizarExercicioAtual();
+    final minutos = DateTime.now().difference(_inicio).inMinutes;
 
+    String? falha;
     try {
       await ExecucaoService.salvar(
         fichaId: widget.ficha['id'].toString(),
-        fichaNome: widget.ficha['nome'] ?? '',
-        detalhes: _execucaoLog,
-        duracaoMinutos: DateTime.now().difference(_inicioTreino).inMinutes,
-        totalExercicios: _exercicios.length,
+        fichaNome: widget.ficha['nome'] as String? ?? '',
+        detalhes: _log,
+        duracaoMinutos: minutos,
+        totalExercicios: _itens.length,
       );
     } catch (e) {
-      debugPrint('Relatório: $e');
+      // A versão anterior fazia `debugPrint` e seguia para a tela de
+      // parabéns. O aluno treinava, lia "concluído", e nada tinha sido
+      // gravado — o personal não via a execução e ninguém descobria.
+      falha = '$e';
     }
 
     if (!mounted) return;
-
-    final minutos = DateTime.now().difference(_inicioTreino).inMinutes;
-
-    showDialog(
+    await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _ConcluidoModal(
-        nomeFicha: widget.ficha['nome'] ?? '',
-        totalExercicios: _exercicios.length,
+      builder: (_) => _Concluido(
+        ficha: widget.ficha['nome'] as String? ?? 'Treino',
+        exercicios: _itens.length,
         minutos: minutos < 1 ? 1 : minutos,
-        onFinalizar: () {
-          Navigator.pop(context);
-          context.pop();
-        },
+        series: _log.fold<int>(
+          0,
+          (s, e) => s + (e['series'] as List).length,
+        ),
+        falha: falha,
       ),
     );
+    if (mounted) context.pop();
   }
+
+  Future<bool> _confirmarSaida() async {
+    if (_log.isEmpty && _seriesDoExercicio.isEmpty) return true;
+    final sair = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surfaceHigh,
+        title: Text('Sair do treino?', style: AppText.title(17)),
+        content: Text(
+          'As séries que você já marcou não serão salvas.',
+          style: AppText.body(13.5, color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Continuar treinando',
+                style: AppText.bodyStrong(13.5, color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Sair',
+                style: AppText.bodyStrong(13.5, color: AppColors.dangerText)),
+          ),
+        ],
+      ),
+    );
+    return sair ?? false;
+  }
+
+  // ── Interface ───────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          _buildConteudo(),
-          if (_showCountdown)
-            Positioned.fill(
-              child: _CountdownOverlay(
-                numero: _countdown,
-                controller: _countdownController,
-                nomeFicha: widget.ficha['nome'] ?? '',
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (await _confirmarSaida() && mounted) {
+          if (context.mounted) context.pop();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.bg,
+        body: Stack(
+          children: [
+            SafeArea(child: _corpo()),
+            if (_contando && _itens.isNotEmpty)
+              Positioned.fill(
+                child: _Contagem(
+                  numero: _contagem,
+                  pulso: _pulso,
+                  ficha: widget.ficha['nome'] as String? ?? 'Treino',
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildConteudo() {
+  Widget _corpo() {
     if (_carregando) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const Center(child: CircularProgressIndicator(color: AppColors.accent));
     }
-    if (_exercicios.isEmpty) {
-      return Column(children: [
-        AppBar(backgroundColor: AppColors.background, title: Text(widget.ficha['nome'] ?? '')),
-        const Expanded(
-          child: Center(
-            child: Text('Nenhum exercício nesta ficha',
-                style: TextStyle(color: AppColors.textSecondary)),
-          ),
-        ),
-      ]);
+    if (_erro != null) {
+      return PhdEmptyState(
+        icon: Icons.cloud_off_rounded,
+        title: 'Não consegui carregar o treino',
+        message: _erro!,
+        actionLabel: 'Tentar de novo',
+        onAction: _carregar,
+      );
     }
-    if (_mostrandoDemo) return _buildDemo();
-
-    final ex = _exercicios[_exercicioAtual];
-    final exercicio = ex['exercicios'] as Map<String, dynamic>;
-    final totalSeries = ex['series'] as int? ?? 3;
-
-    return Column(
-      children: [
-        AppBar(
-          backgroundColor: AppColors.background,
-          title: Text(widget.ficha['nome'] ?? ''),
-          actions: [
-            TextButton(
-              onPressed: _confirmarEncerrar,
-              child: const Text('Encerrar', style: TextStyle(color: AppColors.error)),
-            ),
-          ],
-        ),
-        _buildProgressBar(_exercicios.length),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                _buildExercicioCard(exercicio, ex),
-                const SizedBox(height: 24),
-                _buildSeriesIndicador(totalSeries),
-                const SizedBox(height: 24),
-                if (_timerAtivo) _buildTimer() else _buildBotaoSerie(totalSeries),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
+    if (_itens.isEmpty) {
+      return PhdEmptyState(
+        icon: Icons.fitness_center_rounded,
+        title: 'Treino vazio',
+        message: 'Seu personal ainda não montou os exercícios desta ficha. '
+            'Fale com ele.',
+        actionLabel: 'Voltar',
+        onAction: () => context.pop(),
+      );
+    }
+    if (_demo) return _telaDemo();
+    return _telaExercicio();
   }
 
-  // ── DEMONSTRAÇÃO (modo vídeo) ──────────────────────────────
-  Widget _buildDemo() {
-    final ex = _exercicios[_exercicioAtual];
-    final exercicio = ex['exercicios'] as Map<String, dynamic>;
-    final videoUrl = exercicio['video_url'] as String?;
-    final midia = exercicio['midia_url'] as String?;
-    final isFirst = _exercicioAtual == 0;
-
-    return Column(
-      children: [
-        AppBar(
-          backgroundColor: AppColors.background,
-          title: Text(isFirst ? 'Primeiro Exercício' : 'Próximo Exercício'),
-          actions: [
-            TextButton(
-              onPressed: () => setState(() => _mostrandoDemo = false),
-              child: const Text('Pular', style: TextStyle(color: AppColors.textSecondary)),
-            ),
-          ],
-        ),
-        _buildProgressBar(_exercicios.length),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                // Vídeo tutorial tem prioridade; foto como fallback
-                if (videoUrl != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: _VideoPlayer(url: videoUrl),
-                  )
-                else
-                  Container(
-                    width: double.infinity,
-                    height: 220,
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.divider),
-                    ),
-                    child: midia != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Image.network(midia, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const _SemMidia()),
-                          )
-                        : const _SemMidia(),
-                  ),
-                const SizedBox(height: 20),
-                Text(
-                  exercicio['nome'] ?? '',
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800),
-                  textAlign: TextAlign.center,
-                ),
-                if ((exercicio['grupo_muscular'] as String?)?.isNotEmpty == true) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(exercicio['grupo_muscular'],
-                        style: const TextStyle(
-                            color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w500)),
-                  ),
-                ],
-                if ((exercicio['descricao'] as String?)?.isNotEmpty == true) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    exercicio['descricao'],
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-                const SizedBox(height: 24),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    _buildInfoChip(Icons.repeat_rounded, '${ex['series'] ?? 3} séries'),
-                    _buildInfoChip(Icons.tag, '${ex['repeticoes'] ?? '-'} reps'),
-                    if (ex['descanso_segundos'] != null)
-                      _buildInfoChip(Icons.timer_outlined, '${ex['descanso_segundos']}s descanso'),
-                    if (ex['carga'] != null && ex['carga'].toString().isNotEmpty)
-                      _buildInfoChip(Icons.monitor_weight_outlined, '${ex['carga']}kg sugerido'),
-                  ],
-                ),
-                const SizedBox(height: 28),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: () => setState(() => _mostrandoDemo = false),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: const Text('Iniciar Exercício',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoChip(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
+  Widget _barraTopo({required Widget? acao}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm, AppSpacing.sm, AppSpacing.lg, AppSpacing.sm,
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: AppColors.primary, size: 15),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+          IconButton(
+            onPressed: () async {
+              if (await _confirmarSaida() && mounted && context.mounted) {
+                context.pop();
+              }
+            },
+            icon: const Icon(Icons.close_rounded,
+                color: AppColors.textSecondary, size: 22),
+            tooltip: 'Sair do treino',
+          ),
+          Expanded(
+            child: Text(
+              '${_ix + 1} de ${_itens.length}',
+              style: AppText.number(13, color: AppColors.textMuted),
+            ),
+          ),
+          if (acao != null) acao,
         ],
       ),
     );
   }
 
-  // ── TREINO NORMAL ──────────────────────────────────────────
-  Widget _buildProgressBar(int total) {
+  Widget _progresso() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+      child: PhdSegments(total: _itens.length, filled: _ix),
+    );
+  }
+
+  // ── Demonstração ────────────────────────────────────────────
+
+  Widget _telaDemo() {
+    final item = _atual;
     return Column(
       children: [
-        LinearProgressIndicator(
-          value: (_exercicioAtual + 1) / total,
-          backgroundColor: AppColors.surface,
-          color: AppColors.primary,
-          minHeight: 4,
+        _barraTopo(
+          acao: TextButton(
+            onPressed: () => setState(() => _demo = false),
+            child: Text('Pular',
+                style: AppText.bodyStrong(13.5, color: AppColors.textSecondary)),
+          ),
+        ),
+        _progresso(),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _ix == 0 ? 'Primeiro exercício' : 'Próximo exercício',
+                  style: AppText.caption(12.5),
+                ),
+                const SizedBox(height: 4),
+                Text(item.nome, style: AppText.display(24)),
+                const SizedBox(height: AppSpacing.lg),
+                ClipRRect(
+                  borderRadius: AppRadius.rLg,
+                  child: _Demonstracao(
+                    videoUrl: item.videoUrl,
+                    imagemUrl: item.midiaUrl,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    PhdStatusChip(label: item.prescricao),
+                    if (item.cargaFormatada != null)
+                      PhdStatusChip(label: item.cargaFormatada!),
+                    if (item.descansoFormatado != null)
+                      PhdStatusChip(label: 'descanso ${item.descansoFormatado}'),
+                    if (item.equipamento != null &&
+                        item.equipamento!.trim().isNotEmpty)
+                      PhdStatusChip(label: item.equipamento!),
+                  ],
+                ),
+                if (item.instrucoes != null &&
+                    item.instrucoes!.trim().isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(item.instrucoes!.trim(),
+                      style: AppText.body(13.5, color: AppColors.textSecondary)),
+                ],
+                _recado(item),
+              ],
+            ),
+          ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Exercício ${_exercicioAtual + 1} de $total',
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-              Text('${((_exercicioAtual + 1) / total * 100).toInt()}%',
-                  style: const TextStyle(
-                      color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
-            ],
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: PhdButton(
+            label: 'Começar',
+            icon: Icons.play_arrow_rounded,
+            onPressed: () => setState(() => _demo = false),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildExercicioCard(Map<String, dynamic> exercicio, Map<String, dynamic> ex) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider),
+  /// A observação que o personal escreveu para este exercício.
+  ///
+  /// Ela existe no banco desde o começo e nenhuma tela do aluno mostrava —
+  /// o personal escrevia "desce devagar, 3 segundos" e isso não chegava a
+  /// ninguém.
+  Widget _recado(FichaExercicio item) {
+    final obs = item.observacoes?.trim();
+    if (obs == null || obs.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: AppColors.tint(AppColors.accent),
+          borderRadius: AppRadius.rMd,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.campaign_outlined, size: 17, color: AppColors.accent),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(obs, style: AppText.body(13, color: AppColors.textPrimary)),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  // ── Execução ────────────────────────────────────────────────
+
+  Widget _telaExercicio() {
+    final item = _atual;
+
+    return Column(
+      children: [
+        _barraTopo(
+          acao: item.videoUrl == null && item.midiaUrl == null
+              ? null
+              : IconButton(
+                  onPressed: () => setState(() => _demo = true),
+                  icon: const Icon(Icons.ondemand_video_rounded,
+                      color: AppColors.textSecondary, size: 20),
+                  tooltip: 'Ver demonstração',
+                ),
+        ),
+        _progresso(),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (item.grupoMuscular != null)
+                  Text(item.grupoMuscular!.toUpperCase(),
+                      style: AppText.caption(11, color: AppColors.accent)),
+                const SizedBox(height: 4),
+                Text(item.nome, style: AppText.display(26)),
+                const SizedBox(height: AppSpacing.xl),
+                _serieAtualCartao(item),
+                _recado(item),
+                if (_seriesDoExercicio.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xl),
+                  _seriesFeitas(),
+                ],
+              ],
+            ),
+          ),
+        ),
+        _rodape(item),
+      ],
+    );
+  }
+
+  Widget _serieAtualCartao(FichaExercicio item) {
+    return PhdCard(
+      padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
         children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha:0.12),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: exercicio['midia_url'] != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.network(exercicio['midia_url'], fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.fitness_center, color: AppColors.primary, size: 48)),
-                  )
-                : const Icon(Icons.fitness_center, color: AppColors.primary, size: 48),
-          ),
-          const SizedBox(height: 16),
-          Text(exercicio['nome'] ?? '',
-              style: const TextStyle(
-                  color: AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w700),
-              textAlign: TextAlign.center),
-          if ((exercicio['grupo_muscular'] as String?)?.isNotEmpty == true) ...[
-            const SizedBox(height: 4),
-            Text(exercicio['grupo_muscular'],
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-          ],
-          const SizedBox(height: 16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildInfoBox('Séries', '${ex['series'] ?? 3}'),
-              _buildInfoBox('Reps', ex['repeticoes'] ?? '-'),
-              if (ex['carga'] != null && ex['carga'].toString().isNotEmpty)
-                _buildInfoBox('Carga', '${ex['carga']}kg'),
-              if (ex['descanso_segundos'] != null)
-                _buildInfoBox('Descanso', '${ex['descanso_segundos']}s'),
+              _numero('Série', '$_serie/${item.series}'),
+              _numero('Reps', item.repeticoes?.trim().isEmpty ?? true
+                  ? '—'
+                  : item.repeticoes!.trim()),
+              _numero('Carga', _ultimaCarga[item.id] ?? item.cargaFormatada ?? '—'),
             ],
           ),
-          // Series log for current exercise
-          if (_seriesLog.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const Divider(color: AppColors.divider),
-            const SizedBox(height: 8),
-            ..._seriesLog.map((s) {
-              final carga = s['carga_kg'];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 22,
-                      height: 22,
-                      decoration: const BoxDecoration(color: AppColors.active, shape: BoxShape.circle),
-                      child: Center(
-                        child: Text('${s['numero']}',
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      carga != null
-                          ? '${carga}kg × ${s['repeticoes']} reps'
-                          : '${s['repeticoes']} reps',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                    ),
-                  ],
+          const SizedBox(height: AppSpacing.xl),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(item.series, (i) {
+              final feita = i < _serie - 1;
+              final agora = i == _serie - 1;
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: agora ? 30 : 22,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: feita
+                      ? AppColors.success
+                      : agora
+                          ? AppColors.accent
+                          : AppColors.surfaceHigh,
+                  borderRadius: BorderRadius.circular(4),
                 ),
               );
             }),
-          ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoBox(String label, String value) {
+  Widget _numero(String rotulo, String valor) {
     return Column(
       children: [
-        Text(value.toString(),
-            style: const TextStyle(
-                color: AppColors.primary, fontSize: 22, fontWeight: FontWeight.w700)),
-        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+        Text(rotulo, style: AppText.caption(11.5)),
+        const SizedBox(height: 4),
+        Text(valor, style: AppText.number(22)),
       ],
     );
   }
 
-  Widget _buildSeriesIndicador(int total) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(total, (i) {
-        final feita = i < _serieAtual - 1;
-        final atual = i == _serieAtual - 1;
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 5),
-          width: atual ? 32 : 24,
-          height: 8,
-          decoration: BoxDecoration(
-            color: feita ? AppColors.active : atual ? AppColors.primary : AppColors.surface,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: feita ? AppColors.active : atual ? AppColors.primary : AppColors.divider,
+  Widget _seriesFeitas() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text('Séries registradas', style: AppText.caption(12)),
+            ),
+            GestureDetector(
+              onTap: _desfazerSerie,
+              child: Text('Desfazer última',
+                  style: AppText.bodyStrong(12.5, color: AppColors.accent)),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        for (final s in _seriesDoExercicio)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded,
+                    size: 15, color: AppColors.success),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'Série ${s['numero']}'
+                  '${(s['carga'] as String).isEmpty ? '' : '  ·  ${s['carga']}'}',
+                  style: AppText.body(13, color: AppColors.textSecondary),
+                ),
+              ],
             ),
           ),
-        );
-      }),
-    );
-  }
-
-  Widget _buildTimer() {
-    final m = _segundosRestantes ~/ 60;
-    final s = _segundosRestantes % 60;
-    return Column(
-      children: [
-        const Text('Descanso', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
-        const SizedBox(height: 8),
-        Text('${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}',
-            style: const TextStyle(
-                color: AppColors.primary, fontSize: 56, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 16),
-        OutlinedButton(
-          onPressed: () {
-            _timer?.cancel();
-            setState(() => _timerAtivo = false);
-          },
-          style: OutlinedButton.styleFrom(minimumSize: const Size(160, 44)),
-          child: const Text('Pular Descanso'),
-        ),
       ],
     );
   }
 
-  Widget _buildBotaoSerie(int totalSeries) {
-    final ultima = _serieAtual == totalSeries && _exercicioAtual == _exercicios.length - 1;
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: _processando ? null : _proximaSerie,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: ultima ? AppColors.active : AppColors.primary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _rodape(FichaExercicio item) {
+    if (_descansando) {
+      final m = (_restam ~/ 60).toString().padLeft(2, '0');
+      final s = (_restam % 60).toString().padLeft(2, '0');
+      return Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          children: [
+            Text('Descanso', style: AppText.caption(13)),
+            const SizedBox(height: 2),
+            Text('$m:$s', style: AppText.number(46, color: AppColors.accent)),
+            const SizedBox(height: AppSpacing.lg),
+            PhdButton(
+              label: 'Pular descanso',
+              variant: PhdButtonVariant.secondary,
+              onPressed: _pularDescanso,
+            ),
+          ],
         ),
-        child: _processando
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-            : Text(
-                ultima
-                    ? 'Finalizar Treino'
-                    : _serieAtual == totalSeries
-                        ? 'Última Série — Concluir Exercício'
-                        : 'Série $_serieAtual concluída — Próxima',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-              ),
+      );
+    }
+
+    final ultimaDeTodas = _ultimaSerie && _ultimoExercicio;
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: PhdButton(
+        label: ultimaDeTodas
+            ? 'Finalizar treino'
+            : _ultimaSerie
+                ? 'Concluir e ir para o próximo'
+                : 'Concluir série $_serie',
+        icon: ultimaDeTodas ? Icons.flag_rounded : Icons.check_rounded,
+        loading: _ocupado,
+        onPressed: _ocupado ? null : _concluirSerie,
       ),
     );
   }
 }
 
-// ── VIDEO PLAYER ──────────────────────────────────────────────
-class _VideoPlayer extends StatefulWidget {
-  final String url;
-  const _VideoPlayer({required this.url});
+// ════════════════════════════════════════════════════════════
+//  Folha de carga
+// ════════════════════════════════════════════════════════════
+
+/// Pergunta a carga da série recém-concluída.
+///
+/// Widget próprio para que o `TextEditingController` tenha `dispose`. Na
+/// versão anterior ele era criado dentro de `showModalBottomSheet` e nunca
+/// liberado: um treino de cinco exercícios por quatro séries vazava vinte.
+class _FolhaCarga extends StatefulWidget {
+  const _FolhaCarga({
+    required this.serie,
+    required this.total,
+    required this.exercicio,
+    this.repeticoes,
+    this.sugestao,
+  });
+
+  final int serie;
+  final int total;
+  final String exercicio;
+  final String? repeticoes;
+  final String? sugestao;
+
   @override
-  State<_VideoPlayer> createState() => _VideoPlayerState();
+  State<_FolhaCarga> createState() => _FolhaCargaState();
 }
 
-class _VideoPlayerState extends State<_VideoPlayer> {
-  late VideoPlayerController _ctrl;
-  bool _pronto = false;
+class _FolhaCargaState extends State<_FolhaCarga> {
+  late final TextEditingController _carga;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() => _pronto = true);
-          _ctrl.setLooping(true);
-          _ctrl.play();
-        }
-      });
+    _carga = TextEditingController(text: widget.sugestao ?? '');
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _carga.dispose();
+    super.dispose();
+  }
+
+  void _confirmar() => Navigator.pop(context, _carga.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.rXl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.tint(AppColors.success),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_rounded,
+                    color: AppColors.success, size: 20),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Série ${widget.serie} de ${widget.total}',
+                        style: AppText.title(16)),
+                    Text(widget.exercicio,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.caption(12.5)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          PhdField(
+            label: 'Carga usada',
+            controller: _carga,
+            hint: '70, 12RM ou corporal',
+            textInputAction: TextInputAction.done,
+            onSubmitted: _confirmar,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          PhdButton(label: 'Confirmar', onPressed: _confirmar),
+          const SizedBox(height: AppSpacing.xs),
+          Center(
+            child: TextButton(
+              onPressed: () => Navigator.pop(context, ''),
+              child: Text('Não registrar carga',
+                  style: AppText.bodyStrong(13, color: AppColors.textSecondary)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  Demonstração
+// ════════════════════════════════════════════════════════════
+
+class _Demonstracao extends StatelessWidget {
+  const _Demonstracao({this.videoUrl, this.imagemUrl});
+
+  final String? videoUrl;
+  final String? imagemUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    if (videoUrl != null) return _VideoDemo(url: videoUrl!);
+    if (imagemUrl != null) {
+      return Image.network(
+        imagemUrl!,
+        width: double.infinity,
+        height: 220,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const _SemDemonstracao(),
+      );
+    }
+    return const _SemDemonstracao();
+  }
+}
+
+class _SemDemonstracao extends StatelessWidget {
+  const _SemDemonstracao();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 180,
+      color: AppColors.surface,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.videocam_off_outlined,
+              size: 30, color: AppColors.textMuted),
+          const SizedBox(height: AppSpacing.sm),
+          Text('Sem demonstração para este exercício',
+              style: AppText.caption(12, color: AppColors.textMuted)),
+        ],
+      ),
+    );
+  }
+}
+
+class _VideoDemo extends StatefulWidget {
+  const _VideoDemo({required this.url});
+
+  final String url;
+
+  @override
+  State<_VideoDemo> createState() => _VideoDemoState();
+}
+
+class _VideoDemoState extends State<_VideoDemo> {
+  VideoPlayerController? _ctrl;
+  bool _pronto = false;
+  bool _falhou = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final c = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+    _ctrl = c;
+    c.initialize().then((_) {
+      if (!mounted) return;
+      setState(() => _pronto = true);
+      c.setLooping(true);
+      c.play();
+    }).catchError((_) {
+      // Vídeo corrompido ou formato que o navegador não toca não pode
+      // derrubar a tela no meio do treino.
+      if (mounted) setState(() => _falhou = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_pronto) {
-      return const SizedBox(
+    if (_falhou) return const _SemDemonstracao();
+
+    final c = _ctrl;
+    if (!_pronto || c == null) {
+      return Container(
         width: double.infinity,
-        height: 220,
-        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        height: 200,
+        color: AppColors.surface,
+        alignment: Alignment.center,
+        child: const CircularProgressIndicator(color: AppColors.accent),
       );
     }
+
     return GestureDetector(
       onTap: () => setState(() {
-        _ctrl.value.isPlaying ? _ctrl.pause() : _ctrl.play();
+        c.value.isPlaying ? c.pause() : c.play();
       }),
       child: Stack(
         alignment: Alignment.center,
         children: [
-          AspectRatio(aspectRatio: _ctrl.value.aspectRatio, child: VideoPlayer(_ctrl)),
+          AspectRatio(aspectRatio: c.value.aspectRatio, child: VideoPlayer(c)),
           AnimatedOpacity(
-            opacity: _ctrl.value.isPlaying ? 0.0 : 1.0,
-            duration: const Duration(milliseconds: 250),
+            opacity: c.value.isPlaying ? 0 : 1,
+            duration: const Duration(milliseconds: 220),
             child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
                 color: Colors.black54,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white24),
               ),
-              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 38),
+              child: const Icon(Icons.play_arrow_rounded,
+                  color: Colors.white, size: 34),
             ),
           ),
         ],
@@ -830,249 +928,40 @@ class _VideoPlayerState extends State<_VideoPlayer> {
   }
 }
 
-// ── PLACEHOLDER SEM MÍDIA ─────────────────────────────────────
-class _SemMidia extends StatelessWidget {
-  const _SemMidia();
-  @override
-  Widget build(BuildContext context) {
-    return const Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.fitness_center, color: AppColors.primary, size: 64),
-        SizedBox(height: 8),
-        Text('Sem imagem de demonstração',
-            style: TextStyle(color: AppColors.textHint, fontSize: 12)),
-      ],
-    );
-  }
-}
+// ════════════════════════════════════════════════════════════
+//  Contagem e conclusão
+// ════════════════════════════════════════════════════════════
 
-// ── COUNTDOWN OVERLAY ─────────────────────────────────────────
-class _CountdownOverlay extends StatelessWidget {
-  final int numero;
-  final AnimationController controller;
-  final String nomeFicha;
-
-  const _CountdownOverlay({
+class _Contagem extends StatelessWidget {
+  const _Contagem({
     required this.numero,
-    required this.controller,
-    required this.nomeFicha,
+    required this.pulso,
+    required this.ficha,
   });
+
+  final int numero;
+  final AnimationController pulso;
+  final String ficha;
 
   @override
   Widget build(BuildContext context) {
     return AbsorbPointer(
       child: Container(
-        color: AppColors.background,
-        child: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.fitness_center_rounded, color: AppColors.primary, size: 34),
-              const SizedBox(height: 10),
-              Text(nomeFicha,
-                  style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.w500)),
-              const SizedBox(height: 52),
-              AnimatedBuilder(
-                animation: controller,
-                builder: (_, __) => SizedBox(
-                  width: 210,
-                  height: 210,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CustomPaint(
-                        size: const Size(210, 210),
-                        painter: _CirclePainter(controller.value),
-                      ),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 280),
-                        transitionBuilder: (child, anim) => ScaleTransition(
-                          scale: Tween<double>(begin: 0.3, end: 1.0).animate(
-                            CurvedAnimation(parent: anim, curve: Curves.elasticOut),
-                          ),
-                          child: FadeTransition(opacity: anim, child: child),
-                        ),
-                        child: Text(
-                          numero > 0 ? '$numero' : 'Vai!',
-                          key: ValueKey(numero),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: numero > 0 ? 90 : 50,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 52),
-              Text(
-                'Prepare-se para treinar',
-                style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.55), fontSize: 13),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CirclePainter extends CustomPainter {
-  final double progress;
-  _CirclePainter(this.progress);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    const stroke = 12.0;
-    final radius = size.width / 2 - stroke / 2;
-
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = Colors.white.withValues(alpha:0.07)
-        ..strokeWidth = stroke
-        ..style = PaintingStyle.stroke,
-    );
-
-    final curved = Curves.easeIn.transform(progress.clamp(0.0, 1.0));
-    if (curved > 0) {
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        -pi / 2,
-        2 * pi * curved,
-        false,
-        Paint()
-          ..color = AppColors.primary
-          ..strokeWidth = stroke
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_CirclePainter old) => old.progress != progress;
-}
-
-// ── MODAL DE CONCLUSÃO ────────────────────────────────────────
-class _ConcluidoModal extends StatefulWidget {
-  final String nomeFicha;
-  final int totalExercicios;
-  final int minutos;
-  final VoidCallback onFinalizar;
-
-  const _ConcluidoModal({
-    required this.nomeFicha,
-    required this.totalExercicios,
-    required this.minutos,
-    required this.onFinalizar,
-  });
-
-  @override
-  State<_ConcluidoModal> createState() => _ConcluidoModalState();
-}
-
-class _ConcluidoModalState extends State<_ConcluidoModal>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _scale;
-  late Animation<double> _fade;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
-    _scale = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
-    _fade = CurvedAnimation(parent: _ctrl, curve: const Interval(0, 0.45, curve: Curves.easeIn));
-    _ctrl.forward();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-      child: FadeTransition(
-        opacity: _fade,
-        child: Container(
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: AppColors.active.withValues(alpha:0.3), width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.active.withValues(alpha:0.12),
-                blurRadius: 40,
-                spreadRadius: 4,
-              ),
-            ],
-          ),
+        color: AppColors.bg,
+        child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Text(ficha, style: AppText.caption(14)),
+              const SizedBox(height: AppSpacing.lg),
               ScaleTransition(
-                scale: _scale,
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.active.withValues(alpha:0.12),
-                    border: Border.all(color: AppColors.active.withValues(alpha:0.35), width: 2),
-                  ),
-                  child: const Icon(Icons.emoji_events_rounded, color: AppColors.active, size: 50),
+                scale: Tween<double>(begin: 1.25, end: 1).animate(
+                  CurvedAnimation(parent: pulso, curve: Curves.easeOutBack),
                 ),
-              ),
-              const SizedBox(height: 20),
-              const Text('Treino Concluído!',
-                  style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 6),
-              Text(widget.nomeFicha,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
-                  textAlign: TextAlign.center),
-              const SizedBox(height: 28),
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildStat(Icons.fitness_center_rounded, '${widget.totalExercicios}', 'exercícios'),
-                    Container(width: 1, height: 36, color: AppColors.divider),
-                    _buildStat(Icons.timer_outlined, '${widget.minutos}', 'minutos'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: widget.onFinalizar,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.active,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: const Text('Finalizar',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                child: Text(
+                  numero > 0 ? '$numero' : 'Vai!',
+                  style: AppText.display(numero > 0 ? 88 : 54,
+                      color: AppColors.accent),
                 ),
               ),
             ],
@@ -1081,15 +970,88 @@ class _ConcluidoModalState extends State<_ConcluidoModal>
       ),
     );
   }
+}
 
-  Widget _buildStat(IconData icon, String value, String label) {
+class _Concluido extends StatelessWidget {
+  const _Concluido({
+    required this.ficha,
+    required this.exercicios,
+    required this.minutos,
+    required this.series,
+    this.falha,
+  });
+
+  final String ficha;
+  final int exercicios;
+  final int minutos;
+  final int series;
+
+  /// Quando a gravação falhou. O aluno precisa saber — senão ele acha que
+  /// está registrado e o personal nunca vê o treino.
+  final String? falha;
+
+  @override
+  Widget build(BuildContext context) {
+    final ok = falha == null;
+
+    return AlertDialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.rXl),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.tint(ok ? AppColors.success : AppColors.warning),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              ok ? Icons.check_rounded : Icons.cloud_off_rounded,
+              color: ok ? AppColors.success : AppColors.warning,
+              size: 30,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(ok ? 'Treino concluído' : 'Treino feito, mas não salvo',
+              textAlign: TextAlign.center, style: AppText.title(18)),
+          const SizedBox(height: 4),
+          Text(ficha, textAlign: TextAlign.center, style: AppText.caption(13)),
+          const SizedBox(height: AppSpacing.xl),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _stat('$exercicios', 'exercícios'),
+              _stat('$series', 'séries'),
+              _stat('$minutos', 'minutos'),
+            ],
+          ),
+          if (!ok) ...[
+            const SizedBox(height: AppSpacing.xl),
+            PhdAviso(
+              texto: 'Não consegui registrar este treino: $falha',
+              cor: AppColors.warning,
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        PhdButton(
+          label: 'Fechar',
+          onPressed: () => Navigator.pop(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _stat(String valor, String rotulo) {
     return Column(
       children: [
-        Icon(icon, color: AppColors.active, size: 22),
-        const SizedBox(height: 6),
-        Text(value,
-            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700)),
-        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+        Text(valor, style: AppText.number(24, color: AppColors.accent)),
+        const SizedBox(height: 2),
+        Text(rotulo, style: AppText.caption(11.5)),
       ],
     );
   }
