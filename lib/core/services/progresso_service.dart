@@ -1,5 +1,6 @@
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/midia.dart';
 
 class ProgressoService {
   static final _db = Supabase.instance.client;
@@ -12,11 +13,24 @@ class ProgressoService {
   static Future<String?> getAlunoId() async {
     final user = _db.auth.currentUser;
     if (user == null) return null;
-    final aluno = await _db
+
+    var aluno = await _db
         .from('alunos')
         .select('id')
         .eq('user_id', user.id)
         .maybeSingle();
+
+    // Quem foi cadastrado antes do vínculo automático só tem o e-mail. Sem
+    // este segundo caminho, o progresso dessas pessoas vinha sempre vazio —
+    // e a tela não tinha como dizer por quê.
+    if (aluno == null && user.email != null) {
+      aluno = await _db
+          .from('alunos')
+          .select('id')
+          .eq('email', user.email!)
+          .maybeSingle();
+    }
+
     return aluno?['id']?.toString();
   }
 
@@ -45,11 +59,17 @@ class ProgressoService {
     if (caminhos.isEmpty) return fotos;
 
     try {
-      final assinadas = await _db.storage
+      // `createSignedUrls` está depreciado: ele descartava em silêncio os
+      // caminhos que não existem. A versão com `Result` separa sucesso de
+      // falha, então um arquivo apagado no bucket não contamina os outros.
+      final resultados = await _db.storage
           .from(_bucket)
-          .createSignedUrls(caminhos, _validadeSegundos);
+          .createSignedUrlsResult(caminhos, _validadeSegundos);
 
-      final porCaminho = {for (final a in assinadas) a.path: a.signedUrl};
+      final porCaminho = {
+        for (final r in resultados.whereType<SignedUrlSuccess>())
+          r.path: r.signedUrl,
+      };
 
       for (final f in fotos) {
         final caminho = f['foto_url'] as String?;
@@ -75,8 +95,15 @@ class ProgressoService {
     final bytes = await foto.readAsBytes();
     // foto.name has the real filename on all platforms (web uses blob URLs in .path)
     final rawName = foto.name.isNotEmpty ? foto.name : foto.path;
-    final ext = rawName.contains('.') ? rawName.split('.').last.toLowerCase() : 'jpg';
-    final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
+
+    // Antes o tipo era adivinhado com um ternário: tudo que não fosse .png
+    // virava image/jpeg. Uma foto .webp ou .heic do iPhone era enviada com
+    // o tipo errado e o bucket recusava.
+    final contentType = Midia.tipoDe(rawName);
+    if (contentType == null || !contentType.startsWith('image/')) {
+      throw Exception(Midia.recusa(rawName, video: false));
+    }
+    final ext = Midia.extensaoDe(rawName);
 
     // A pasta É a permissão: a policy do bucket confere se o primeiro
     // segmento do caminho é um aluno que você pode ver. Nome achatado
