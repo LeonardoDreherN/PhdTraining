@@ -17,6 +17,7 @@ No painel do Supabase → **SQL Editor** → cola e roda, **nesta ordem**:
 | 6 | `migrations/0006_anamnese_unica.sql` | Corrige o índice da anamnese |
 | 7 | `migrations/0007_midia_formatos.sql` | HEIC/HEIF e outros formatos nos buckets |
 | 8 | `migrations/0008_profiles_recursao.sql` | Corrige a recursão infinita que impedia editar o perfil |
+| 9 | `migrations/0009_avaliacao_sessao.sql` | Sessão de avaliação, testes cardio e postural |
 
 A ordem importa: do 0002 em diante tudo usa funções criadas no 0001. Todos
 são seguros de rodar mais de uma vez.

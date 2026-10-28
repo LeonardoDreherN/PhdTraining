@@ -40,6 +40,8 @@ dependencies:
   google_fonts: ^6.1.0
   timezone: ^0.9.0
   video_player: ^2.9.2
+  pdf: ^3.13.1
+  printing: ^5.15.1
 
 dev_dependencies:
   flutter_test:

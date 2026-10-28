@@ -30,6 +30,9 @@ import '../../modules/personal/alunos/avaliacao_neuromotores_flexibilidade_scree
 import '../../modules/personal/alunos/avaliacao_neuromotores_resistencia_screen.dart';
 import '../../modules/personal/alunos/avaliacao_neuromotores_impulsao_screen.dart';
 import '../../modules/personal/alunos/avaliacao_neuromotores_carga_screen.dart';
+import '../../modules/personal/avaliacao/avaliacao_cardio_screen.dart';
+import '../../modules/personal/avaliacao/avaliacao_postural_screen.dart';
+import '../../modules/personal/avaliacao/avaliacao_sessao_screen.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../widgets/widgets.dart';
@@ -138,6 +141,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => _exigeExtra(
           state,
           (e) => AvaliacaoScreen(aluno: e),
+          voltarPara: '/alunos',
+        ),
+      ),
+      GoRoute(
+        path: '/alunos/avaliacao/sessao',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AvaliacaoSessaoScreen(aluno: e),
+          voltarPara: '/alunos',
+        ),
+      ),
+      GoRoute(
+        path: '/alunos/avaliacao/cardio',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AvaliacaoCardioScreen(aluno: e),
+          voltarPara: '/alunos',
+        ),
+      ),
+      GoRoute(
+        path: '/alunos/avaliacao/postural',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AvaliacaoPosturalScreen(aluno: e),
           voltarPara: '/alunos',
         ),
       ),

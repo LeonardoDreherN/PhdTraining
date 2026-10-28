@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import 'avaliacao_neuromotores_widgets.dart';
+import '../../../core/models/avaliacao.dart';
 
 // SQL (run once in Supabase):
 // CREATE TABLE avaliacao_neuromotores_flexibilidade (
@@ -123,7 +124,8 @@ class AvaliacaoFlexibilidadeFormScreen extends StatefulWidget {
 class _AvaliacaoFlexibilidadeFormScreenState extends State<AvaliacaoFlexibilidadeFormScreen> {
   final _db = Supabase.instance.client;
   bool _salvando = false;
-  DateTime _data = DateTime.now();
+  // Aberto de dentro de uma sessão, o teste nasce no dia dela.
+  late DateTime _data = dataDaSessao(widget.aluno);
   String genero = 'Masculino';
   int? idade;
   double? alcance;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/models/avaliacao.dart';
 
 class AvaliacaoBioimpedanciaFormScreen extends StatefulWidget {
   final Map<String, dynamic> aluno;
@@ -24,7 +25,8 @@ class _AvaliacaoBioimpedanciaFormScreenState
   bool _salvando = false;
 
   // Informações base
-  DateTime _dataAvaliacao = DateTime.now();
+  // Aberto de dentro de uma sessão, o teste nasce no dia dela.
+  late DateTime _dataAvaliacao = dataDaSessao(widget.aluno);
   String genero = 'Masculino';
   int? idade;
   double? estatura;
