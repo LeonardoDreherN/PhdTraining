@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../models/dieta.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../../modules/personal/shell/personal_shell.dart';
@@ -30,6 +31,9 @@ import '../../modules/personal/alunos/avaliacao_neuromotores_flexibilidade_scree
 import '../../modules/personal/alunos/avaliacao_neuromotores_resistencia_screen.dart';
 import '../../modules/personal/alunos/avaliacao_neuromotores_impulsao_screen.dart';
 import '../../modules/personal/alunos/avaliacao_neuromotores_carga_screen.dart';
+import '../../modules/personal/dieta/dieta_screen.dart';
+import '../../modules/personal/dieta/plano_metas_screen.dart';
+import '../../modules/personal/dieta/plano_montador_screen.dart';
 import '../../modules/personal/avaliacao/avaliacao_cardio_screen.dart';
 import '../../modules/personal/avaliacao/avaliacao_postural_screen.dart';
 import '../../modules/personal/avaliacao/avaliacao_sessao_screen.dart';
@@ -141,6 +145,38 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => _exigeExtra(
           state,
           (e) => AvaliacaoScreen(aluno: e),
+          voltarPara: '/alunos',
+        ),
+      ),
+      GoRoute(
+        path: '/alunos/dieta',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => DietaScreen(aluno: e),
+          voltarPara: '/alunos',
+        ),
+      ),
+      GoRoute(
+        path: '/alunos/dieta/metas',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => PlanoMetasScreen(
+            aluno: e['aluno'] as Map<String, dynamic>,
+            // Presente só quando está editando as metas de um plano que já
+            // existe. Criar plano novo passa sem ele.
+            plano: e['plano'] as PlanoAlimentar?,
+          ),
+          voltarPara: '/alunos',
+        ),
+      ),
+      GoRoute(
+        path: '/alunos/dieta/montar',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => PlanoMontadorScreen(
+            planoId: e['planoId'] as String,
+            alunoNome: e['alunoNome'] as String,
+          ),
           voltarPara: '/alunos',
         ),
       ),

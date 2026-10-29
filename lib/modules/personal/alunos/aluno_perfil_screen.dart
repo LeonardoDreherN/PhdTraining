@@ -391,6 +391,12 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
         subtitulo: 'Morfológica, Neuromotores, Postural, Anamnese',
         onTap: () => context.push('/alunos/avaliacao', extra: _aluno),
       ),
+      _MenuItem(
+        icon: Icons.restaurant_menu_rounded,
+        label: 'Nutrição',
+        subtitulo: 'Plano alimentar, metas e macros',
+        onTap: () => context.push('/alunos/dieta', extra: _aluno),
+      ),
     ];
 
     return Column(
