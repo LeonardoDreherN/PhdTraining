@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text.dart';
@@ -43,15 +42,23 @@ class PhdAvatar extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       clipBehavior: Clip.antiAlias,
+      // `Image.network`, e não `CachedNetworkImage`: no web o cache dele
+      // busca os bytes por XHR, que depende de CORS e do armazenamento do
+      // navegador. A foto aparecia na primeira pintura e sumia na releitura
+      // do cache, caindo no fallback — era a "foto preta". O navegador já
+      // guarda a imagem no cache HTTP, então aqui não se perde nada.
       child: imageUrl == null || imageUrl!.isEmpty
           ? _initialsText(inner)
-          : CachedNetworkImage(
-              imageUrl: imageUrl!,
+          : Image.network(
+              imageUrl!,
               fit: BoxFit.cover,
               width: inner,
               height: inner,
-              placeholder: (_, __) => _initialsText(inner),
-              errorWidget: (_, __, ___) => _initialsText(inner),
+              // Iniciais enquanto carrega e se falhar: foto é o bônus, as
+              // iniciais são o estado normal.
+              loadingBuilder: (_, filho, progresso) =>
+                  progresso == null ? filho : _initialsText(inner),
+              errorBuilder: (_, __, ___) => _initialsText(inner),
             ),
     );
 

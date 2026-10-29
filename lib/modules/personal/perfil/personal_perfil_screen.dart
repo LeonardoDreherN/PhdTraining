@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/widgets.dart';
@@ -201,12 +200,18 @@ class _PersonalPerfilScreenState extends ConsumerState<PersonalPerfilScreen> {
               border: Border.all(color: AppColors.divider, width: 1.5),
             ),
             clipBehavior: Clip.hardEdge,
+            // `Image.network` em vez de `CachedNetworkImage`: no web o cache
+            // dele busca por XHR e falhava na releitura, deixando a foto
+            // "preta" (o placeholder escuro).
             child: url != null
-                ? CachedNetworkImage(
-                    imageUrl: url,
+                ? Image.network(
+                    url,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => const _PlaceholderIcon(),
-                    errorWidget: (_, __, ___) => const _PlaceholderIcon(),
+                    width: 96,
+                    height: 96,
+                    loadingBuilder: (_, filho, progresso) =>
+                        progresso == null ? filho : const _PlaceholderIcon(),
+                    errorBuilder: (_, __, ___) => const _PlaceholderIcon(),
                   )
                 : const _PlaceholderIcon(),
           ),

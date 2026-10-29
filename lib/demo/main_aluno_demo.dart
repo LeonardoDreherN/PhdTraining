@@ -6,11 +6,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/tema.dart';
 import '../core/utils/datas.dart';
+import '../core/models/dieta.dart';
+import '../core/services/dieta_service.dart';
 import '../modules/aluno/dieta/aluno_dieta_screen.dart';
+import '../modules/aluno/dieta/lista_compras_screen.dart';
+import '../modules/aluno/dieta/receita_screen.dart';
 import '../modules/aluno/home/aluno_home_screen.dart';
 import '../modules/chat/chat_screen.dart';
 import 'banco_falso.dart';
 import 'dados_demo.dart';
+import 'plano_demo.dart';
 
 /// Demonstração da home do aluno, sem login e sem Supabase.
 ///
@@ -91,26 +96,6 @@ Map<String, List<Map<String, dynamic>>> _dadosDoAluno() {
     }
   }
 
-  const alimentos = {
-    'ovo': {'nome': 'Ovo cozido', 'kcal': 146, 'proteina': 13.3, 'carboidrato': 0.6, 'gordura': 9.5},
-    'pao': {'nome': 'Pão integral', 'kcal': 253, 'proteina': 9.4, 'carboidrato': 49.9, 'gordura': 3.7},
-    'arroz': {'nome': 'Arroz integral cozido', 'kcal': 124, 'proteina': 2.6, 'carboidrato': 25.8, 'gordura': 1},
-    'frango': {'nome': 'Peito de frango grelhado', 'kcal': 159, 'proteina': 32, 'carboidrato': 0, 'gordura': 2.5},
-    'feijao': {'nome': 'Feijão carioca cozido', 'kcal': 76, 'proteina': 4.8, 'carboidrato': 13.6, 'gordura': 0.5},
-    'iogurte': {'nome': 'Iogurte natural', 'kcal': 51, 'proteina': 4.1, 'carboidrato': 1.9, 'gordura': 3},
-    'banana': {'nome': 'Banana prata', 'kcal': 98, 'proteina': 1.3, 'carboidrato': 26, 'gordura': 0.1},
-    'tilapia': {'nome': 'Tilápia grelhada', 'kcal': 128, 'proteina': 26, 'carboidrato': 0, 'gordura': 2.7},
-    'batata': {'nome': 'Batata-doce cozida', 'kcal': 77, 'proteina': 0.6, 'carboidrato': 18.4, 'gordura': 0.1},
-    'whey': {'nome': 'Whey protein', 'kcal': 400, 'proteina': 80, 'carboidrato': 8, 'gordura': 6},
-  };
-  const refeicoes = [
-    ('r1', 'Café da manhã', '07:00', [('ovo', 100), ('pao', 50), ('banana', 80)]),
-    ('r2', 'Lanche da manhã', '10:00', [('iogurte', 170), ('whey', 30)]),
-    ('r3', 'Almoço', '12:30', [('arroz', 120), ('feijao', 100), ('frango', 130)]),
-    ('r4', 'Pré-treino', '16:30', [('banana', 100), ('pao', 50)]),
-    ('r5', 'Jantar', '20:00', [('tilapia', 150), ('batata', 150)]),
-  ];
-
   return {
     'alunos': [
       {...alunaDemo, 'user_id': _userId, 'anamnese_tipo': 'nenhuma'},
@@ -149,58 +134,15 @@ Map<String, List<Map<String, dynamic>>> _dadosDoAluno() {
           },
     ],
     'treino_execucoes': execucoes,
-    'planos_alimentares': [
-      {
-        'id': 'plano-1',
-        'aluno_id': a,
-        'nome': 'Recomposição corporal',
-        'objetivo': 'emagrecimento',
-        'ativo': true,
-        'meta_kcal': 1850,
-        'meta_proteina': 140,
-        'meta_carboidrato': 190,
-        'meta_gordura': 55,
-        'agua_ml': 2500,
-      },
-    ],
-    'plano_refeicoes': [
-      for (final (i, r) in refeicoes.indexed)
-        {'id': r.$1, 'plano_id': 'plano-1', 'nome': r.$2, 'horario': '${r.$3}:00', 'ordem': i},
-    ],
-    'refeicao_itens': [
-      for (final r in refeicoes)
-        for (final (i, it) in r.$4.indexed)
-          {
-            'id': '${r.$1}-$i',
-            'refeicao_id': r.$1,
-            'alimento_id': it.$1,
-            'quantidade_g': it.$2,
-            'ordem': i,
-            'alimentos': {'id': it.$1, ...alimentos[it.$1]!},
-          },
-    ],
+    ...planoDemo(
+      alunoId: a,
+      planoId: 'plano-1',
+      idsRefeicoes: const ['r1', 'r2', 'r3', 'r4', 'r5'],
+      assinado: true,
+    ),
     'refeicoes_registro': [
       for (final r in ['r1', 'r2'])
         {'aluno_id': a, 'refeicao_id': r, 'data': Datas.iso(hoje), 'feita': true},
-    ],
-    // Uma receita no pré-treino, já com ingredientes e alimentos embutidos
-    // (o banco falso não faz o join do PostgREST).
-    'refeicao_receitas': [
-      {
-        'id': 'rr1', 'refeicao_id': 'r4', 'receita_id': 'rc1', 'porcoes': 1, 'ordem': 0,
-        'receitas': {
-          'id': 'rc1', 'nome': 'Panqueca de banana', 'rendimento_porcoes': 2, 'tempo_minutos': 15,
-          'modo_preparo': 'Amasse as bananas, misture os ovos e a aveia. Doure dos dois lados '
-              'em frigideira antiaderente.',
-          'receita_ingredientes': [
-            for (final (i, it) in const [('banana', 160), ('ovo', 100), ('pao', 40)].indexed)
-              {
-                'id': 'ri$i', 'receita_id': 'rc1', 'alimento_id': it.$1, 'quantidade_g': it.$2,
-                'ordem': i, 'alimentos': {'id': it.$1, ...alimentos[it.$1]!},
-              },
-          ],
-        },
-      },
     ],
     'consultas': [
       {
@@ -304,6 +246,18 @@ final _router = GoRouter(
   initialLocation: '/aluno/home',
   routes: [
     GoRoute(path: '/aluno/home', builder: (_, __) => const AlunoHomeScreen()),
+    // Rotas só da demo, para o vídeo abrir cada tela direto.
+    GoRoute(
+      path: '/compras',
+      builder: (_, __) => _ComPlano((p) => ListaComprasScreen(plano: p)),
+    ),
+    GoRoute(
+      path: '/receita',
+      builder: (_, __) => _ComPlano((p) {
+        final rr = p.refeicoes.expand((r) => r.receitas).first;
+        return ReceitaScreen(receita: rr.receita, porcoes: rr.porcoes);
+      }),
+    ),
     GoRoute(
       path: '/chat',
       builder: (_, __) => const ChatScreen(alunoId: 'demo-aluna', titulo: 'Rafael Prado', subtitulo: 'Seu personal'),
@@ -334,6 +288,23 @@ class _Demo extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Carrega o plano da aluna e monta a tela com ele.
+class _ComPlano extends StatelessWidget {
+  const _ComPlano(this.tela);
+
+  final Widget Function(PlanoAlimentar) tela;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PlanoAlimentar?>(
+      future: DietaService.planoAtivo('demo-aluna'),
+      builder: (_, s) => s.data == null
+          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          : tela(s.data!),
     );
   }
 }
