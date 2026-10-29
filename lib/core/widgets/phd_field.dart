@@ -25,6 +25,8 @@ class PhdField extends StatefulWidget {
     this.ajuda,
     this.onSubmitted,
     this.onChanged,
+    this.maxLines = 1,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   final String label;
@@ -51,6 +53,10 @@ class PhdField extends StatefulWidget {
   /// filtrar enquanto a pessoa digita.
   final ValueChanged<String>? onChanged;
 
+  /// Mais de 1 vira campo de texto livre — observação, descrição.
+  final int maxLines;
+  final TextCapitalization textCapitalization;
+
   @override
   State<PhdField> createState() => _PhdFieldState();
 }
@@ -72,6 +78,9 @@ class _PhdFieldState extends State<PhdField> {
           enabled: widget.enabled,
           keyboardType: widget.keyboardType,
           textInputAction: widget.textInputAction,
+          maxLines: widget.obscure ? 1 : widget.maxLines,
+          minLines: 1,
+          textCapitalization: widget.textCapitalization,
           autofillHints: widget.autofillHints,
           style: AppText.body(15),
           cursorColor: AppColors.accent,

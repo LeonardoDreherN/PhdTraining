@@ -2,17 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/models/dieta.dart';
 import '../../../core/services/dieta_service.dart';
+import '../../../core/services/modelo_plano_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/widgets.dart';
+import 'acompanhamento_aluno.dart';
+import 'metas_recursos.dart';
+import 'receitas_screen.dart';
 import 'plano_metas_screen.dart';
 
 /// Planos alimentares de um aluno: o que vale hoje e o histórico.
 ///
 /// Um plano ativo por aluno, garantido por índice no banco. O histórico fica
 /// porque plano alimentar é documento: o aluno pode perguntar o que estava
-/// comendo em março, e a resposta precisa existir.
+/// comendo em março, e a resposta precisa existir. Entre os dois, o
+/// acompanhamento: o que o aluno registrou na semana.
 class DietaScreen extends StatefulWidget {
   const DietaScreen({super.key, required this.aluno});
 
@@ -82,6 +87,17 @@ class _DietaScreenState extends State<DietaScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Minhas receitas',
+            icon: Icon(Icons.menu_book_rounded, color: AppColors.textPrimary),
+            onPressed: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute(builder: (_) => const ReceitasScreen()),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+        ],
       ),
       body: _corpo(ativo, anteriores),
     );
@@ -140,6 +156,24 @@ class _DietaScreenState extends State<DietaScreen> {
             const SizedBox(height: AppSpacing.md),
             PhdAddCard(label: 'Criar novo plano', onTap: _criar),
           ],
+
+          const SizedBox(height: AppSpacing.xl),
+          const PhdSectionHeader(label: 'Metas'),
+          const SizedBox(height: AppSpacing.sm),
+          MetasDoAluno(alunoId: _alunoId, profissional: true),
+
+          const SizedBox(height: AppSpacing.xl),
+          const PhdSectionHeader(label: 'Acompanhamento · 7 dias'),
+          const SizedBox(height: AppSpacing.sm),
+          AcompanhamentoAluno(
+            alunoId: _alunoId,
+            metaAguaMl: ativo?.aguaMl?.round(),
+          ),
+
+          const SizedBox(height: AppSpacing.xl),
+          const PhdSectionHeader(label: 'O que o aluno vê'),
+          const SizedBox(height: AppSpacing.sm),
+          RecursosDoAluno(alunoId: _alunoId),
 
           if (anteriores.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.xl),
@@ -270,7 +304,46 @@ class _DietaScreenState extends State<DietaScreen> {
     if (mounted) await _carregar();
   }
 
+  /// Começar do zero ou de um modelo. Sem modelo salvo, vai direto às
+  /// metas — perguntar "como quer começar?" com uma opção só é atrito.
   Future<void> _criar() async {
+    List<ModeloPlano> modelos = const [];
+    try {
+      modelos = await ModeloPlanoService.listar();
+    } catch (_) {
+      // Sem a tabela (migration 0015) ou sem rede: segue o caminho em branco.
+    }
+    if (!mounted) return;
+    if (modelos.isEmpty) return _criarEmBranco();
+
+    final escolha = await showModalBottomSheet<Object>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      builder: (ctx) => _FolhaComeco(modelos: modelos),
+    );
+    if (escolha == null || !mounted) return;
+    if (escolha is ModeloPlano) return _criarDoModelo(escolha);
+    return _criarEmBranco();
+  }
+
+  Future<void> _criarDoModelo(ModeloPlano m) async {
+    try {
+      final id = await ModeloPlanoService.aplicar(m, alunoId: _alunoId);
+      if (!mounted) return;
+      // Abre o montador: o modelo veio com as metas do aluno de origem, e é
+      // ali que o profissional ajusta para este.
+      await context.push('/alunos/dieta/montar', extra: {
+        'planoId': id,
+        'alunoNome': _alunoNome,
+      });
+      if (mounted) await _carregar();
+    } catch (e) {
+      if (mounted) _falhou(e);
+    }
+  }
+
+  Future<void> _criarEmBranco() async {
     final definidas = await context.push<MetasDefinidas>(
       '/alunos/dieta/metas',
       extra: {'aluno': widget.aluno},
@@ -365,6 +438,84 @@ class _DietaScreenState extends State<DietaScreen> {
       SnackBar(
         backgroundColor: AppColors.surfaceHigh,
         content: Text('Não consegui salvar: $e', style: AppText.body(13.5)),
+      ),
+    );
+  }
+}
+
+/// "Como quer começar?" — em branco ou de um modelo salvo.
+class _FolhaComeco extends StatelessWidget {
+  const _FolhaComeco({required this.modelos});
+
+  final List<ModeloPlano> modelos;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.8),
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xl),
+        children: [
+          Text('Novo plano', style: AppText.title(19)),
+          const SizedBox(height: 4),
+          Text('Comece do zero ou de um modelo que você já montou.', style: AppText.caption(13)),
+          const SizedBox(height: AppSpacing.lg),
+          PhdCard(
+            color: AppColors.surfaceHigh,
+            onTap: () => Navigator.pop(context, 'branco'),
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
+              children: [
+                Icon(Icons.add_rounded, color: AppColors.accent),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Em branco', style: AppText.bodyStrong(14)),
+                      Text('Calcular as metas deste aluno', style: AppText.caption(12)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text('MODELOS', style: AppText.label()),
+          const SizedBox(height: AppSpacing.sm),
+          for (final m in modelos)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: PhdCard(
+                color: AppColors.surfaceHigh,
+                onTap: () => Navigator.pop(context, m),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    Icon(Icons.content_copy_rounded, color: AppColors.textSecondary, size: 20),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(m.nome, style: AppText.bodyStrong(14)),
+                          Text(
+                            [
+                              if (m.metaKcal != null) '${m.metaKcal!.round()} kcal',
+                              '${m.qtdRefeicoes} ${m.qtdRefeicoes == 1 ? 'refeição' : 'refeições'}',
+                            ].join(' · '),
+                            style: AppText.caption(12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

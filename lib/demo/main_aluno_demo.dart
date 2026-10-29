@@ -8,6 +8,7 @@ import '../core/theme/tema.dart';
 import '../core/utils/datas.dart';
 import '../modules/aluno/dieta/aluno_dieta_screen.dart';
 import '../modules/aluno/home/aluno_home_screen.dart';
+import '../modules/chat/chat_screen.dart';
 import 'banco_falso.dart';
 import 'dados_demo.dart';
 
@@ -182,6 +183,103 @@ Map<String, List<Map<String, dynamic>>> _dadosDoAluno() {
       for (final r in ['r1', 'r2'])
         {'aluno_id': a, 'refeicao_id': r, 'data': Datas.iso(hoje), 'feita': true},
     ],
+    // Uma receita no pré-treino, já com ingredientes e alimentos embutidos
+    // (o banco falso não faz o join do PostgREST).
+    'refeicao_receitas': [
+      {
+        'id': 'rr1', 'refeicao_id': 'r4', 'receita_id': 'rc1', 'porcoes': 1, 'ordem': 0,
+        'receitas': {
+          'id': 'rc1', 'nome': 'Panqueca de banana', 'rendimento_porcoes': 2, 'tempo_minutos': 15,
+          'modo_preparo': 'Amasse as bananas, misture os ovos e a aveia. Doure dos dois lados '
+              'em frigideira antiaderente.',
+          'receita_ingredientes': [
+            for (final (i, it) in const [('banana', 160), ('ovo', 100), ('pao', 40)].indexed)
+              {
+                'id': 'ri$i', 'receita_id': 'rc1', 'alimento_id': it.$1, 'quantidade_g': it.$2,
+                'ordem': i, 'alimentos': {'id': it.$1, ...alimentos[it.$1]!},
+              },
+          ],
+        },
+      },
+    ],
+    'consultas': [
+      {
+        'id': 'c1', 'personal_id': 'demo-personal', 'aluno_id': a,
+        'inicio': hoje.add(const Duration(days: 1, hours: 17, minutes: 30)).toUtc().toIso8601String(),
+        'duracao_min': 60, 'tipo': 'avaliacao', 'status': 'agendada', 'local': 'Academia Prado',
+        'observacoes': 'Venha de jejum de 4 horas e sem treinar antes: é para a bioimpedância.',
+      },
+      {
+        'id': 'c0', 'personal_id': 'demo-personal', 'aluno_id': a,
+        'inicio': hoje.subtract(const Duration(days: 5)).add(const Duration(hours: 8)).toUtc().toIso8601String(),
+        'duracao_min': 45, 'tipo': 'retorno', 'status': 'realizada', 'local': 'Academia Prado',
+      },
+    ],
+    'mensagens': [
+      {
+        'id': 'mg1', 'aluno_id': a, 'autor_id': _userId,
+        'texto': 'Posso trocar o arroz por batata-doce no almoço?',
+        'criado_em': hoje.add(const Duration(hours: 11, minutes: 5)).toUtc().toIso8601String(),
+        'lida_em': hoje.add(const Duration(hours: 11, minutes: 20)).toUtc().toIso8601String(),
+      },
+      {
+        'id': 'mg2', 'aluno_id': a, 'autor_id': 'demo-personal',
+        'texto': 'Pode sim! 150 g de batata-doce no lugar dos 120 g de arroz. Mantém o feijão.',
+        'criado_em': hoje.add(const Duration(hours: 11, minutes: 22)).toUtc().toIso8601String(),
+      },
+    ],
+    'metas_aluno': [
+      {
+        'id': 'm1', 'aluno_id': a, 'titulo': 'Beber 2,5 L de água por dia',
+        'criado_em': hoje.subtract(const Duration(days: 10)).toUtc().toIso8601String(),
+      },
+      {
+        'id': 'm2', 'aluno_id': a, 'titulo': 'Uma fruta no lanche da tarde',
+        'prazo': Datas.iso(hoje.add(const Duration(days: 20))),
+        'criado_em': hoje.subtract(const Duration(days: 10)).toUtc().toIso8601String(),
+      },
+      {
+        'id': 'm3', 'aluno_id': a, 'titulo': 'Registrar todas as refeições por 3 dias',
+        'concluida_em': hoje.subtract(const Duration(days: 2)).toUtc().toIso8601String(),
+        'criado_em': hoje.subtract(const Duration(days: 10)).toUtc().toIso8601String(),
+      },
+    ],
+    // Diário de hoje: o café seguiu o plano, o lanche foi trocado, e um
+    // pão de queijo fora do plano.
+    'diario_registros': [
+      {
+        'id': 'd1', 'aluno_id': a, 'data': Datas.iso(hoje), 'refeicao_id': 'r1',
+        'titulo': 'Café da manhã', 'aderencia': 'seguiu',
+        'registrado_em': hoje.add(const Duration(hours: 7, minutes: 12)).toUtc().toIso8601String(),
+      },
+      {
+        'id': 'd2', 'aluno_id': a, 'data': Datas.iso(hoje), 'refeicao_id': 'r2',
+        'titulo': 'Lanche da manhã', 'aderencia': 'parecido',
+        'descricao': 'Troquei o whey por 2 ovos cozidos',
+        'registrado_em': hoje.add(const Duration(hours: 10, minutes: 5)).toUtc().toIso8601String(),
+      },
+      {
+        'id': 'd3', 'aluno_id': a, 'data': Datas.iso(hoje), 'refeicao_id': null,
+        'titulo': 'Café com a equipe', 'descricao': '1 pão de queijo e café sem açúcar',
+        'registrado_em': hoje.add(const Duration(hours: 9)).toUtc().toIso8601String(),
+      },
+    ],
+    'agua_registros': [
+      for (final (i, ml) in const [500, 250, 250].indexed)
+        {
+          'id': 'ag$i', 'aluno_id': a, 'data': Datas.iso(hoje), 'ml': ml,
+          'registrado_em': hoje.add(Duration(hours: 7 + i * 2)).toUtc().toIso8601String(),
+        },
+    ],
+    // Pesagens de casa, uma por semana, descendo devagar.
+    'peso_registros': [
+      for (var i = 6; i >= 1; i--)
+        {
+          'id': 'p$i', 'aluno_id': a,
+          'data': Datas.iso(hoje.subtract(Duration(days: 7 * i - 3))),
+          'peso_kg': 66.2 - (6 - i) * 0.3,
+        },
+    ],
   };
 }
 
@@ -206,6 +304,10 @@ final _router = GoRouter(
   initialLocation: '/aluno/home',
   routes: [
     GoRoute(path: '/aluno/home', builder: (_, __) => const AlunoHomeScreen()),
+    GoRoute(
+      path: '/chat',
+      builder: (_, __) => const ChatScreen(alunoId: 'demo-aluna', titulo: 'Rafael Prado', subtitulo: 'Seu personal'),
+    ),
     GoRoute(
       path: '/aluno/dieta',
       builder: (_, s) => AlunoDietaScreen(

@@ -173,6 +173,7 @@ class Refeicao {
     this.observacoes,
     this.ordem = 0,
     this.itens = const [],
+    this.receitas = const [],
   });
 
   final String id;
@@ -187,7 +188,10 @@ class Refeicao {
   final int ordem;
   final List<ItemRefeicao> itens;
 
-  bool get vazia => itens.isEmpty;
+  /// Receitas da biblioteca do profissional, com as porções prescritas.
+  final List<ReceitaNaRefeicao> receitas;
+
+  bool get vazia => itens.isEmpty && receitas.isEmpty;
 
   /// Soma da refeição. Itens substituíveis contam **uma vez por grupo**: se
   /// a refeição oferece "arroz OU macarrão", o aluno come um dos dois, e
@@ -206,10 +210,21 @@ class Refeicao {
       if (gruposVistos.add(g)) considerados.add(i);
     }
 
-    return somar([
+    final alimentos = somar([
       for (final i in considerados)
         (valores: i.alimento.valores, gramas: i.quantidadeG),
     ]);
+    var kcal = alimentos.kcal, p = alimentos.proteina, c = alimentos.carboidrato;
+    var g = alimentos.gordura, f = alimentos.fibra;
+    for (final r in receitas) {
+      final n = r.nutrientes;
+      kcal += n.kcal;
+      p += n.proteina;
+      c += n.carboidrato;
+      g += n.gordura;
+      f += n.fibra;
+    }
+    return (kcal: kcal, proteina: p, carboidrato: c, gordura: g, fibra: f);
   }
 
   /// Horário formatado para exibição, sem os segundos que o Postgres manda.
@@ -221,7 +236,11 @@ class Refeicao {
     return '${partes[0].padLeft(2, '0')}:${partes[1].padLeft(2, '0')}';
   }
 
-  factory Refeicao.doMapa(Map<String, dynamic> m, {List<ItemRefeicao> itens = const []}) =>
+  factory Refeicao.doMapa(
+    Map<String, dynamic> m, {
+    List<ItemRefeicao> itens = const [],
+    List<ReceitaNaRefeicao> receitas = const [],
+  }) =>
       Refeicao(
         id: m['id'] as String,
         planoId: m['plano_id'] as String,
@@ -230,7 +249,148 @@ class Refeicao {
         observacoes: m['observacoes'] as String?,
         ordem: (m['ordem'] as num?)?.toInt() ?? 0,
         itens: itens,
+        receitas: receitas,
       );
+}
+
+/// Um ingrediente de receita: alimento da base e gramas na receita inteira.
+class IngredienteReceita {
+  const IngredienteReceita({
+    required this.alimento,
+    required this.quantidadeG,
+    this.id,
+    this.medidaExibicao,
+    this.ordem = 0,
+  });
+
+  /// Nulo enquanto a receita está sendo montada e ainda não foi salva.
+  final String? id;
+  final Alimento alimento;
+  final double quantidadeG;
+  final String? medidaExibicao;
+  final int ordem;
+
+  String get quantidadeTexto {
+    final m = medidaExibicao?.trim();
+    if (m != null && m.isNotEmpty) return '$m (${_g(quantidadeG)})';
+    return _g(quantidadeG);
+  }
+
+  factory IngredienteReceita.doMapa(Map<String, dynamic> m) => IngredienteReceita(
+        id: m['id'] as String?,
+        alimento: Alimento.doMapa(
+          (m['alimentos'] as Map?)?.cast<String, dynamic>() ??
+              <String, dynamic>{'id': m['alimento_id'], 'nome': '—'},
+        ),
+        quantidadeG: _num(m['quantidade_g']) ?? 0,
+        medidaExibicao: m['medida_exibicao'] as String?,
+        ordem: (m['ordem'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Receita da biblioteca do profissional.
+class Receita {
+  const Receita({
+    required this.id,
+    required this.nome,
+    this.rendimentoPorcoes = 1,
+    this.tempoMinutos,
+    this.modoPreparo,
+    this.ingredientes = const [],
+  });
+
+  final String id;
+  final String nome;
+  final double rendimentoPorcoes;
+  final int? tempoMinutos;
+  final String? modoPreparo;
+  final List<IngredienteReceita> ingredientes;
+
+  ({double kcal, double proteina, double carboidrato, double gordura, double fibra})
+      get total => somar([
+            for (final i in ingredientes) (valores: i.alimento.valores, gramas: i.quantidadeG),
+          ]);
+
+  /// O que importa para o plano: uma porção.
+  ({double kcal, double proteina, double carboidrato, double gordura, double fibra})
+      get porPorcao {
+    final t = total;
+    final n = rendimentoPorcoes <= 0 ? 1 : rendimentoPorcoes;
+    return (
+      kcal: t.kcal / n,
+      proteina: t.proteina / n,
+      carboidrato: t.carboidrato / n,
+      gordura: t.gordura / n,
+      fibra: t.fibra / n,
+    );
+  }
+
+  String get rendimentoTexto => '${porcoesTexto(rendimentoPorcoes)} '
+      '${rendimentoPorcoes == 1 ? 'porção' : 'porções'}';
+
+  factory Receita.doMapa(Map<String, dynamic> m) {
+    final ingredientes = [
+      for (final i in (m['receita_ingredientes'] as List? ?? const []))
+        IngredienteReceita.doMapa((i as Map).cast<String, dynamic>()),
+    ]..sort((a, b) => a.ordem.compareTo(b.ordem));
+    return Receita(
+      id: m['id'] as String,
+      nome: m['nome'] as String? ?? 'Receita',
+      rendimentoPorcoes: _num(m['rendimento_porcoes']) ?? 1,
+      tempoMinutos: (m['tempo_minutos'] as num?)?.toInt(),
+      modoPreparo: m['modo_preparo'] as String?,
+      ingredientes: ingredientes,
+    );
+  }
+}
+
+/// Uma receita dentro de uma refeição do plano.
+class ReceitaNaRefeicao {
+  const ReceitaNaRefeicao({
+    required this.id,
+    required this.refeicaoId,
+    required this.receita,
+    this.porcoes = 1,
+    this.ordem = 0,
+  });
+
+  final String id;
+  final String refeicaoId;
+  final Receita receita;
+  final double porcoes;
+  final int ordem;
+
+  ({double kcal, double proteina, double carboidrato, double gordura, double fibra})
+      get nutrientes {
+    final p = receita.porPorcao;
+    return (
+      kcal: p.kcal * porcoes,
+      proteina: p.proteina * porcoes,
+      carboidrato: p.carboidrato * porcoes,
+      gordura: p.gordura * porcoes,
+      fibra: p.fibra * porcoes,
+    );
+  }
+
+  String get porcoesTextoCompleto =>
+      '${porcoesTexto(porcoes)} ${porcoes == 1 ? 'porção' : 'porções'}';
+
+  factory ReceitaNaRefeicao.doMapa(Map<String, dynamic> m) => ReceitaNaRefeicao(
+        id: m['id'] as String,
+        refeicaoId: m['refeicao_id'] as String,
+        receita: Receita.doMapa(
+          (m['receitas'] as Map?)?.cast<String, dynamic>() ??
+              <String, dynamic>{'id': m['receita_id'], 'nome': 'Receita'},
+        ),
+        porcoes: _num(m['porcoes']) ?? 1,
+        ordem: (m['ordem'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// `1`, `1,5`, `0,5` — porção sem zeros sobrando.
+String porcoesTexto(double v) {
+  final s = v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
+  return s.replaceAll('.', ',');
 }
 
 /// O plano alimentar completo.

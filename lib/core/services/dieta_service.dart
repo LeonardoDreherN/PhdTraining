@@ -122,13 +122,16 @@ class DietaService {
     );
     if (refeicoes.isEmpty) return PlanoAlimentar.doMapa(cabecalho);
 
-    final itens = List<Map<String, dynamic>>.from(
-      await _db
+    final ids = refeicoes.map((r) => r['id'] as String).toList();
+    final (itensBrutos, receitasBrutas) = await (
+      _db
           .from('refeicao_itens')
           .select('*, alimentos(*)')
-          .inFilter('refeicao_id', refeicoes.map((r) => r['id'] as String).toList())
+          .inFilter('refeicao_id', ids)
           .order('ordem', ascending: true),
-    );
+      _receitasDasRefeicoes(ids),
+    ).wait;
+    final itens = List<Map<String, dynamic>>.from(itensBrutos);
 
     final porRefeicao = <String, List<ItemRefeicao>>{};
     for (final i in itens) {
@@ -136,13 +139,39 @@ class DietaService {
       porRefeicao.putIfAbsent(rid, () => []).add(ItemRefeicao.doMapa(i));
     }
 
+    final receitasPorRefeicao = <String, List<ReceitaNaRefeicao>>{};
+    for (final r in receitasBrutas) {
+      final rr = ReceitaNaRefeicao.doMapa(r);
+      receitasPorRefeicao.putIfAbsent(rr.refeicaoId, () => []).add(rr);
+    }
+
     return PlanoAlimentar.doMapa(
       cabecalho,
       refeicoes: [
         for (final r in refeicoes)
-          Refeicao.doMapa(r, itens: porRefeicao[r['id'] as String] ?? const []),
+          Refeicao.doMapa(
+            r,
+            itens: porRefeicao[r['id'] as String] ?? const [],
+            receitas: receitasPorRefeicao[r['id'] as String] ?? const [],
+          ),
       ],
     );
+  }
+
+  /// Receitas das refeições, com ingredientes e alimentos numa consulta só.
+  /// Sem a tabela (migration 0015 ainda não aplicada) o plano abre sem elas.
+  static Future<List<Map<String, dynamic>>> _receitasDasRefeicoes(List<String> ids) async {
+    try {
+      return List<Map<String, dynamic>>.from(
+        await _db
+            .from('refeicao_receitas')
+            .select('*, receitas(*, receita_ingredientes(*, alimentos(*)))')
+            .inFilter('refeicao_id', ids)
+            .order('ordem', ascending: true),
+      );
+    } on PostgrestException {
+      return const [];
+    }
   }
 
   /// O plano que vale hoje para o aluno.

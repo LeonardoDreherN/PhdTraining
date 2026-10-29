@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../../core/models/dieta.dart';
 import '../../../core/services/dieta_service.dart';
+import '../../../core/services/modelo_plano_service.dart';
+import '../../../core/services/receita_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/dieta_calculos.dart';
 import '../../../core/widgets/widgets.dart';
 import 'busca_alimento_sheet.dart';
+import 'plano_pdf.dart';
+import 'receitas_screen.dart';
 
 /// Monta o plano alimentar: refeições, alimentos, quantidades.
 ///
@@ -117,6 +121,18 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
                 PopupMenuItem(
                   value: 'observacoes',
                   child: Text('Orientações gerais', style: AppText.body(14)),
+                ),
+                PopupMenuItem(
+                  value: 'pdf',
+                  child: Text('Gerar PDF do plano', style: AppText.body(14)),
+                ),
+                PopupMenuItem(
+                  value: 'modelo',
+                  child: Text('Salvar como modelo', style: AppText.body(14)),
+                ),
+                PopupMenuItem(
+                  value: 'receitas',
+                  child: Text('Minhas receitas', style: AppText.body(14)),
                 ),
               ],
             ),
@@ -432,6 +448,10 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
             const SizedBox(height: AppSpacing.md),
             for (final item in r.itens) _linhaItem(item, r, agrupando),
           ],
+          if (r.receitas.isNotEmpty && !agrupando) ...[
+            if (r.itens.isEmpty) const SizedBox(height: AppSpacing.md),
+            for (final rr in r.receitas) _linhaReceita(rr),
+          ],
           const SizedBox(height: AppSpacing.md),
           if (agrupando)
             Row(
@@ -460,10 +480,25 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
               ],
             )
           else
-            PhdAddCard(
-              label: 'Adicionar alimento',
-              height: 42,
-              onTap: () => _adicionarItem(r),
+            Row(
+              children: [
+                Expanded(
+                  child: PhdAddCard(
+                    label: 'Alimento',
+                    height: 42,
+                    onTap: () => _adicionarItem(r),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: PhdAddCard(
+                    label: 'Receita',
+                    icon: Icons.menu_book_rounded,
+                    height: 42,
+                    onTap: () => _adicionarReceita(r),
+                  ),
+                ),
+              ],
             ),
         ],
       ),
@@ -542,6 +577,105 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
     );
   }
 
+  Widget _linhaReceita(ReceitaNaRefeicao rr) {
+    final n = rr.nutrientes;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: InkWell(
+        borderRadius: AppRadius.rMd,
+        onTap: () => _editarReceita(rr),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: AppColors.tint(AppColors.accent),
+            borderRadius: AppRadius.rMd,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.menu_book_rounded, size: 17, color: AppColors.accent),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(rr.receita.nome,
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.body(13.5)),
+                    const SizedBox(height: 2),
+                    Text('Receita · ${rr.porcoesTextoCompleto}',
+                        style: AppText.caption(11, color: AppColors.textMuted)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text('${n.kcal.round()}', style: AppText.number(13, color: AppColors.textSecondary)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _adicionarReceita(Refeicao r) async {
+    final escolha = await escolherReceita(context);
+    if (escolha == null) return;
+    await _gravar(
+      () => ReceitaService.adicionarNaRefeicao(
+        refeicaoId: r.id,
+        receitaId: escolha.receita.id,
+        porcoes: escolha.porcoes,
+        ordem: r.receitas.length,
+      ),
+    );
+  }
+
+  Future<void> _editarReceita(ReceitaNaRefeicao rr) async {
+    final acao = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.pie_chart_outline_rounded, color: AppColors.textSecondary),
+              title: Text('Alterar porções', style: AppText.body(14.5)),
+              subtitle: Text(rr.porcoesTextoCompleto, style: AppText.caption(12)),
+              onTap: () => Navigator.pop(ctx, 'porcoes'),
+            ),
+            ListTile(
+              leading: Icon(Icons.edit_outlined, color: AppColors.textSecondary),
+              title: Text('Editar a receita', style: AppText.body(14.5)),
+              subtitle: Text('Muda em todos os planos que a usam', style: AppText.caption(12)),
+              onTap: () => Navigator.pop(ctx, 'editar'),
+            ),
+            ListTile(
+              leading: Icon(Icons.remove_circle_outline_rounded, color: AppColors.dangerText),
+              title: Text('Tirar da refeição', style: AppText.body(14.5, color: AppColors.dangerText)),
+              onTap: () => Navigator.pop(ctx, 'remover'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      ),
+    );
+    if (acao == null || !mounted) return;
+
+    switch (acao) {
+      case 'porcoes':
+        final v = await pedirPorcoes(context, titulo: rr.receita.nome, inicial: rr.porcoes);
+        if (v == null) return;
+        await _gravar(() => ReceitaService.alterarPorcoes(rr.id, v));
+      case 'editar':
+        final salvou = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(builder: (_) => ReceitaEditorScreen(receita: rr.receita)),
+        );
+        if (salvou == true) await _carregar();
+      case 'remover':
+        await _gravar(() => ReceitaService.removerDaRefeicao(rr.id));
+    }
+  }
+
   // ── Ações do plano ──────────────────────────────────────────
 
   Future<void> _menuPlano(String acao) async {
@@ -551,6 +685,45 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
     switch (acao) {
       case 'assinar':
         await _assinar(p);
+
+      case 'pdf':
+        await compartilharPlanoPdf(context, p, alunoNome: widget.alunoNome);
+
+      case 'receitas':
+        await Navigator.push<void>(
+          context,
+          MaterialPageRoute(builder: (_) => const ReceitasScreen()),
+        );
+        await _carregar();
+
+      case 'modelo':
+        final nome = await _dialogoTexto(
+          titulo: 'Salvar como modelo',
+          rotulo: 'Nome do modelo',
+          dica: 'Hipertrofia 2.400 kcal',
+          inicial: p.nome,
+          linhas: 1,
+        );
+        if (nome == null || nome.isEmpty) return;
+        try {
+          await ModeloPlanoService.salvar(p, nome: nome);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: AppColors.surfaceHigh,
+              content: Text('Modelo "$nome" salvo. Use ao criar o plano de outro aluno.',
+                  style: AppText.body(13.5)),
+            ),
+          );
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: AppColors.surfaceHigh,
+              content: Text('Não consegui salvar o modelo: $e', style: AppText.body(13.5)),
+            ),
+          );
+        }
 
       case 'observacoes':
         final texto = await _dialogoTexto(

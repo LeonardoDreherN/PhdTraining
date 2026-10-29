@@ -11,6 +11,9 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/moeda.dart';
 import '../../../core/utils/whatsapp.dart';
 import '../../../core/widgets/widgets.dart';
+import '../agenda/agenda_screen.dart';
+import '../dieta/adesao_screen.dart';
+import '../mensagens/caixa_screen.dart';
 
 /// Home do personal.
 ///
@@ -125,11 +128,7 @@ class _Cabecalho extends StatelessWidget {
               ],
             ),
           ),
-          PhdIconButton(
-            icon: Icons.notifications_none_rounded,
-            tooltip: 'Notificações',
-            onPressed: () {},
-          ),
+          const BotaoMensagens(),
         ],
       ),
     );
@@ -263,6 +262,8 @@ class _Painel extends ConsumerWidget {
         Padding(padding: AppSpacing.screen, child: _receita()),
         const SizedBox(height: AppSpacing.xl),
         _acoes(context, ref),
+        const SizedBox(height: AppSpacing.lg),
+        const Padding(padding: AppSpacing.screen, child: CartaoAgendaHoje()),
         const SizedBox(height: AppSpacing.xxl),
         Padding(
           padding: AppSpacing.screen,
@@ -274,6 +275,7 @@ class _Painel extends ConsumerWidget {
               _semana(),
               const SizedBox(height: AppSpacing.sm),
               _indicadores(),
+              const CartaoAdesaoNutricao(),
               if (resumo.pendencias.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.xxl),
                 PhdSectionHeader(

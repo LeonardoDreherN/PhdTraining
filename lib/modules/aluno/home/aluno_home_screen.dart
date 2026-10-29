@@ -4,9 +4,13 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/avaliacao.dart';
+import '../../../core/models/diario.dart';
+import '../../../core/models/recursos_aluno.dart';
 import '../../../core/models/dieta.dart';
 import '../../../core/services/avaliacao_service.dart';
+import '../../../core/services/diario_service.dart';
 import '../../../core/services/dieta_service.dart';
+import '../../../core/services/lembretes_service.dart';
 import '../../../core/services/ficha_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/services/profile_service.dart';
@@ -20,6 +24,12 @@ import '../../../core/utils/whatsapp.dart';
 import '../../../core/widgets/widgets.dart';
 import '../anamnese/aluno_anamnese_screen.dart';
 import '../avaliacoes/aluno_avaliacoes_screen.dart';
+import '../dieta/cartao_agua.dart';
+import '../dieta/folhas_registro.dart';
+import '../../chat/chat_screen.dart';
+import '../../personal/mensagens/caixa_screen.dart' show BotaoMensagens;
+import 'cartao_consulta.dart';
+import '../../personal/dieta/metas_recursos.dart';
 import '../perfil/aluno_perfil_config_screen.dart';
 
 /// A tela que o aluno abre na academia — e a que precisa dar vontade de
@@ -43,10 +53,28 @@ const _corCarbo = Color(0xFFF59E0B);
 const _corGordura = Color(0xFFEC4899);
 const _corDescanso = Color(0xFF818CF8);
 
-const _nomesDia = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const _nomesDia = [
+  'Domingo',
+  'Segunda',
+  'Terça',
+  'Quarta',
+  'Quinta',
+  'Sexta',
+  'Sábado'
+];
 const _meses = [
-  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+  'janeiro',
+  'fevereiro',
+  'março',
+  'abril',
+  'maio',
+  'junho',
+  'julho',
+  'agosto',
+  'setembro',
+  'outubro',
+  'novembro',
+  'dezembro',
 ];
 
 class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
@@ -60,6 +88,15 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   PlanoAlimentar? _plano;
   Set<String> _refeicoesFeitas = {};
   List<ResumoSessao> _avaliacoes = [];
+  List<RegistroPeso> _pesos = [];
+
+  /// O que o profissional liberou para este aluno (ver `RecursosAluno`).
+  RecursosAluno get _recursos => RecursosAluno.doMapa(_aluno?['recursos']);
+
+  /// Muda a cada carga: é a chave do cartão de água, que guarda o próprio
+  /// estado. Sem ela, beber água na tela da dieta e voltar mostraria o
+  /// número antigo.
+  int _versao = 0;
 
   bool _carregando = true;
   String? _erro;
@@ -100,12 +137,17 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         _plano = dados['plano'] as PlanoAlimentar?;
         _refeicoesFeitas = dados['feitas'] as Set<String>? ?? {};
         _avaliacoes = dados['avaliacoes'] as List<ResumoSessao>? ?? [];
+        _pesos = dados['pesos'] as List<RegistroPeso>? ?? [];
+        _versao++;
         _feitoPorDia = r[2] as Map<int, Set<String>>;
         _historico = r[3] as List<Map<String, dynamic>>;
         _execucoes = r[4] as List<({DateTime quando, int minutos})>;
       });
 
       NotificationService.agendarTreinos(_fichas);
+      // Lembretes da dieta seguem o plano: reagendar aqui acompanha o
+      // profissional mudando o horário de uma refeição.
+      unawaited(LembretesService.aplicar(_plano));
       _checarAnamnese();
     } catch (e) {
       // Sem `catch`, qualquer falha de rede deixava a tela vazia, sem nada
@@ -134,15 +176,18 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           .maybeSingle();
     }
 
-    if (linha == null) return {'aluno': null, 'fichas': <Map<String, dynamic>>[]};
+    if (linha == null) {
+      return {'aluno': null, 'fichas': <Map<String, dynamic>>[]};
+    }
     final id = linha['id'] as String;
 
-    final (fichas, plano, feitas, avaliacoes, personal) = await (
+    final (fichas, plano, feitas, avaliacoes, personal, pesos) = await (
       FichaService.fichasDoAluno(id),
       _talvez(DietaService.planoAtivo(id)),
       _talvez(DietaService.refeicoesFeitas(alunoId: id, dia: DateTime.now())),
       _talvez(AvaliacaoService.listar(id)),
       _talvez(ProfileService.doPersonal(linha['personal_id'] as String)),
+      _talvez(DiarioService.pesos(id)),
     ).wait;
 
     return {
@@ -152,6 +197,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
       'feitas': feitas,
       'avaliacoes': avaliacoes,
       'personal': personal,
+      'pesos': pesos,
     };
   }
 
@@ -236,7 +282,9 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         Datas.dia(e.quando).subtract(Duration(days: e.quando.weekday - 1)),
     };
     var semana = _segunda;
-    if (!semanas.contains(semana)) semana = semana.subtract(const Duration(days: 7));
+    if (!semanas.contains(semana)) {
+      semana = semana.subtract(const Duration(days: 7));
+    }
     var n = 0;
     while (semanas.contains(semana)) {
       n++;
@@ -248,7 +296,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   int get _treinosNoMes {
     final agora = DateTime.now();
     return _execucoes
-        .where((e) => e.quando.year == agora.year && e.quando.month == agora.month)
+        .where(
+            (e) => e.quando.year == agora.year && e.quando.month == agora.month)
         .length;
   }
 
@@ -261,7 +310,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final nome = (_perfil?['nome'] as String?)?.trim();
-    final primeiro = (nome == null || nome.isEmpty) ? null : nome.split(' ').first;
+    final primeiro =
+        (nome == null || nome.isEmpty) ? null : nome.split(' ').first;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -291,16 +341,50 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                           _semana(),
                           const SizedBox(height: AppSpacing.md),
                           _treinoDoDia(),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0,
+                            ),
+                            child: CartaoConsulta(
+                              key: ValueKey('consulta$_versao'),
+                              alunoId: _aluno!['id'] as String,
+                            ),
+                          ),
                           const SizedBox(height: AppSpacing.md),
                           _numeros(),
                           if (_plano != null && !_plano!.vazio) ...[
                             const SizedBox(height: AppSpacing.md),
                             _dieta(_plano!),
                           ],
-                          if (_avaliacoes.isNotEmpty) ...[
-                            const SizedBox(height: AppSpacing.md),
-                            _corpo(),
-                          ],
+                          const SizedBox(height: AppSpacing.md),
+                          Padding(
+                            padding: AppSpacing.screen,
+                            child: CartaoAgua(
+                              key: ValueKey(_versao),
+                              alunoId: _aluno!['id'] as String,
+                              dia: Datas.dia(DateTime.now()),
+                              metaMl: DiarioService.metaAgua(
+                                metaDoPlano: _plano?.aguaMl,
+                                pesoKg: _seriePeso.lastOrNull?.peso,
+                              ),
+                              compacto: true,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.xl,
+                              AppSpacing.md,
+                              AppSpacing.xl,
+                              0,
+                            ),
+                            child: MetasDoAluno(
+                              key: ValueKey('metas$_versao'),
+                              alunoId: _aluno!['id'] as String,
+                              somenteAbertas: true,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          _corpo(),
                           const SizedBox(height: AppSpacing.md),
                           _atalhos(),
                           if (_historico.isNotEmpty) ...[
@@ -327,11 +411,15 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         : hora < 18
             ? 'Boa tarde'
             : 'Boa noite';
-    final data = '${_nomesDia[agora.weekday % 7]}, ${agora.day} de ${_meses[agora.month - 1]}';
+    final data =
+        '${_nomesDia[agora.weekday % 7]}, ${agora.day} de ${_meses[agora.month - 1]}';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 0,
+        AppSpacing.xl,
+        AppSpacing.lg,
+        AppSpacing.xl,
+        0,
       ),
       child: Row(
         children: [
@@ -352,10 +440,15 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
             ),
           ),
           const SizedBox(width: AppSpacing.md),
+          if (_aluno != null && _personal != null && _recursos.chat) ...[
+            BotaoMensagens(aoAbrir: (_) => _abrirChat()),
+            const SizedBox(width: AppSpacing.sm),
+          ],
           GestureDetector(
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const AlunoPerfilConfigScreen()),
+              MaterialPageRoute(
+                  builder: (_) => const AlunoPerfilConfigScreen()),
             ),
             child: PhdAvatar(
               name: primeiroNome ?? 'A',
@@ -376,7 +469,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.link_off_rounded, size: 24, color: AppColors.warningText),
+            Icon(Icons.link_off_rounded,
+                size: 24, color: AppColors.warningText),
             const SizedBox(height: AppSpacing.md),
             Text('Conta ainda não vinculada', style: AppText.title(17)),
             const SizedBox(height: AppSpacing.sm),
@@ -405,7 +499,10 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
       padding: AppSpacing.screen,
       child: PhdCard(
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.lg,
         ),
         child: Column(
           children: [
@@ -515,8 +612,10 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                   border: borda,
                 ),
                 child: treinou
-                    ? Icon(Icons.check_rounded, size: 18, color: AppColors.onAccent)
-                    : Text('${data.day}', style: AppText.number(13.5, color: texto)),
+                    ? Icon(Icons.check_rounded,
+                        size: 18, color: AppColors.onAccent)
+                    : Text('${data.day}',
+                        style: AppText.number(13.5, color: texto)),
               ),
               const SizedBox(height: 5),
               // Ponto de "tem treino": some quando o dia já tem o check,
@@ -526,7 +625,9 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                 height: 4,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: temTreino && !treinou ? AppColors.textMuted : Colors.transparent,
+                  color: temTreino && !treinou
+                      ? AppColors.textMuted
+                      : Colors.transparent,
                 ),
               ),
             ],
@@ -551,7 +652,10 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         for (final f in lista.skip(1))
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, 0,
+              AppSpacing.xl,
+              AppSpacing.sm,
+              AppSpacing.xl,
+              0,
             ),
             child: _cartaoCompacto(f),
           ),
@@ -559,8 +663,9 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     );
   }
 
-  String get _rotuloDia =>
-      _dia == _hoje ? 'TREINO DE HOJE' : 'TREINO DE ${_nomesDia[_dia].toUpperCase()}';
+  String get _rotuloDia => _dia == _hoje
+      ? 'TREINO DE HOJE'
+      : 'TREINO DE ${_nomesDia[_dia].toUpperCase()}';
 
   /// O cartão que vende o treino. Volt cheio enquanto há o que fazer;
   /// depois de feito, recolhe para a superfície escura com o check — a cor
@@ -589,7 +694,11 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
               end: Alignment.bottomRight,
               colors: feita
                   ? [AppColors.surfaceHigh, AppColors.surface]
-                  : [AppColors.primaryLight, AppColors.accent, AppColors.primaryDark],
+                  : [
+                      AppColors.primaryLight,
+                      AppColors.accent,
+                      AppColors.primaryDark
+                    ],
             ),
           ),
           child: Stack(
@@ -600,7 +709,9 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                 child: Transform.rotate(
                   angle: -0.45,
                   child: Icon(
-                    feita ? Icons.verified_rounded : Icons.fitness_center_rounded,
+                    feita
+                        ? Icons.verified_rounded
+                        : Icons.fitness_center_rounded,
                     size: 170,
                     color: fg.withValues(alpha: 0.07),
                   ),
@@ -613,9 +724,12 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                   children: [
                     Row(
                       children: [
-                        Expanded(child: Text(_rotuloDia, style: AppText.label(color: suave))),
+                        Expanded(
+                            child: Text(_rotuloDia,
+                                style: AppText.label(color: suave))),
                         if (feita)
-                          const PhdStatusChip(label: 'Concluído', tone: PhdTone.success),
+                          const PhdStatusChip(
+                              label: 'Concluído', tone: PhdTone.success),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.sm),
@@ -636,10 +750,16 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                         spacing: AppSpacing.lg,
                         runSpacing: AppSpacing.xs,
                         children: [
-                          _info(Icons.format_list_bulleted_rounded,
-                              '$qtd ${qtd == 1 ? 'exercício' : 'exercícios'}', suave),
-                          if (minutos > 0) _info(Icons.schedule_rounded, '~$minutos min', suave),
-                          if (series > 0) _info(Icons.repeat_rounded, '$series séries', suave),
+                          _info(
+                              Icons.format_list_bulleted_rounded,
+                              '$qtd ${qtd == 1 ? 'exercício' : 'exercícios'}',
+                              suave),
+                          if (minutos > 0)
+                            _info(
+                                Icons.schedule_rounded, '~$minutos min', suave),
+                          if (series > 0)
+                            _info(
+                                Icons.repeat_rounded, '$series séries', suave),
                         ],
                       ),
                     if (grupos.isNotEmpty) ...[
@@ -650,12 +770,14 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                         children: [
                           for (final g in grupos.take(4))
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
                                 color: fg.withValues(alpha: 0.09),
                                 borderRadius: AppRadius.rPill,
                               ),
-                              child: Text(g, style: AppText.bodyStrong(12, color: fg)),
+                              child: Text(g,
+                                  style: AppText.bodyStrong(12, color: fg)),
                             ),
                         ],
                       ),
@@ -701,7 +823,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         color: ativo ? bg : AppColors.onAccent.withValues(alpha: 0.25),
         shape: RoundedRectangleBorder(
           borderRadius: AppRadius.rLg,
-          side: feita ? BorderSide(color: AppColors.lineStrong) : BorderSide.none,
+          side:
+              feita ? BorderSide(color: AppColors.lineStrong) : BorderSide.none,
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -794,7 +917,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _icone(Icons.hourglass_top_rounded, AppColors.accent, tamanho: 44),
+              _icone(Icons.hourglass_top_rounded, AppColors.accent,
+                  tamanho: 44),
               const SizedBox(height: AppSpacing.lg),
               Text('Seu treino está a caminho', style: AppText.title(19)),
               const SizedBox(height: AppSpacing.sm),
@@ -825,7 +949,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
       '10 minutos de alongamento antes de dormir soltam o corpo.',
       'Capriche na proteína hoje: é ela que reconstrói o músculo.',
     ];
-    final dica = dicas[DateTime.now().difference(DateTime(2026)).inDays % dicas.length];
+    final dica =
+        dicas[DateTime.now().difference(DateTime(2026)).inDays % dicas.length];
     final proximo = _proximoTreino();
 
     return Padding(
@@ -853,7 +978,9 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _dia == _hoje ? 'HOJE' : _nomesDia[_dia].toUpperCase(),
+                          _dia == _hoje
+                              ? 'HOJE'
+                              : _nomesDia[_dia].toUpperCase(),
                           style: AppText.label(),
                         ),
                         const SizedBox(height: 2),
@@ -864,7 +991,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
-              Text(dica, style: AppText.body(14, color: AppColors.textSecondary)),
+              Text(dica,
+                  style: AppText.body(14, color: AppColors.textSecondary)),
               if (proximo != null) ...[
                 const SizedBox(height: AppSpacing.lg),
                 Material(
@@ -877,14 +1005,17 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                       padding: const EdgeInsets.all(AppSpacing.md),
                       child: Row(
                         children: [
-                          _icone(Icons.fitness_center_rounded, AppColors.accent),
+                          _icone(
+                              Icons.fitness_center_rounded, AppColors.accent),
                           const SizedBox(width: AppSpacing.md),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('PRÓXIMO TREINO · ${_nomesDia[proximo.dia].toUpperCase()}',
-                                    style: AppText.label(color: AppColors.accent)),
+                                Text(
+                                    'PRÓXIMO TREINO · ${_nomesDia[proximo.dia].toUpperCase()}',
+                                    style:
+                                        AppText.label(color: AppColors.accent)),
                                 const SizedBox(height: 3),
                                 Text(proximo.nome,
                                     maxLines: 1,
@@ -893,7 +1024,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                               ],
                             ),
                           ),
-                          Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                          Icon(Icons.chevron_right_rounded,
+                              color: AppColors.textMuted),
                         ],
                       ),
                     ),
@@ -912,7 +1044,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
       final d = (_dia + i) % 7;
       final lista = _fichasDoDia(d);
       if (lista.isEmpty) continue;
-      final nome = (lista.first['fichas'] as Map?)?['nome'] as String? ?? 'Treino';
+      final nome =
+          (lista.first['fichas'] as Map?)?['nome'] as String? ?? 'Treino';
       return (dia: d, nome: nome);
     }
     return null;
@@ -967,7 +1100,10 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   }) {
     return PhdCard(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md, AppSpacing.md, AppSpacing.sm, AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -977,7 +1113,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(valor, style: AppText.number(24, weight: FontWeight.w800)),
+            child:
+                Text(valor, style: AppText.number(24, weight: FontWeight.w800)),
           ),
           Text(legenda,
               maxLines: 1,
@@ -1003,8 +1140,10 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     }
     final prescrito = p.totalPrescrito;
     final metaKcal = p.metaKcal ?? prescrito.kcal;
-    final feitas = refeicoes.where((r) => _refeicoesFeitas.contains(r.id)).length;
-    final proxima = refeicoes.where((r) => !_refeicoesFeitas.contains(r.id)).firstOrNull;
+    final feitas =
+        refeicoes.where((r) => _refeicoesFeitas.contains(r.id)).length;
+    final proxima =
+        refeicoes.where((r) => !_refeicoesFeitas.contains(r.id)).firstOrNull;
 
     return Padding(
       padding: AppSpacing.screen,
@@ -1014,36 +1153,50 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _tituloCartao('DIETA DE HOJE', '$feitas de ${refeicoes.length} refeições'),
+            _tituloCartao(
+                'DIETA DE HOJE', '$feitas de ${refeicoes.length} refeições'),
             const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: [
-                PhdRing(
-                  valor: proporcao(kcal, metaKcal),
-                  tamanho: 100,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('${kcal.round()}', style: AppText.number(21, weight: FontWeight.w800)),
-                      Text('de ${metaKcal.round()} kcal',
-                          style: AppText.caption(10.5, color: AppColors.textMuted)),
-                    ],
+            // Sem números de caloria para quem o profissional decidiu que
+            // não deve contar: o progresso vira refeições cumpridas.
+            if (!_recursos.nutricional)
+              PhdSegments(total: refeicoes.length, filled: feitas, height: 8)
+            else
+              Row(
+                children: [
+                  PhdRing(
+                    valor: proporcao(kcal, metaKcal),
+                    tamanho: 100,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('${kcal.round()}',
+                            style: AppText.number(21, weight: FontWeight.w800)),
+                        Text('de ${metaKcal.round()} kcal',
+                            style: AppText.caption(10.5,
+                                color: AppColors.textMuted)),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.xl),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _macro('Proteína', pr, p.metaProteina ?? prescrito.proteina, _corProteina),
-                      const SizedBox(height: AppSpacing.md),
-                      _macro('Carboidrato', c, p.metaCarboidrato ?? prescrito.carboidrato, _corCarbo),
-                      const SizedBox(height: AppSpacing.md),
-                      _macro('Gordura', g, p.metaGordura ?? prescrito.gordura, _corGordura),
-                    ],
+                  const SizedBox(width: AppSpacing.xl),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _macro('Proteína', pr,
+                            p.metaProteina ?? prescrito.proteina, _corProteina),
+                        const SizedBox(height: AppSpacing.md),
+                        _macro(
+                            'Carboidrato',
+                            c,
+                            p.metaCarboidrato ?? prescrito.carboidrato,
+                            _corCarbo),
+                        const SizedBox(height: AppSpacing.md),
+                        _macro('Gordura', g, p.metaGordura ?? prescrito.gordura,
+                            _corGordura),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
             const SizedBox(height: AppSpacing.lg),
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
@@ -1054,7 +1207,9 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
               child: Row(
                 children: [
                   Icon(
-                    proxima == null ? Icons.celebration_rounded : Icons.restaurant_rounded,
+                    proxima == null
+                        ? Icons.celebration_rounded
+                        : Icons.restaurant_rounded,
                     size: 18,
                     color: AppColors.accent,
                   ),
@@ -1070,7 +1225,11 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                                 style: AppText.caption(13),
                               ),
                               TextSpan(
-                                text: [proxima.nome, if (proxima.horarioTexto != null) proxima.horarioTexto!].join(' · '),
+                                text: [
+                                  proxima.nome,
+                                  if (proxima.horarioTexto != null)
+                                    proxima.horarioTexto!
+                                ].join(' · '),
                                 style: AppText.bodyStrong(13),
                               ),
                             ]),
@@ -1078,7 +1237,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                   ),
-                  Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 20, color: AppColors.textMuted),
                 ],
               ),
             ),
@@ -1096,7 +1256,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           children: [
             Expanded(child: Text(nome, style: AppText.caption(12))),
             Text.rich(TextSpan(children: [
-              TextSpan(text: '${consumido.round()}', style: AppText.number(12.5)),
+              TextSpan(
+                  text: '${consumido.round()}', style: AppText.number(12.5)),
               TextSpan(
                 text: ' / ${meta.round()} g',
                 style: AppText.caption(11.5, color: AppColors.textMuted),
@@ -1105,7 +1266,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           ],
         ),
         const SizedBox(height: 5),
-        PhdProgressBar(value: proporcao(consumido, meta), height: 6, color: cor),
+        PhdProgressBar(
+            value: proporcao(consumido, meta), height: 6, color: cor),
       ],
     );
   }
@@ -1119,70 +1281,123 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
 
   // ── Corpo ───────────────────────────────────────────────────
 
-  Widget _corpo() {
-    final ult = _avaliacoes.first;
-    // A comparação é com a avaliação anterior que mediu a mesma coisa —
-    // uma sessão só de flexibilidade não tem peso e não pode virar "−72 kg".
-    double? anterior(double? Function(ResumoSessao) campo) =>
-        _avaliacoes.skip(1).map(campo).whereType<double>().firstOrNull;
+  /// Peso ao longo do tempo: o das avaliações e o que o aluno anotou em
+  /// casa, juntos e por data. No mesmo dia, a pesagem de casa vence — é a
+  /// mais recente que o aluno conhece.
+  List<({DateTime data, double peso})> get _seriePeso {
+    final porDia = <DateTime, double>{
+      for (final s in _avaliacoes)
+        if (s.peso != null) Datas.dia(s.sessao.data): s.peso!,
+    };
+    for (final p in _pesos) {
+      porDia[Datas.dia(p.data)] = p.pesoKg;
+    }
+    final lista = [for (final e in porDia.entries) (data: e.key, peso: e.value)]
+      ..sort((a, b) => a.data.compareTo(b.data));
+    return lista;
+  }
 
-    final pesoAnt = anterior((s) => s.peso);
-    final gordAnt = anterior((s) => s.percGordura);
-    final pesos = _avaliacoes.reversed.map((s) => s.peso).whereType<double>().toList();
-    final proxima = ult.sessao.proximaAvaliacao;
+  Future<void> _registrarPeso() async {
+    final id = _aluno?['id'] as String?;
+    if (id == null) return;
+    final salvo = await registrarPeso(context,
+        alunoId: id, ultimo: _seriePeso.lastOrNull?.peso);
+    if (salvo != null && mounted) _carregar();
+  }
+
+  Widget _corpo() {
+    final serie = _seriePeso;
+    final atual = serie.lastOrNull;
+    final anterior = serie.length >= 2 ? serie[serie.length - 2] : null;
+
+    // Gordura só vem de avaliação, e compara com a avaliação anterior que
+    // mediu gordura — uma sessão só de flexibilidade não conta.
+    final ultAval = _avaliacoes.firstOrNull;
+    final gordAnt = _avaliacoes
+        .skip(1)
+        .map((s) => s.percGordura)
+        .whereType<double>()
+        .firstOrNull;
+    final proxima = ultAval?.sessao.proximaAvaliacao;
 
     return Padding(
       padding: AppSpacing.screen,
       child: PhdCard(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AlunoAvaliacoesScreen()),
-        ),
+        onTap: _avaliacoes.isEmpty
+            ? _registrarPeso
+            : () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AlunoAvaliacoesScreen()),
+                ),
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _tituloCartao('SEU CORPO', 'Avaliação de ${Datas.longa(ult.sessao.data)}'),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (ult.peso != null)
-                  Expanded(
-                    child: _medida(
-                      'Peso',
-                      _n(ult.peso!),
-                      'kg',
-                      pesoAnt == null ? null : ult.peso! - pesoAnt,
-                      // Peso subir ou descer não é bom nem ruim sozinho:
-                      // depende do objetivo. Fica neutro.
-                      bomQuandoDesce: null,
-                    ),
-                  ),
-                if (ult.percGordura != null)
-                  Expanded(
-                    child: _medida(
-                      'Gordura',
-                      _n(ult.percGordura!),
-                      '%',
-                      gordAnt == null ? null : ult.percGordura! - gordAnt,
-                      bomQuandoDesce: true,
-                    ),
-                  ),
-              ],
+            _tituloCartao(
+              'SEU CORPO',
+              atual == null
+                  ? 'Sem registros ainda'
+                  : 'Peso de ${Datas.longa(atual.data)}',
             ),
-            if (pesos.length >= 2) ...[
+            const SizedBox(height: AppSpacing.lg),
+            if (atual == null && ultAval?.percGordura == null)
+              Text(
+                'Registre seu peso uma vez por semana para ver a evolução aqui.',
+                style: AppText.body(13.5, color: AppColors.textSecondary),
+              )
+            else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (atual != null)
+                    Expanded(
+                      child: _medida(
+                        'Peso',
+                        _n(atual.peso),
+                        'kg',
+                        anterior == null ? null : atual.peso - anterior.peso,
+                        // Peso subir ou descer não é bom nem ruim sozinho:
+                        // depende do objetivo. Fica neutro.
+                        bomQuandoDesce: null,
+                      ),
+                    ),
+                  if (ultAval?.percGordura != null)
+                    Expanded(
+                      child: _medida(
+                        'Gordura',
+                        _n(ultAval!.percGordura!),
+                        '%',
+                        gordAnt == null ? null : ultAval.percGordura! - gordAnt,
+                        bomQuandoDesce: true,
+                      ),
+                    ),
+                ],
+              ),
+            if (serie.length >= 2) ...[
               const SizedBox(height: AppSpacing.lg),
-              PhdSparkline(valores: pesos),
+              PhdSparkline(valores: [for (final p in serie) p.peso]),
             ],
             if (proxima != null) ...[
               const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
-                  Icon(Icons.event_rounded, size: 15, color: AppColors.textMuted),
+                  Icon(Icons.event_rounded,
+                      size: 15, color: AppColors.textMuted),
                   const SizedBox(width: 6),
-                  Text(_textoProximaAvaliacao(proxima), style: AppText.caption(12)),
+                  Text(_textoProximaAvaliacao(proxima),
+                      style: AppText.caption(12)),
                 ],
+              ),
+            ],
+            if (_recursos.peso) ...[
+              const SizedBox(height: AppSpacing.md),
+              PhdButton(
+                label: 'Registrar peso',
+                icon: Icons.monitor_weight_outlined,
+                variant: PhdButtonVariant.ghost,
+                size: PhdButtonSize.medium,
+                onPressed: _registrarPeso,
               ),
             ],
           ],
@@ -1210,7 +1425,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         Text(rotulo.toUpperCase(), style: AppText.label()),
         const SizedBox(height: 5),
         Text.rich(TextSpan(children: [
-          TextSpan(text: valor, style: AppText.number(26, weight: FontWeight.w800)),
+          TextSpan(
+              text: valor, style: AppText.number(26, weight: FontWeight.w800)),
           TextSpan(text: ' $unidade', style: AppText.caption(13)),
         ])),
         if (delta != null && delta.abs() >= 0.05) ...[
@@ -1223,7 +1439,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                 color: cor,
               ),
               const SizedBox(width: 3),
-              Text('${_n(delta.abs())} $unidade', style: AppText.bodyStrong(12, color: cor)),
+              Text('${_n(delta.abs())} $unidade',
+                  style: AppText.bodyStrong(12, color: cor)),
             ],
           ),
         ],
@@ -1269,7 +1486,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                   : '${_avaliacoes.length} ${_avaliacoes.length == 1 ? 'registro' : 'registros'}',
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const AlunoAvaliacoesScreen()),
+                MaterialPageRoute(
+                    builder: (_) => const AlunoAvaliacoesScreen()),
               ),
             ),
           ),
@@ -1307,7 +1525,10 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         children: [
           _icone(icone, cor),
           const SizedBox(height: AppSpacing.md),
-          Text(titulo, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStrong(14)),
+          Text(titulo,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.bodyStrong(14)),
           Text(legenda,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1334,10 +1555,12 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                 for (final (i, h) in _historico.indexed) ...[
                   if (i > 0) Divider(height: 1, color: AppColors.line),
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: AppSpacing.md),
                     child: Row(
                       children: [
-                        _icone(Icons.check_rounded, AppColors.success, tamanho: 34),
+                        _icone(Icons.check_rounded, AppColors.success,
+                            tamanho: 34),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Column(
@@ -1350,7 +1573,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                               Text(
                                 [
                                   _quando(h['executado_em'] as String?),
-                                  if ((h['total_exercicios'] as num?) case final n? when n > 0)
+                                  if ((h['total_exercicios'] as num?)
+                                      case final n? when n > 0)
                                     '$n exercícios',
                                 ].join(' · '),
                                 style: AppText.caption(12),
@@ -1359,7 +1583,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                           ),
                         ),
                         Text(_duracao(h['duracao_minutos']),
-                            style: AppText.number(13.5, color: AppColors.textSecondary)),
+                            style: AppText.number(13.5,
+                                color: AppColors.textSecondary)),
                       ],
                     ),
                   ),
@@ -1432,6 +1657,21 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                 ],
               ),
             ),
+            if (_recursos.chat) ...[
+              Material(
+                color: AppColors.tint(AppColors.accent),
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: _abrirChat,
+                  child: SizedBox.square(
+                    dimension: kMinTouch,
+                    child: Icon(Icons.forum_rounded, size: 20, color: AppColors.accent),
+                  ),
+                ),
+              ),
+              if (zap != null) const SizedBox(width: AppSpacing.sm),
+            ],
             if (zap != null)
               Material(
                 color: AppColors.tint(AppColors.success),
@@ -1441,11 +1681,29 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                   onTap: () => _abrir(zap),
                   child: SizedBox.square(
                     dimension: kMinTouch,
-                    child: Icon(Icons.chat_rounded, size: 20, color: AppColors.successText),
+                    child: Icon(Icons.chat_rounded,
+                        size: 20, color: AppColors.successText),
                   ),
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _abrirChat() async {
+    final a = _aluno;
+    final p = _personal;
+    if (a == null || p == null) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          alunoId: a['id'] as String,
+          titulo: (p['nome'] as String?)?.trim() ?? 'Seu personal',
+          subtitulo: 'Seu personal',
+          avatarUrl: p['avatar_url'] as String?,
         ),
       ),
     );
@@ -1529,7 +1787,10 @@ class _FolhaModo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl,
+        AppSpacing.xl,
+        AppSpacing.md,
+        AppSpacing.xl,
+        AppSpacing.xl,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

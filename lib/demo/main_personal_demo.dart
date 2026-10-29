@@ -8,6 +8,9 @@ import '../core/theme/app_text.dart';
 import '../core/theme/tema.dart';
 import '../core/utils/datas.dart';
 import '../modules/personal/alunos/aluno_perfil_screen.dart';
+import '../modules/personal/agenda/agenda_screen.dart';
+import '../modules/personal/dieta/adesao_screen.dart';
+import '../modules/personal/mensagens/caixa_screen.dart';
 import '../modules/personal/home/home_screen.dart';
 import '../modules/personal/shell/personal_shell.dart';
 import 'banco_falso.dart';
@@ -139,6 +142,95 @@ Map<String, List<Map<String, dynamic>>> _dados() {
     ],
     'cobrancas': cobrancas,
     'treino_execucoes': execucoes,
+    ..._nutricao(hoje),
+    ..._agendaEChat(hoje, linhasAlunos),
+  };
+}
+
+/// Consultas da semana e algumas conversas, com mensagens não lidas.
+Map<String, List<Map<String, dynamic>>> _agendaEChat(DateTime hoje, List<Map<String, dynamic>> alunos) {
+  Map<String, dynamic> aluno(int i) => {
+        'id': alunos[i]['id'], 'nome': alunos[i]['nome'], 'whatsapp': alunos[i]['whatsapp'],
+      };
+  String em(int dias, int h, [int m = 0]) =>
+      hoje.add(Duration(days: dias, hours: h, minutes: m)).toUtc().toIso8601String();
+
+  // (aluno, dia, hora, minuto, tipo, status, local)
+  const agenda = [
+    (0, 0, 8, 0, 'retorno', 'realizada', 'Academia Prado'),
+    (3, 0, 17, 30, 'avaliacao', 'confirmada', 'Academia Prado'),
+    (5, 0, 19, 0, 'online', 'agendada', null),
+    (4, 1, 7, 30, 'nutricao', 'remarcar', 'Consultório'),
+    (6, 2, 18, 0, 'treino', 'agendada', 'Academia Prado'),
+  ];
+  return {
+    'consultas': [
+      for (final (i, c) in agenda.indexed)
+        {
+          'id': 'c$i', 'personal_id': _personal, 'aluno_id': alunos[c.$1]['id'],
+          'inicio': em(c.$2, c.$3, c.$4), 'duracao_min': 60, 'tipo': c.$5, 'status': c.$6,
+          'local': c.$7, 'link': c.$5 == 'online' ? 'https://meet.google.com/abc-defg-hij' : null,
+          'nota': c.$6 == 'realizada' ? 5 : null, 'alunos': aluno(c.$1),
+        },
+    ],
+    'mensagens': [
+      {'id': 'mg1', 'aluno_id': alunos[0]['id'], 'autor_id': 'aluno-user-0', 'texto': 'Posso trocar o arroz por batata-doce no almoço?', 'criado_em': em(0, 11, 5)},
+      {'id': 'mg2', 'aluno_id': alunos[3]['id'], 'autor_id': 'aluno-user-3', 'texto': 'Hoje não consigo ir, posso treinar amanhã cedo?', 'criado_em': em(0, 9, 40)},
+      {'id': 'mg3', 'aluno_id': alunos[3]['id'], 'autor_id': 'aluno-user-3', 'texto': 'Senti dor no joelho no agachamento ontem', 'criado_em': em(0, 9, 41)},
+      {'id': 'mg4', 'aluno_id': alunos[4]['id'], 'autor_id': _personal, 'texto': 'Mandei o plano novo, dá uma olhada!', 'criado_em': em(-1, 18), 'lida_em': em(-1, 19)},
+    ],
+  };
+}
+
+/// Planos e registros da semana para o painel de adesão: uma aluna
+/// exemplar, um que foge do plano, um sumido e uma no meio do caminho.
+Map<String, List<Map<String, dynamic>>> _nutricao(DateTime hoje) {
+  // (índice do aluno, refeições marcadas por dia, fugas na semana, último dia com registro)
+  const perfis = [(0, 5, 0, 0), (3, 2, 1, 0), (1, 0, 0, 9), (4, 5, 3, 1), (5, 4, 0, 0)];
+  final planos = <Map<String, dynamic>>[];
+  final refeicoes = <Map<String, dynamic>>[];
+  final marcadas = <Map<String, dynamic>>[];
+  final diario = <Map<String, dynamic>>[];
+  final agua = <Map<String, dynamic>>[];
+
+  for (final (aluno, porDia, fugas, ultimo) in perfis) {
+    final a = 'aluno-$aluno';
+    final plano = 'plano-$aluno';
+    planos.add({
+      'id': plano, 'aluno_id': a, 'nome': 'Plano', 'ativo': true, 'agua_ml': 2500,
+      'data_inicio': Datas.iso(hoje.subtract(const Duration(days: 30))),
+    });
+    for (var r = 0; r < 5; r++) {
+      refeicoes.add({'id': '$plano-r$r', 'plano_id': plano, 'nome': 'Refeição $r', 'ordem': r});
+    }
+    if (ultimo > 6) continue; // sumido: nada na semana
+    for (var d = ultimo; d < 7; d++) {
+      final dia = hoje.subtract(Duration(days: d));
+      for (var r = 0; r < porDia; r++) {
+        marcadas.add({
+          'id': '$a-m$d$r', 'aluno_id': a, 'refeicao_id': '$plano-r$r', 'data': Datas.iso(dia),
+          'feita': true, 'criado_em': dia.add(Duration(hours: 8 + r * 3)).toUtc().toIso8601String(),
+        });
+      }
+      agua.add({
+        'id': '$a-a$d', 'aluno_id': a, 'data': Datas.iso(dia), 'ml': 1500 + aluno * 150,
+        'registrado_em': dia.add(const Duration(hours: 20)).toUtc().toIso8601String(),
+      });
+    }
+    for (var f = 0; f < fugas; f++) {
+      final dia = hoje.subtract(Duration(days: ultimo + f));
+      diario.add({
+        'id': '$a-d$f', 'aluno_id': a, 'data': Datas.iso(dia), 'titulo': 'Lanche',
+        'aderencia': 'fora', 'registrado_em': dia.add(const Duration(hours: 16)).toUtc().toIso8601String(),
+      });
+    }
+  }
+  return {
+    'planos_alimentares': planos,
+    'plano_refeicoes': refeicoes,
+    'refeicoes_registro': marcadas,
+    'diario_registros': diario,
+    'agua_registros': agua,
   };
 }
 
@@ -178,6 +270,9 @@ final _router = GoRouter(
           GoRoute(path: p, builder: (_, __) => _EmBreve(t)),
       ],
     ),
+    GoRoute(path: '/adesao', builder: (_, __) => const AdesaoScreen()),
+    GoRoute(path: '/agenda', builder: (_, __) => const AgendaScreen()),
+    GoRoute(path: '/mensagens', builder: (_, __) => const CaixaMensagensScreen()),
     GoRoute(path: '/alunos/adicionar', builder: (_, __) => const Scaffold(body: _EmBreve('Novo aluno'))),
     GoRoute(
       path: '/alunos/perfil',

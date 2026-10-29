@@ -11,12 +11,13 @@ class ProfileService {
     return await _db.from('profiles').select().eq('id', user.id).maybeSingle();
   }
 
-  /// O perfil do personal, visto pelo aluno: só o que aparece no cartão de
-  /// contato. A policy de `profiles` já libera a leitura do próprio personal.
+  /// O perfil do personal, visto pelo aluno: o cartão de contato e a marca
+  /// (que vai no PDF do plano). A policy de `profiles` já libera a leitura
+  /// do próprio personal.
   static Future<Map<String, dynamic>?> doPersonal(String personalId) async {
     return await _db
         .from('profiles')
-        .select('nome, avatar_url, whatsapp, cref, marca_nome')
+        .select('nome, avatar_url, whatsapp, cref, marca_nome, marca_logo_url, marca_cor')
         .eq('id', personalId)
         .maybeSingle();
   }
