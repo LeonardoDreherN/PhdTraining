@@ -20,7 +20,7 @@ class AlunoService {
     final desde = DateTime.now().subtract(const Duration(days: _janelaDias));
 
     final resultados = await Future.wait([
-      _db.from('alunos').select().eq('personal_id', _personalId).order('nome'),
+      _db.from('alunos').select().eq('personal_id', _personalId).order('nome', ascending: true),
       _db
           .from('aluno_fichas')
           .select('aluno_id, dias_semana')
@@ -87,7 +87,7 @@ class AlunoService {
       query = query.eq('ativo', ativo);
     }
 
-    return await query.order('nome');
+    return await query.order('nome', ascending: true);
   }
 
   static Future<Map<String, dynamic>> cadastrar({

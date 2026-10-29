@@ -8,10 +8,10 @@ import 'package:http/testing.dart';
 /// Entra no lugar do servidor pelo `httpClient` do `Supabase.initialize`:
 /// as telas e os serviços continuam os mesmos, sem saber que não há banco
 /// de verdade. Cobre só o pedaço do PostgREST e do Storage que a avaliação
-/// física usa — filtros `eq`, `lt`, `not.is.null`, `order`, `limit`,
+/// física e a home do aluno usam — filtros `eq`, `lt`, `gte`, `in`, `not.is.null`, `order`, `limit`,
 /// upsert, update e delete.
 ///
-/// Não vai para produção: só `lib/demo/main_avaliacao_demo.dart` usa isto.
+/// Não vai para produção: só as demos de `lib/demo/` usam isto.
 class BancoFalso {
   BancoFalso(Map<String, List<Map<String, dynamic>>> inicial)
       : _tabelas = {for (final e in inicial.entries) e.key: [...e.value]};
@@ -129,6 +129,13 @@ class BancoFalso {
         if (v == null || _compara(v, f.substring(3)) >= 0) return false;
       } else if (f.startsWith('gt.')) {
         if (v == null || _compara(v, f.substring(3)) <= 0) return false;
+      } else if (f.startsWith('gte.')) {
+        if (v == null || _compara(v, f.substring(4)) < 0) return false;
+      } else if (f.startsWith('lte.')) {
+        if (v == null || _compara(v, f.substring(4)) > 0) return false;
+      } else if (f.startsWith('in.(')) {
+        final valores = f.substring(4, f.length - 1).split(',').map((x) => x.replaceAll('"', ''));
+        if (!valores.contains('$v')) return false;
       } else if (f == 'not.is.null') {
         if (v == null) return false;
       } else if (f == 'is.null') {

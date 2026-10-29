@@ -41,7 +41,7 @@ class _FrequenciaScreenState extends State<FrequenciaScreen>
           .select('id, nome, genero')
           .eq('personal_id', user.id)
           .eq('ativo', true)
-          .order('nome');
+          .order('nome', ascending: true);
 
       final execucoes = await _db
           .from('treino_execucoes')

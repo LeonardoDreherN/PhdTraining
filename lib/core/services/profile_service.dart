@@ -11,6 +11,16 @@ class ProfileService {
     return await _db.from('profiles').select().eq('id', user.id).maybeSingle();
   }
 
+  /// O perfil do personal, visto pelo aluno: só o que aparece no cartão de
+  /// contato. A policy de `profiles` já libera a leitura do próprio personal.
+  static Future<Map<String, dynamic>?> doPersonal(String personalId) async {
+    return await _db
+        .from('profiles')
+        .select('nome, avatar_url, whatsapp, cref, marca_nome')
+        .eq('id', personalId)
+        .maybeSingle();
+  }
+
   static Future<String?> getRole() async {
     final perfil = await getPerfil();
     return perfil?['role'] as String?;

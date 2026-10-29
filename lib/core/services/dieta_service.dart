@@ -46,7 +46,7 @@ class DietaService {
       q = q.eq('grupo', grupo);
     }
 
-    final linhas = await q.order('nome').limit(limite);
+    final linhas = await q.order('nome', ascending: true).limit(limite);
     return List<Map<String, dynamic>>.from(linhas)
         .map(Alimento.doMapa)
         .toList();
@@ -118,7 +118,7 @@ class DietaService {
           .from('plano_refeicoes')
           .select()
           .eq('plano_id', planoId)
-          .order('ordem'),
+          .order('ordem', ascending: true),
     );
     if (refeicoes.isEmpty) return PlanoAlimentar.doMapa(cabecalho);
 
@@ -127,7 +127,7 @@ class DietaService {
           .from('refeicao_itens')
           .select('*, alimentos(*)')
           .inFilter('refeicao_id', refeicoes.map((r) => r['id'] as String).toList())
-          .order('ordem'),
+          .order('ordem', ascending: true),
     );
 
     final porRefeicao = <String, List<ItemRefeicao>>{};

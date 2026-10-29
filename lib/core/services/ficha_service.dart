@@ -13,7 +13,7 @@ class FichaService {
   /// faria uma ida ao servidor por cartão da lista.
   static Future<List<Ficha>> listarComResumo() async {
     final resultados = await Future.wait([
-      _db.from('fichas').select().eq('personal_id', _personalId).order('nome'),
+      _db.from('fichas').select().eq('personal_id', _personalId).order('nome', ascending: true),
       _db.from('ficha_exercicios').select('ficha_id, exercicios(grupo_muscular)'),
       _db.from('aluno_fichas').select('ficha_id').eq('ativa', true),
     ]);
@@ -64,7 +64,7 @@ class FichaService {
         .from('fichas')
         .select()
         .eq('personal_id', _personalId)
-        .order('nome');
+        .order('nome', ascending: true);
   }
 
   static Future<Map<String, dynamic>> criar({
@@ -96,7 +96,10 @@ class FichaService {
         .from('ficha_exercicios')
         .select('*, exercicios(id, nome, grupo_muscular, midia_url, video_url, thumb_url, instrucoes, equipamento)')
         .eq('ficha_id', fichaId)
-        .order('ordem');
+        // `ascending: true` é obrigatório: no postgrest-dart o `order` é
+        // DECRESCENTE por padrão, e sem ele o aluno fazia o treino de trás
+        // para frente.
+        .order('ordem', ascending: true);
     return List<Map<String, dynamic>>.from(linhas)
         .map(FichaExercicio.doMapa)
         .toList();
@@ -113,7 +116,7 @@ class FichaService {
         .from('ficha_exercicios')
         .select('*, exercicios(id, nome, grupo_muscular, midia_url, video_url, thumb_url, instrucoes, equipamento)')
         .eq('ficha_id', fichaId)
-        .order('ordem');
+        .order('ordem', ascending: true);
     return List<Map<String, dynamic>>.from(linhas);
   }
 
@@ -211,23 +214,47 @@ class FichaService {
         .toList();
     if (ids.isEmpty) return linhas;
 
+    // Séries, descanso e grupo muscular vêm junto: o cartão do treino do
+    // aluno mostra os grupos e uma estimativa de duração, e é a mesma
+    // consulta que já contava os exercícios.
     final exercicios = List<Map<String, dynamic>>.from(
       await _db
           .from('ficha_exercicios')
-          .select('ficha_id')
+          .select('ficha_id, series, descanso_segundos, exercicios(grupo_muscular)')
           .inFilter('ficha_id', ids),
     );
 
     final contagem = <String, int>{};
+    final series = <String, int>{};
+    final segundos = <String, int>{};
+    final grupos = <String, Map<String, int>>{};
     for (final e in exercicios) {
       final fid = e['ficha_id'] as String?;
       if (fid == null) continue;
+      final s = (e['series'] as num?)?.toInt() ?? 3;
       contagem[fid] = (contagem[fid] ?? 0) + 1;
+      series[fid] = (series[fid] ?? 0) + s;
+      // ~40s de execução por série, mais o descanso prescrito (90s quando
+      // o personal não definiu).
+      final descanso = (e['descanso_segundos'] as num?)?.toInt() ?? 90;
+      segundos[fid] = (segundos[fid] ?? 0) + s * (40 + descanso);
+      final g = ((e['exercicios'] as Map?)?['grupo_muscular'] as String?)?.trim();
+      if (g != null && g.isNotEmpty) {
+        final porGrupo = grupos.putIfAbsent(fid, () => {});
+        porGrupo[g] = (porGrupo[g] ?? 0) + 1;
+      }
     }
 
     for (final l in linhas) {
       final fid = (l['fichas'] as Map?)?['id'] as String?;
       l['qtd_exercicios'] = fid == null ? 0 : (contagem[fid] ?? 0);
+      l['qtd_series'] = fid == null ? 0 : (series[fid] ?? 0);
+      // Arredonda para 5 min: "~55 min" é promessa, "~53 min" é falsa precisão.
+      final min = (segundos[fid] ?? 0) / 60;
+      l['minutos_estimados'] = min == 0 ? 0 : ((min / 5).round() * 5).clamp(5, 999);
+      final g = grupos[fid]?.entries.toList() ?? [];
+      g.sort((a, b) => b.value.compareTo(a.value));
+      l['grupos'] = [for (final e in g) e.key];
     }
     return linhas;
   }

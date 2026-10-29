@@ -11,6 +11,7 @@ library;
 export 'phd_avatar.dart';
 export 'phd_button.dart';
 export 'phd_card.dart';
+export 'phd_charts.dart';
 export 'phd_chip.dart';
 export 'phd_field.dart';
 export 'phd_list_row.dart';

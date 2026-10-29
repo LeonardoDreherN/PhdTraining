@@ -162,7 +162,7 @@ class ExercicioService {
       query = query.eq('grupo_muscular', grupo);
     }
 
-    return await query.order('nome');
+    return await query.order('nome', ascending: true);
   }
 
   static Future<Map<String, dynamic>> cadastrar({

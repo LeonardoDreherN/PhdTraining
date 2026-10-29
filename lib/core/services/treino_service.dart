@@ -48,6 +48,32 @@ class TreinoService {
     return vazio;
   }
 
+  /// Execuções dos últimos [dias], só data e duração: é o que a home precisa
+  /// para sequência de semanas, treinos do mês e tempo da semana. Uma
+  /// consulta enxuta em vez de puxar o `detalhes` de cada treino.
+  static Future<List<({DateTime quando, int minutos})>> execucoesRecentes({
+    int dias = 120,
+  }) async {
+    final user = _db.auth.currentUser;
+    if (user == null) return [];
+    final de = DateTime.now().subtract(Duration(days: dias));
+    final linhas = await _db
+        .from('treino_execucoes')
+        .select('executado_em, duracao_minutos')
+        .eq('aluno_user_id', user.id)
+        .gte('executado_em', de.toUtc().toIso8601String())
+        .order('executado_em', ascending: false);
+
+    return [
+      for (final r in List<Map<String, dynamic>>.from(linhas))
+        if (DateTime.tryParse(r['executado_em'] as String? ?? '') case final d?)
+          (
+            quando: d.toLocal(),
+            minutos: (r['duracao_minutos'] as num?)?.toInt() ?? 0,
+          ),
+    ];
+  }
+
   /// Últimos treinos registrados, do mais recente para o mais antigo.
   static Future<List<Map<String, dynamic>>> historico({int limite = 8}) async {
     final user = _db.auth.currentUser;
