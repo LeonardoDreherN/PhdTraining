@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/theme/app_colors.dart';
-import '../core/theme/app_theme.dart';
+import '../core/theme/tema.dart';
 import '../core/utils/datas.dart';
 import '../modules/aluno/dieta/aluno_dieta_screen.dart';
 import '../modules/aluno/home/aluno_home_screen.dart';
@@ -45,7 +45,10 @@ Future<void> main() async {
     },
   }));
 
-  runApp(const ProviderScope(child: _Demo()));
+  runApp(ProviderScope(
+    overrides: [temaProvider.overrideWith(() => TemaNotifier(_temaDaUrl()))],
+    child: const _Demo(),
+  ));
 }
 
 const _userId = 'demo-user';
@@ -193,6 +196,12 @@ Map<String, dynamic> _execucao(String alunoId, String fichaId, String nome, Date
       'total_exercicios': 6,
     };
 
+/// `?tema=claro` ou `?tema=escuro` na URL fixa o tema da demo.
+TemaApp _temaDaUrl() => TemaApp.values.firstWhere(
+      (t) => t.name == Uri.base.queryParameters['tema'],
+      orElse: () => TemaApp.sistema,
+    );
+
 final _router = GoRouter(
   initialLocation: '/aluno/home',
   routes: [
@@ -211,10 +220,8 @@ class _Demo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
+    return PhdMaterialApp(
       title: 'PHD — Home do aluno (demo)',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
       routerConfig: _router,
       builder: (context, child) => ColoredBox(
         color: AppColors.bg,

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
@@ -83,7 +83,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
       await AlunoService.atualizar(_aluno['id'].toString(), {'notas': _notasCtrl.text.trim()});
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Anotação salva!'), backgroundColor: AppColors.active),
+          SnackBar(content: const Text('Anotação salva!'), backgroundColor: AppColors.active),
         );
       }
     } finally {
@@ -110,16 +110,16 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Excluir aluno', style: TextStyle(color: Colors.white)),
+        title: Text('Excluir aluno', style: TextStyle(color: AppColors.textPrimary)),
         content: Text('Deseja excluir ${_aluno['nome']}? Esta ação não pode ser desfeita.',
-            style: const TextStyle(color: AppColors.textSecondary)),
+            style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancelar')),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Excluir', style: TextStyle(color: AppColors.error))),
+              child: Text('Excluir', style: TextStyle(color: AppColors.error))),
         ],
       ),
     );
@@ -137,8 +137,8 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
         backgroundColor: AppColors.background,
         leading: GestureDetector(
           onTap: () => context.pop(),
-          child: const Padding(
-            padding: EdgeInsets.only(left: 12),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 12),
             child: Row(children: [
               Icon(Icons.chevron_left, color: AppColors.textSecondary, size: 18),
               Text('Voltar', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
@@ -155,7 +155,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
           _buildTabBar(),
           Expanded(
             child: _carregando
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                ? Center(child: CircularProgressIndicator(color: AppColors.primary))
                 : TabBarView(
                     controller: _tab,
                     children: [_buildInicio(), _buildOpcoes()],
@@ -174,7 +174,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.divider, width: 0.5)),
       ),
@@ -191,7 +191,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
             child: Center(
               child: Text(
                 nome.isNotEmpty ? nome[0].toUpperCase() : '?',
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.primary, fontSize: 26, fontWeight: FontWeight.w800),
               ),
             ),
@@ -202,8 +202,8 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(nome,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                    style: TextStyle(
+                        color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -238,7 +238,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
 
   Widget _buildTabBar() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.divider, width: 0.5)),
       ),
@@ -291,9 +291,9 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Frequência de Treinos',
+        Text('Frequência de Treinos',
             style: TextStyle(
-                color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+                color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
         const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -318,11 +318,11 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
               if (feitoNoDia) {
                 circleBg = AppColors.active.withValues(alpha: 0.15);
                 circleBorder = AppColors.active;
-                circleFill = const Icon(Icons.check_rounded, color: AppColors.active, size: 16);
+                circleFill = Icon(Icons.check_rounded, color: AppColors.active, size: 16);
               } else if (ehHoje) {
                 circleBg = AppColors.primary.withValues(alpha: 0.1);
                 circleBorder = AppColors.primary;
-                circleFill = const Icon(Icons.circle, color: AppColors.primary, size: 8);
+                circleFill = Icon(Icons.circle, color: AppColors.primary, size: 8);
               } else if (!ehFuturo) {
                 circleBg = AppColors.error.withValues(alpha: 0.08);
                 circleBorder = AppColors.error.withValues(alpha: 0.4);
@@ -437,17 +437,17 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
                 children: [
                   Text(item.label,
                       style: TextStyle(
-                          color: disabled ? AppColors.textHint : Colors.white,
+                          color: disabled ? AppColors.textHint : AppColors.textPrimary,
                           fontWeight: FontWeight.w600,
                           fontSize: 14)),
                   Text(item.subtitulo,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.textSecondary, fontSize: 12)),
                 ],
               ),
             ),
             if (!disabled)
-              const Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 20),
+              Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 20),
           ],
         ),
       ),
@@ -458,14 +458,14 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Anotações',
+        Text('Anotações',
             style: TextStyle(
-                color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+                color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
         const SizedBox(height: 10),
         TextField(
           controller: _notasCtrl,
           maxLines: 4,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
           decoration: const InputDecoration(
             hintText: 'Observações sobre o aluno, objetivos, restrições...',
           ),
@@ -476,10 +476,10 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
           child: ElevatedButton(
             onPressed: _salvandoNota ? null : _salvarNota,
             child: _salvandoNota
-                ? const SizedBox(
+                ? SizedBox(
                     height: 18,
                     width: 18,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    child: CircularProgressIndicator(color: AppColors.onAccent, strokeWidth: 2))
                 : const Text('Salvar anotação'),
           ),
         ),
@@ -585,8 +585,8 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen>
   void _verProgresso() {
     if (_fotos.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Este aluno ainda não tem fotos de progresso.'),
+        SnackBar(
+          content: const Text('Este aluno ainda não tem fotos de progresso.'),
           backgroundColor: AppColors.surface,
         ),
       );
@@ -628,9 +628,9 @@ class _FichasSheet extends StatelessWidget {
       minChildSize: 0.4,
       maxChildSize: 0.9,
       builder: (_, ctrl) => Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           children: [
@@ -642,13 +642,13 @@ class _FichasSheet extends StatelessWidget {
                   color: AppColors.divider, borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 16),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text('Treinos do aluno',
                     style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w700)),
               ),
@@ -656,7 +656,7 @@ class _FichasSheet extends StatelessWidget {
             const SizedBox(height: 12),
             Expanded(
               child: fichas.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text('Nenhuma ficha atribuída.',
                           style: TextStyle(color: AppColors.textSecondary)))
                   : ListView.separated(
@@ -682,7 +682,7 @@ class _FichasSheet extends StatelessWidget {
                                   color: AppColors.primary.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: const Icon(Icons.fitness_center_rounded,
+                                child: Icon(Icons.fitness_center_rounded,
                                     color: AppColors.primary, size: 20),
                               ),
                               const SizedBox(width: 12),
@@ -691,14 +691,14 @@ class _FichasSheet extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(f['nome'] ?? '',
-                                        style: const TextStyle(
-                                            color: Colors.white,
+                                        style: TextStyle(
+                                            color: AppColors.textPrimary,
                                             fontWeight: FontWeight.w600,
                                             fontSize: 14)),
                                     if (f['descricao'] != null &&
                                         (f['descricao'] as String).isNotEmpty)
                                       Text(f['descricao'],
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                               color: AppColors.textSecondary,
                                               fontSize: 12)),
                                   ],
@@ -734,9 +734,9 @@ class _ProgressoSheet extends StatelessWidget {
       minChildSize: 0.5,
       maxChildSize: 0.95,
       builder: (_, ctrl) => Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           children: [
@@ -748,13 +748,13 @@ class _ProgressoSheet extends StatelessWidget {
                   color: AppColors.divider, borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 16),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text('Progresso do aluno',
                     style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w700)),
               ),

@@ -140,9 +140,9 @@ class _AlunoAnamneseScreenState extends State<AlunoAnamneseScreen> {
                   child: ElevatedButton(
                     onPressed: _salvando ? null : _salvar,
                     child: _salvando
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 18, width: 18,
-                            child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                            child: CircularProgressIndicator(color: AppColors.onAccent, strokeWidth: 2))
                         : Text('Enviar questionário',
                             style: GoogleFonts.montserrat(fontWeight: FontWeight.w600)),
                   ),
@@ -189,7 +189,7 @@ class _AlunoAnamneseScreenState extends State<AlunoAnamneseScreen> {
               border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
             ),
             child: Row(children: [
-              const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
+              Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -377,13 +377,13 @@ class _AlunoAnamneseScreenState extends State<AlunoAnamneseScreen> {
             fillColor: AppColors.surface,
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.divider, width: 0.5)),
+                borderSide: BorderSide(color: AppColors.divider, width: 0.5)),
             enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.divider, width: 0.5)),
+                borderSide: BorderSide(color: AppColors.divider, width: 0.5)),
             focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1)),
+                borderSide: BorderSide(color: AppColors.primary, width: 1)),
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           ),
         ),

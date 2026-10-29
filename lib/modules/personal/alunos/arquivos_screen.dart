@@ -50,7 +50,7 @@ class _ArquivosScreenState extends State<ArquivosScreen> {
       await _carregar();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Arquivo enviado!'), backgroundColor: AppColors.active),
+          SnackBar(content: const Text('Arquivo enviado!'), backgroundColor: AppColors.active),
         );
       }
     } catch (e) {
@@ -69,16 +69,16 @@ class _ArquivosScreenState extends State<ArquivosScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Excluir arquivo', style: TextStyle(color: Colors.white)),
+        title: Text('Excluir arquivo', style: TextStyle(color: AppColors.textPrimary)),
         content: Text('Deseja excluir "${arquivo['nome']}"?',
-            style: const TextStyle(color: AppColors.textSecondary)),
+            style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancelar')),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Excluir', style: TextStyle(color: AppColors.error))),
+              child: Text('Excluir', style: TextStyle(color: AppColors.error))),
         ],
       ),
     );
@@ -106,7 +106,7 @@ class _ArquivosScreenState extends State<ArquivosScreen> {
           children: [
             const Text('Arquivos', style: TextStyle(fontSize: 16)),
             Text(widget.alunoNome,
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           ],
         ),
       ),
@@ -114,15 +114,15 @@ class _ArquivosScreenState extends State<ArquivosScreen> {
         onPressed: _enviando ? null : _upload,
         backgroundColor: AppColors.primary,
         icon: _enviando
-            ? const SizedBox(
+            ? SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                child: CircularProgressIndicator(color: AppColors.onAccent, strokeWidth: 2))
             : const Icon(Icons.upload_rounded),
         label: Text(_enviando ? 'Enviando...' : 'Enviar arquivo'),
       ),
       body: _carregando
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : _arquivos.isEmpty
               ? _buildVazio()
               : RefreshIndicator(
@@ -153,15 +153,15 @@ class _ArquivosScreenState extends State<ArquivosScreen> {
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.divider),
               ),
-              child: const Icon(Icons.folder_open_outlined,
+              child: Icon(Icons.folder_open_outlined,
                   color: AppColors.primary, size: 44),
             ),
             const SizedBox(height: 24),
-            const Text('Nenhum arquivo ainda',
+            Text('Nenhum arquivo ainda',
                 style: TextStyle(
-                    color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                    color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Envie planos alimentares, PDFs,\nplanilhas e qualquer documento',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
               textAlign: TextAlign.center,
@@ -208,14 +208,14 @@ class _ArquivosScreenState extends State<ArquivosScreen> {
                 Text(nome,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        color: AppColors.textPrimary,
                         fontWeight: FontWeight.w600,
                         fontSize: 14)),
                 const SizedBox(height: 4),
                 Text(
                   '${_formatarTamanho(tamanho)}${dataStr.isNotEmpty ? '  ·  $dataStr' : ''}',
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                 ),
               ],
             ),
@@ -231,7 +231,7 @@ class _ArquivosScreenState extends State<ArquivosScreen> {
                 }
               }
             },
-            icon: const Icon(Icons.download_rounded, color: AppColors.primary, size: 24),
+            icon: Icon(Icons.download_rounded, color: AppColors.primary, size: 24),
             tooltip: 'Baixar',
           ),
           IconButton(

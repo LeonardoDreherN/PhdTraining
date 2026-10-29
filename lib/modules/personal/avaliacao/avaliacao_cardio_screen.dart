@@ -162,7 +162,7 @@ class _AvaliacaoCardioScreenState extends State<AvaliacaoCardioScreen> {
       appBar: appBarAvaliacao(
           widget.aluno['nome'] as String? ?? 'Aluno', 'Cardio · ${Datas.curta(_data)}'),
       body: _carregando
-          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          ? Center(child: CircularProgressIndicator(color: AppColors.accent))
           : _av == null
               ? PhdEmptyState(
                   icon: Icons.cloud_off_rounded,
@@ -213,7 +213,7 @@ class _AvaliacaoCardioScreenState extends State<AvaliacaoCardioScreen> {
                     ),
                     if (_av!.idade == null) ...[
                       const SizedBox(height: AppSpacing.md),
-                      const PhdAviso(
+                      PhdAviso(
                         texto: 'O aluno está sem data de nascimento no cadastro. A '
                             'classificação usa a faixa de 30 a 39 anos, e o Rockport '
                             'não calcula sem idade.',
@@ -371,7 +371,7 @@ class _AvaliacaoCardioScreenState extends State<AvaliacaoCardioScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       ListTile(
-                        leading: const Icon(Icons.edit_outlined, color: AppColors.textPrimary),
+                        leading: Icon(Icons.edit_outlined, color: AppColors.textPrimary),
                         title: Text('Editar', style: AppText.body(14)),
                         onTap: () {
                           Navigator.pop(ctx);
@@ -379,7 +379,7 @@ class _AvaliacaoCardioScreenState extends State<AvaliacaoCardioScreen> {
                         },
                       ),
                       ListTile(
-                        leading: const Icon(Icons.delete_outline_rounded, color: AppColors.dangerText),
+                        leading: Icon(Icons.delete_outline_rounded, color: AppColors.dangerText),
                         title: Text('Excluir', style: AppText.body(14, color: AppColors.dangerText)),
                         onTap: () {
                           Navigator.pop(ctx);

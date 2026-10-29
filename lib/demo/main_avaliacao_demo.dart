@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/models/perfil.dart';
 import '../core/providers/app_providers.dart';
 import '../core/theme/app_colors.dart';
-import '../core/theme/app_theme.dart';
+import '../core/theme/tema.dart';
 import '../modules/personal/alunos/avaliacao_bioimpedancia_screen.dart';
 import '../modules/personal/alunos/avaliacao_dobras_screen.dart';
 import '../modules/personal/alunos/avaliacao_morfologica_screen.dart';
@@ -85,10 +85,8 @@ class _Demo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
+    return PhdMaterialApp(
       title: 'PHD — Avaliação física (demo)',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
       routerConfig: _router,
       // Mesma trava de largura do app: ele é desenhado para celular.
       builder: (context, child) => ColoredBox(

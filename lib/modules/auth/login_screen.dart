@@ -80,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerLeft,
                   child: IconButton(
                     onPressed: () => context.go('/'),
-                    icon: const Icon(Icons.arrow_back_rounded,
+                    icon: Icon(Icons.arrow_back_rounded,
                         color: AppColors.textSecondary, size: 20),
                     tooltip: 'Voltar',
                   ),
@@ -110,14 +110,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildLogo() {
     return Image.asset(
-      'assets/images/logo_white.png',
+      AppColors.ehClaro ? 'assets/images/logo_black.png' : 'assets/images/logo_white.png',
       height: 56,
       fit: BoxFit.contain,
     );
   }
 
   Widget _buildSubtitle() {
-    return const Text(
+    return Text(
       'Gestão para Personal Trainers',
       style: TextStyle(
         color: AppColors.textSecondary,
@@ -131,13 +131,13 @@ class _LoginScreenState extends State<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('E-mail', style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+        Text('E-mail', style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
         TextFormField(
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
-          decoration: const InputDecoration(
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 15),
+          decoration: InputDecoration(
             hintText: 'seu@email.com',
             prefixIcon: Icon(Icons.email_outlined, color: AppColors.textSecondary, size: 20),
           ),
@@ -155,15 +155,15 @@ class _LoginScreenState extends State<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Senha', style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+        Text('Senha', style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
         TextFormField(
           controller: _senhaController,
           obscureText: !_senhaVisivel,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 15),
           decoration: InputDecoration(
             hintText: '••••••••',
-            prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondary, size: 20),
+            prefixIcon: Icon(Icons.lock_outline, color: AppColors.textSecondary, size: 20),
             suffixIcon: GestureDetector(
               onTap: () => setState(() => _senhaVisivel = !_senhaVisivel),
               child: Icon(
@@ -189,20 +189,20 @@ class _LoginScreenState extends State<LoginScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Redefinir senha',
+        title: Text('Redefinir senha',
             style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Informe seu e-mail para receber o link de redefinição.',
+            Text('Informe seu e-mail para receber o link de redefinição.',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
             const SizedBox(height: 14),
             TextField(
               controller: emailCtrl,
               keyboardType: TextInputType.emailAddress,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-              decoration: const InputDecoration(
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
+              decoration: InputDecoration(
                 hintText: 'seu@email.com',
                 prefixIcon: Icon(Icons.email_outlined, color: AppColors.textSecondary, size: 18),
               ),
@@ -212,11 +212,11 @@ class _LoginScreenState extends State<LoginScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+            child: Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Enviar', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+            child: Text('Enviar', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -237,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
       alignment: Alignment.centerRight,
       child: GestureDetector(
         onTap: _esqueceuSenha,
-        child: const Text(
+        child: Text(
           'Esqueci minha senha',
           style: TextStyle(
             color: AppColors.primary,
@@ -252,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildCriarConta() {
     return TextButton(
       onPressed: _carregando ? null : () => context.push('/cadastro'),
-      child: const Text.rich(
+      child: Text.rich(
         TextSpan(
           // O aluno não se cadastra: quem cria o acesso dele é o personal.
           // Sem dizer "de personal" aqui, o aluno clica, cria uma conta de
@@ -281,10 +281,10 @@ class _LoginScreenState extends State<LoginScreen> {
       child: ElevatedButton(
         onPressed: _carregando ? null : _entrar,
         child: _carregando
-            ? const SizedBox(
+            ? SizedBox(
                 height: 22,
                 width: 22,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                child: CircularProgressIndicator(color: AppColors.onAccent, strokeWidth: 2.5),
               )
             : const Text('Entrar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
       ),

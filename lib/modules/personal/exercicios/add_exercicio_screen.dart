@@ -92,8 +92,8 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
         backgroundColor: AppColors.background,
         leading: GestureDetector(
           onTap: () => context.voltar(senaoPara: '/exercicios'),
-          child: const Padding(
-            padding: EdgeInsets.only(left: 12),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 12),
             child: Row(children: [
               Icon(Icons.chevron_left, color: AppColors.textSecondary, size: 18),
               Text('voltar', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
@@ -113,7 +113,7 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
             children: [
               Text(
                 _editando ? 'Editar Exercício' : 'Novo Exercício',
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w600),
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 24),
               _buildImagePicker(),
@@ -124,7 +124,7 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
               const SizedBox(height: 6),
               TextFormField(
                 controller: _nomeController,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
                 decoration: const InputDecoration(hintText: 'Ex: Supino Reto'),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Campo obrigatório' : null,
               ),
@@ -134,16 +134,16 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
               DropdownButtonFormField<String>(
                 initialValue: _grupoSelecionado,
                 dropdownColor: AppColors.surface,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
                 decoration: const InputDecoration(hintText: 'Selecione o grupo'),
-                icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.textSecondary),
+                icon: Icon(Icons.keyboard_arrow_down, color: AppColors.textSecondary),
                 validator: (v) => v == null ? 'Campo obrigatório' : null,
                 onChanged: (v) => setState(() => _grupoSelecionado = v),
                 items: ExercicioService.grupos
                     .where((g) => g != 'Todos')
                     .map((g) => DropdownMenuItem(
                           value: g,
-                          child: Text(g, style: const TextStyle(color: AppColors.textPrimary)),
+                          child: Text(g, style: TextStyle(color: AppColors.textPrimary)),
                         ))
                     .toList(),
               ),
@@ -153,7 +153,7 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
               TextFormField(
                 controller: _descricaoController,
                 maxLines: 4,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
                 decoration: const InputDecoration(
                   hintText: 'Descreva como executar o exercício...',
                   alignLabelWithHint: true,
@@ -163,7 +163,7 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
               ElevatedButton(
                 onPressed: _salvando ? null : _salvar,
                 child: _salvando
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: AppColors.onAccent, strokeWidth: 2))
                     : Text(_editando ? 'Salvar Alterações' : 'Cadastrar Exercício'),
               ),
               const SizedBox(height: 40),
@@ -175,7 +175,7 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
   }
 
   Widget _buildLabel(String text) {
-    return Text(text, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500));
+    return Text(text, style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500));
   }
 
   Widget _buildImagePicker() {
@@ -194,11 +194,11 @@ class _AddExercicioScreenState extends State<AddExercicioScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: Image.network(_midiaUrl!, fit: BoxFit.cover),
               )
-            : const Column(
+            : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary, size: 40),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text('Adicionar foto / GIF', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                 ],
               ),

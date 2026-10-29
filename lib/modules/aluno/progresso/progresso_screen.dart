@@ -180,7 +180,7 @@ class _ProgressoScreenState extends State<ProgressoScreen>
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => context.voltar(senaoPara: '/aluno/home'),
         ),
@@ -209,16 +209,16 @@ class _ProgressoScreenState extends State<ProgressoScreen>
               onPressed: _enviando ? null : _adicionarFoto,
               backgroundColor: AppColors.primary,
               icon: _enviando
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20, height: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      child: CircularProgressIndicator(color: AppColors.onAccent, strokeWidth: 2))
                   : const Icon(Icons.add_a_photo_rounded),
               label: Text(_enviando ? 'Enviando...' : 'Nova foto',
                   style: GoogleFonts.montserrat(fontWeight: FontWeight.w600)),
             )
           : null,
       body: _carregando
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : TabBarView(
               controller: _tab,
               children: [
@@ -268,7 +268,7 @@ class _ProgressoScreenState extends State<ProgressoScreen>
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.5)),
                 const SizedBox(width: 10),
-                const Expanded(child: Divider(color: AppColors.divider, height: 1)),
+                Expanded(child: Divider(color: AppColors.divider, height: 1)),
               ]),
             );
           }
@@ -295,12 +295,12 @@ class _ProgressoScreenState extends State<ProgressoScreen>
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.divider),
               ),
-              child: const Icon(Icons.add_a_photo_rounded, color: AppColors.primary, size: 44),
+              child: Icon(Icons.add_a_photo_rounded, color: AppColors.primary, size: 44),
             ),
             const SizedBox(height: 24),
             Text('Registre seu progresso',
                 style: GoogleFonts.montserrat(
-                    color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
+                    color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w700)),
             const SizedBox(height: 10),
             Text('Envie uma foto por mês e acompanhe\nsua evolução ao longo do tempo',
                 style: GoogleFonts.montserrat(
@@ -378,12 +378,12 @@ class _ProgressoScreenState extends State<ProgressoScreen>
                     ? child
                     : Container(
                         color: AppColors.background,
-                        child: const Center(
+                        child: Center(
                             child: CircularProgressIndicator(
                                 color: AppColors.primary, strokeWidth: 2))),
                 errorBuilder: (_, __, ___) => Container(
                     color: AppColors.background,
-                    child: const Center(
+                    child: Center(
                         child: Icon(Icons.broken_image, color: AppColors.textHint, size: 48))),
               ),
             ),
@@ -393,11 +393,11 @@ class _ProgressoScreenState extends State<ProgressoScreen>
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(_formatarData(foto['registrado_em']),
                   style: GoogleFonts.montserrat(
-                      color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+                      color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 15)),
               if (peso != null) ...[
                 const SizedBox(height: 6),
                 Row(children: [
-                  const Icon(Icons.monitor_weight_outlined,
+                  Icon(Icons.monitor_weight_outlined,
                       color: AppColors.primary, size: 15),
                   const SizedBox(width: 6),
                   Text('$peso kg',
@@ -455,7 +455,7 @@ class _ProgressoScreenState extends State<ProgressoScreen>
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.show_chart_rounded, color: AppColors.textHint, size: 56),
+            Icon(Icons.show_chart_rounded, color: AppColors.textHint, size: 56),
             const SizedBox(height: 16),
             Text('Dados insuficientes',
                 style: GoogleFonts.montserrat(
@@ -608,7 +608,7 @@ class _ProgressoScreenState extends State<ProgressoScreen>
             gridData: FlGridData(
               show: true,
               drawVerticalLine: false,
-              getDrawingHorizontalLine: (_) => const FlLine(color: Colors.white10, strokeWidth: 1),
+              getDrawingHorizontalLine: (_) => FlLine(color: AppColors.line, strokeWidth: 1),
             ),
             borderData: FlBorderData(show: false),
             titlesData: FlTitlesData(
@@ -697,7 +697,7 @@ class _ProgressoScreenState extends State<ProgressoScreen>
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.fitness_center_rounded, color: AppColors.textHint, size: 56),
+            Icon(Icons.fitness_center_rounded, color: AppColors.textHint, size: 56),
             const SizedBox(height: 16),
             Text('Sem histórico de cargas',
                 style: GoogleFonts.montserrat(
@@ -783,7 +783,7 @@ class _ProgressoScreenState extends State<ProgressoScreen>
             gridData: FlGridData(
               show: true,
               drawVerticalLine: false,
-              getDrawingHorizontalLine: (_) => const FlLine(color: Colors.white10, strokeWidth: 1),
+              getDrawingHorizontalLine: (_) => FlLine(color: AppColors.line, strokeWidth: 1),
             ),
             borderData: FlBorderData(show: false),
             titlesData: FlTitlesData(
@@ -905,7 +905,7 @@ class _SourceSheet extends StatelessWidget {
           const SizedBox(height: 20),
           Text('Adicionar foto',
               style: GoogleFonts.montserrat(
-                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                  color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 20),
           Row(children: [
             Expanded(child: _opc(context, ImageSource.camera, Icons.camera_alt_rounded, 'Câmera')),
@@ -932,7 +932,7 @@ class _SourceSheet extends StatelessWidget {
           const SizedBox(height: 8),
           Text(label,
               style: GoogleFonts.montserrat(
-                  color: Colors.white, fontWeight: FontWeight.w600)),
+                  color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
         ]),
       ),
     );
@@ -991,7 +991,7 @@ class _FotoFormDialogState extends State<_FotoFormDialog> {
             const SizedBox(height: 20),
             Text('Registrar medidas',
                 style: GoogleFonts.montserrat(
-                    color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                    color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             Text('Opcionais — mas ajudam a acompanhar sua evolução',
                 style: GoogleFonts.montserrat(
@@ -1000,11 +1000,11 @@ class _FotoFormDialogState extends State<_FotoFormDialog> {
             TextField(
               controller: _pesoCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: AppColors.textPrimary),
               decoration: InputDecoration(
                 labelText: 'Peso corporal (kg)',
                 hintText: 'Ex: 75.5',
-                prefixIcon: const Icon(Icons.monitor_weight_outlined,
+                prefixIcon: Icon(Icons.monitor_weight_outlined,
                     color: AppColors.textSecondary, size: 20),
                 labelStyle: GoogleFonts.montserrat(color: AppColors.textSecondary),
               ),
@@ -1012,12 +1012,12 @@ class _FotoFormDialogState extends State<_FotoFormDialog> {
             const SizedBox(height: 12),
             TextField(
               controller: _obsCtrl,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: AppColors.textPrimary),
               maxLines: 2,
               decoration: InputDecoration(
                 labelText: 'Observações',
                 hintText: 'Como você está se sentindo?',
-                prefixIcon: const Icon(Icons.notes_rounded,
+                prefixIcon: Icon(Icons.notes_rounded,
                     color: AppColors.textSecondary, size: 20),
                 labelStyle: GoogleFonts.montserrat(color: AppColors.textSecondary),
               ),

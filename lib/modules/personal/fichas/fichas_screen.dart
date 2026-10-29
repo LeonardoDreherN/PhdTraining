@@ -32,7 +32,7 @@ class FichasScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.lg),
             Expanded(
               child: estado.when(
-                loading: () => const Center(
+                loading: () => Center(
                   child: CircularProgressIndicator(color: AppColors.accent),
                 ),
                 error: (e, _) => PhdEmptyState(
@@ -97,7 +97,7 @@ class FichasScreen extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.menu_book_rounded,
+            Icon(Icons.menu_book_rounded,
                 size: 19, color: AppColors.textSecondary),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -106,7 +106,7 @@ class FichasScreen extends ConsumerWidget {
                 style: AppText.bodyStrong(13.5),
               ),
             ),
-            const Icon(Icons.chevron_right_rounded,
+            Icon(Icons.chevron_right_rounded,
                 size: 19, color: AppColors.textMuted),
           ],
         ),
@@ -172,7 +172,7 @@ class FichasScreen extends ConsumerWidget {
                 surfaceTintColor: Colors.transparent,
                 tooltip: 'Opções da ficha ${f.nome}',
                 shape: RoundedRectangleBorder(borderRadius: AppRadius.rMd),
-                icon: const Icon(Icons.more_vert_rounded,
+                icon: Icon(Icons.more_vert_rounded,
                     color: AppColors.textMuted, size: 20),
                 onSelected: (v) => _menu(context, ref, v, f),
                 itemBuilder: (_) => [

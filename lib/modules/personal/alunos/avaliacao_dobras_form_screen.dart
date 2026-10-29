@@ -327,7 +327,7 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao salvar: $e',
-                style: GoogleFonts.montserrat(color: Colors.black)),
+                style: GoogleFonts.montserrat(color: AppColors.onAccent)),
             backgroundColor: Colors.red,
           ),
         );
@@ -356,9 +356,9 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
           decoration: InputDecoration(
             suffixText: unidade,
             suffixStyle: GoogleFonts.montserrat(color: AppColors.textSecondary),
-            enabledBorder: const UnderlineInputBorder(
+            enabledBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: AppColors.divider)),
-            focusedBorder: const UnderlineInputBorder(
+            focusedBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: AppColors.primary)),
           ),
         ),
@@ -414,7 +414,7 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -428,8 +428,8 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
         ),
         actions: [
           if (_salvando)
-            const Padding(
-              padding: EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: SizedBox(
                   width: 20, height: 20,
                   child: CircularProgressIndicator(
@@ -635,7 +635,7 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
                         () => _editDobra(c),
                       ))
                   .toList(),
-              const Divider(height: 1, thickness: 0.5, color: AppColors.divider),
+              Divider(height: 1, thickness: 0.5, color: AppColors.divider),
             ),
           ),
         ),
@@ -720,7 +720,7 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
               if (soma != null) _buildResultRow('Soma das Dobras', '${soma.toStringAsFixed(1)} mm'),
               if (mg != null) _buildResultRow('Massa Gorda', '${mg.toStringAsFixed(1)} kg'),
               if (mm != null) _buildResultRow('Massa Magra', '${mm.toStringAsFixed(1)} kg'),
-            ], const Divider(height: 1, thickness: 0.5, color: AppColors.divider)),
+            ], Divider(height: 1, thickness: 0.5, color: AppColors.divider)),
           ),
         ),
       ],
@@ -767,11 +767,11 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
                     color: AppColors.textHint, fontSize: 12),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: AppColors.divider),
+                  borderSide: BorderSide(color: AppColors.divider),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: AppColors.primary),
+                  borderSide: BorderSide(color: AppColors.primary),
                 ),
                 contentPadding: const EdgeInsets.all(10),
               ),
@@ -779,7 +779,7 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
           ],
         ),
       ),
-      const Divider(height: 1, thickness: 0.5, color: AppColors.divider),
+      Divider(height: 1, thickness: 0.5, color: AppColors.divider),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
@@ -802,11 +802,11 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
                     color: AppColors.textHint, fontSize: 12),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: AppColors.divider),
+                  borderSide: BorderSide(color: AppColors.divider),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: AppColors.primary),
+                  borderSide: BorderSide(color: AppColors.primary),
                 ),
                 contentPadding: const EdgeInsets.all(10),
               ),
@@ -824,7 +824,7 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
         onPressed: _podeSalvar ? _salvar : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: Colors.black,
+          foregroundColor: AppColors.onAccent,
           disabledBackgroundColor: AppColors.divider,
           disabledForegroundColor: AppColors.textHint,
           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -867,7 +867,7 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
           child: Column(
             children: _intercalar(
               filhos,
-              const Divider(height: 1, thickness: 0.5, color: AppColors.divider),
+              Divider(height: 1, thickness: 0.5, color: AppColors.divider),
             ),
           ),
         ),
@@ -896,7 +896,7 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
             const SizedBox(width: 8),
-            const Icon(Icons.edit_outlined, color: AppColors.textHint, size: 14),
+            Icon(Icons.edit_outlined, color: AppColors.textHint, size: 14),
           ],
         ),
       ),
@@ -954,7 +954,7 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
           lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
           builder: (ctx, child) => Theme(
             data: ThemeData.dark().copyWith(
-              colorScheme: const ColorScheme.dark(
+              colorScheme: ColorScheme.dark(
                 primary: AppColors.primary,
                 surface: AppColors.surface,
               ),
@@ -981,7 +981,7 @@ class _AvaliacaoDobraFormScreenState extends State<AvaliacaoDobraFormScreen> {
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
             const SizedBox(width: 8),
-            const Icon(Icons.calendar_today_rounded,
+            Icon(Icons.calendar_today_rounded,
                 color: AppColors.textHint, size: 14),
           ],
         ),

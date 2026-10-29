@@ -37,7 +37,7 @@ class AvaliacaoMorfologicaScreen extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => context.pop(),
         ),
@@ -97,7 +97,7 @@ class AvaliacaoMorfologicaScreen extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('${p.label} — em breve',
-                  style: GoogleFonts.montserrat(color: Colors.black)),
+                  style: GoogleFonts.montserrat(color: AppColors.onAccent)),
               backgroundColor: AppColors.primary,
               duration: const Duration(seconds: 1),
             ),
@@ -119,7 +119,7 @@ class AvaliacaoMorfologicaScreen extends StatelessWidget {
               height: 44,
               decoration: BoxDecoration(
                 color: ativo
-                    ? Colors.white.withValues(alpha: 0.1)
+                    ? AppColors.textPrimary.withValues(alpha: 0.1)
                     : AppColors.divider.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(12),
               ),

@@ -37,10 +37,11 @@ class AlunoHomeScreen extends StatefulWidget {
 }
 
 /// Cores dos macros. Fora de `AppColors` porque só existem aqui e na dieta:
-/// são categorias, não estados.
-const _corProteina = Color(0xFF7CC4FF);
-const _corCarbo = Color(0xFFFBBF24);
-const _corGordura = Color(0xFFF59EC8);
+/// são categorias, não estados. Tons médios, que leem sobre preto e branco.
+Color get _corProteina => AppColors.accent;
+const _corCarbo = Color(0xFFF59E0B);
+const _corGordura = Color(0xFFEC4899);
+const _corDescanso = Color(0xFF818CF8);
 
 const _nomesDia = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const _meses = [
@@ -266,7 +267,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
       backgroundColor: AppColors.bg,
       body: SafeArea(
         child: _carregando
-            ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+            ? Center(child: CircularProgressIndicator(color: AppColors.accent))
             : _erro != null
                 ? PhdEmptyState(
                     icon: Icons.cloud_off_rounded,
@@ -375,7 +376,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.link_off_rounded, size: 24, color: AppColors.warningText),
+            Icon(Icons.link_off_rounded, size: 24, color: AppColors.warningText),
             const SizedBox(height: AppSpacing.md),
             Text('Conta ainda não vinculada', style: AppText.title(17)),
             const SizedBox(height: AppSpacing.sm),
@@ -514,7 +515,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                   border: borda,
                 ),
                 child: treinou
-                    ? const Icon(Icons.check_rounded, size: 18, color: AppColors.onAccent)
+                    ? Icon(Icons.check_rounded, size: 18, color: AppColors.onAccent)
                     : Text('${data.day}', style: AppText.number(13.5, color: texto)),
               ),
               const SizedBox(height: 5),
@@ -587,8 +588,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: feita
-                  ? const [AppColors.surfaceHigh, AppColors.surface]
-                  : const [AppColors.primaryLight, AppColors.accent, AppColors.primaryDark],
+                  ? [AppColors.surfaceHigh, AppColors.surface]
+                  : [AppColors.primaryLight, AppColors.accent, AppColors.primaryDark],
             ),
           ),
           child: Stack(
@@ -687,11 +688,11 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     );
   }
 
-  /// Botão preto sobre o Volt. O `PhdButton` primário é Volt — sobre o
-  /// cartão Volt ele sumiria.
+  /// Botão branco sobre o azul. O `PhdButton` primário é azul — sobre o
+  /// cartão azul ele sumiria.
   Widget _botaoTreino({required bool feita, VoidCallback? onTap}) {
     final ativo = onTap != null;
-    final bg = feita ? Colors.transparent : AppColors.onAccent;
+    final bg = feita ? Colors.transparent : Colors.white;
 
     return SizedBox(
       height: 54,
@@ -700,7 +701,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         color: ativo ? bg : AppColors.onAccent.withValues(alpha: 0.25),
         shape: RoundedRectangleBorder(
           borderRadius: AppRadius.rLg,
-          side: feita ? const BorderSide(color: AppColors.lineStrong) : BorderSide.none,
+          side: feita ? BorderSide(color: AppColors.lineStrong) : BorderSide.none,
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -726,7 +727,11 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                 feita ? 'Treinar de novo' : 'Começar treino',
                 style: AppText.bodyStrong(
                   15,
-                  color: ativo ? AppColors.textPrimary : AppColors.textMuted,
+                  color: !ativo
+                      ? AppColors.onAccent.withValues(alpha: 0.7)
+                      : feita
+                          ? AppColors.textPrimary
+                          : AppColors.primaryDark,
                 ),
               ),
             ],
@@ -771,7 +776,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
         ],
       ),
     );
@@ -828,11 +833,11 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF1C1E26), AppColors.surface],
+              colors: [AppColors.surfaceHigh, AppColors.surface],
             ),
           ),
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -841,7 +846,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
             children: [
               Row(
                 children: [
-                  _icone(Icons.bedtime_rounded, const Color(0xFFA5B4FC), tamanho: 44),
+                  _icone(Icons.bedtime_rounded, _corDescanso, tamanho: 44),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
@@ -888,7 +893,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                               ],
                             ),
                           ),
-                          const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                          Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
                         ],
                       ),
                     ),
@@ -926,7 +931,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           Expanded(
             child: _numero(
               icone: Icons.local_fire_department_rounded,
-              cor: const Color(0xFFFF8A4C),
+              cor: AppColors.energy,
               valor: '$seq',
               legenda: seq == 1 ? 'semana seguida' : 'semanas seguidas',
             ),
@@ -1073,7 +1078,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
+                  Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
                 ],
               ),
             ),
@@ -1174,7 +1179,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
               const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
-                  const Icon(Icons.event_rounded, size: 15, color: AppColors.textMuted),
+                  Icon(Icons.event_rounded, size: 15, color: AppColors.textMuted),
                   const SizedBox(width: 6),
                   Text(_textoProximaAvaliacao(proxima), style: AppText.caption(12)),
                 ],
@@ -1247,7 +1252,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           Expanded(
             child: _atalho(
               icone: Icons.photo_camera_outlined,
-              cor: const Color(0xFFA5B4FC),
+              cor: _corDescanso,
               titulo: 'Fotos',
               legenda: 'Sua evolução',
               onTap: () => context.push('/aluno/progresso'),
@@ -1327,7 +1332,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
             child: Column(
               children: [
                 for (final (i, h) in _historico.indexed) ...[
-                  if (i > 0) const Divider(height: 1, color: AppColors.line),
+                  if (i > 0) Divider(height: 1, color: AppColors.line),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                     child: Row(
@@ -1434,7 +1439,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
                   onTap: () => _abrir(zap),
-                  child: const SizedBox.square(
+                  child: SizedBox.square(
                     dimension: kMinTouch,
                     child: Icon(Icons.chat_rounded, size: 20, color: AppColors.successText),
                   ),
@@ -1472,7 +1477,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           ),
         ),
         const SizedBox(width: 2),
-        const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
+        Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
       ],
     );
   }
@@ -1597,7 +1602,7 @@ class _FolhaModo extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded,
+          Icon(Icons.chevron_right_rounded,
               size: 19, color: AppColors.textMuted),
         ],
       ),

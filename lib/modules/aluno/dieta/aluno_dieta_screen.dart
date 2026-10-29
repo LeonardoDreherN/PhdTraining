@@ -128,7 +128,7 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
 
   Widget _corpo() {
     if (_carregando && _plano == null) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppColors.accent),
       );
     }
@@ -324,7 +324,7 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
             style: AppText.caption(11.5, color: AppColors.textMuted),
           ),
           const SizedBox(height: AppSpacing.lg),
-          const Divider(color: AppColors.line, height: 1),
+          Divider(color: AppColors.line, height: 1),
           const SizedBox(height: AppSpacing.lg),
           _macro('Proteína', consumido.proteina, p.metaProteina),
           const SizedBox(height: AppSpacing.md),
@@ -335,7 +335,7 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
             const SizedBox(height: AppSpacing.lg),
             Row(
               children: [
-                const Icon(Icons.water_drop_outlined,
+                Icon(Icons.water_drop_outlined,
                     size: 16, color: AppColors.textMuted),
                 const SizedBox(width: 6),
                 Text(
@@ -461,8 +461,8 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 5, right: AppSpacing.sm),
+          Padding(
+            padding: const EdgeInsets.only(top: 5, right: AppSpacing.sm),
             child: Icon(Icons.circle, size: 5, color: AppColors.textMuted),
           ),
           Expanded(
@@ -481,7 +481,7 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
           if (i.observacoes != null && i.observacoes!.trim().isNotEmpty)
             Tooltip(
               message: i.observacoes!,
-              child: const Icon(Icons.info_outline_rounded,
+              child: Icon(Icons.info_outline_rounded,
                   size: 15, color: AppColors.textMuted),
             ),
         ],
@@ -504,7 +504,7 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.swap_horiz_rounded,
+              Icon(Icons.swap_horiz_rounded,
                   size: 15, color: AppColors.accent),
               const SizedBox(width: 5),
               Text(
@@ -540,7 +540,7 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
     final em = p.assinadoEm!;
     return Row(
       children: [
-        const Icon(Icons.verified_rounded, size: 15, color: AppColors.textMuted),
+        Icon(Icons.verified_rounded, size: 15, color: AppColors.textMuted),
         const SizedBox(width: 6),
         Expanded(
           child: Text(

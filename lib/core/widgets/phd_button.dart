@@ -60,7 +60,7 @@ class PhdButton extends StatelessWidget {
       PhdButtonVariant.secondary => (
           Colors.transparent,
           AppColors.textPrimary,
-          const BorderSide(color: AppColors.lineStrong),
+          BorderSide(color: AppColors.lineStrong),
         ),
       PhdButtonVariant.ghost => (AppColors.surfaceHigh, AppColors.textPrimary, null),
       PhdButtonVariant.danger => (

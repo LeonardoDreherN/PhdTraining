@@ -73,7 +73,7 @@ class _AlunoAvaliacoesScreenState extends State<AlunoAvaliacoesScreen> {
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => context.pop(),
         ),
@@ -84,7 +84,7 @@ class _AlunoAvaliacoesScreenState extends State<AlunoAvaliacoesScreen> {
                 fontWeight: FontWeight.w700)),
       ),
       body: _carregando
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: _avaliacoes.isEmpty ? _buildVazio() : _buildConteudo(),
@@ -99,7 +99,7 @@ class _AlunoAvaliacoesScreenState extends State<AlunoAvaliacoesScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.assignment_outlined, color: AppColors.textHint, size: 56),
+            Icon(Icons.assignment_outlined, color: AppColors.textHint, size: 56),
             const SizedBox(height: 16),
             Text('Nenhuma avaliação registrada',
                 style: GoogleFonts.montserrat(
@@ -196,7 +196,7 @@ class _AlunoAvaliacoesScreenState extends State<AlunoAvaliacoesScreen> {
               border: Border.all(color: AppColors.divider, width: 0.5),
             ),
             child: Row(children: [
-              const Icon(Icons.history_rounded, color: AppColors.textSecondary, size: 18),
+              Icon(Icons.history_rounded, color: AppColors.textSecondary, size: 18),
               const SizedBox(width: 10),
               Text('${_avaliacoes.length} avaliações registradas',
                   style: GoogleFonts.montserrat(
@@ -230,10 +230,10 @@ class _AlunoAvaliacoesScreenState extends State<AlunoAvaliacoesScreen> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.07),
+                    color: AppColors.textPrimary.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.bar_chart_rounded,
+                  child: Icon(Icons.bar_chart_rounded,
                       color: AppColors.textPrimary, size: 22),
                 ),
                 const SizedBox(width: 14),
@@ -252,7 +252,7 @@ class _AlunoAvaliacoesScreenState extends State<AlunoAvaliacoesScreen> {
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios_rounded,
+                Icon(Icons.arrow_forward_ios_rounded,
                     color: AppColors.textSecondary, size: 14),
               ]),
             ),

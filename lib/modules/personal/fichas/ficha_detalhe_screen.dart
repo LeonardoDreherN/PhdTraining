@@ -94,7 +94,7 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
 
   Widget _corpo() {
     if (_carregando) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppColors.accent),
       );
     }
@@ -221,7 +221,7 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.sticky_note_2_outlined,
                         size: 12,
                         color: AppColors.textMuted,
@@ -246,8 +246,8 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
           ),
           ReorderableDragStartListener(
             index: index,
-            child: const Padding(
-              padding: EdgeInsets.symmetric(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.sm,
                 vertical: AppSpacing.xs,
               ),
@@ -273,7 +273,7 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
         borderRadius: AppRadius.rSm,
       ),
       child: item.midiaUrl == null
-          ? const Icon(
+          ? Icon(
               Icons.fitness_center_rounded,
               size: 18,
               color: AppColors.textMuted,
@@ -283,7 +283,7 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
               fit: BoxFit.cover,
               // Mídia quebrada não pode virar um X vermelho no meio da
               // ficha: cai no ícone padrão, igual a quem não tem imagem.
-              errorBuilder: (_, __, ___) => const Icon(
+              errorBuilder: (_, __, ___) => Icon(
                 Icons.fitness_center_rounded,
                 size: 18,
                 color: AppColors.textMuted,

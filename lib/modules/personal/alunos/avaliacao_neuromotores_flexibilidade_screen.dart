@@ -248,7 +248,7 @@ class _TabelaReferencia extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white12),
+            border: Border.all(color: AppColors.line),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,7 +259,7 @@ class _TabelaReferencia extends StatelessWidget {
                     style: GoogleFonts.montserrat(
                         color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
               ),
-              const Divider(height: 1, color: Colors.white12),
+              Divider(height: 1, color: AppColors.line),
               ...List.generate(5, (i) => _LinhaTabela(labels[i], ranges[i], cores[i])),
             ],
           ),

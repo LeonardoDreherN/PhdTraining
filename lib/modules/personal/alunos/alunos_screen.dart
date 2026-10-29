@@ -51,7 +51,7 @@ class _AlunosScreenState extends ConsumerState<AlunosScreen> {
             const SizedBox(height: AppSpacing.lg),
             Expanded(
               child: estado.when(
-                loading: () => const Center(
+                loading: () => Center(
                   child: CircularProgressIndicator(color: AppColors.accent),
                 ),
                 error: (e, _) => PhdEmptyState(
@@ -110,13 +110,13 @@ class _AlunosScreenState extends ConsumerState<AlunosScreen> {
         cursorColor: AppColors.accent,
         decoration: InputDecoration(
           hintText: 'Buscar por nome ou e-mail',
-          prefixIcon: const Icon(Icons.search_rounded,
+          prefixIcon: Icon(Icons.search_rounded,
               color: AppColors.textMuted, size: 19),
           suffixIcon: _busca.text.isEmpty
               ? null
               : IconButton(
                   tooltip: 'Limpar busca',
-                  icon: const Icon(Icons.close_rounded,
+                  icon: Icon(Icons.close_rounded,
                       color: AppColors.textMuted, size: 18),
                   onPressed: () {
                     _busca.clear();
@@ -223,7 +223,7 @@ class _AlunosScreenState extends ConsumerState<AlunosScreen> {
           surfaceTintColor: Colors.transparent,
           tooltip: 'Opções de ${a.nome}',
           shape: RoundedRectangleBorder(borderRadius: AppRadius.rMd),
-          icon: const Icon(Icons.more_vert_rounded,
+          icon: Icon(Icons.more_vert_rounded,
               color: AppColors.textMuted, size: 20),
           onSelected: (v) => _acao(v, a),
           itemBuilder: (_) => [

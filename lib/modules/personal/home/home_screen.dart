@@ -204,7 +204,7 @@ class _PrimeiroAcesso extends ConsumerWidget {
                       shape: BoxShape.circle,
                     ),
                     child: feito
-                        ? const Icon(Icons.check_rounded,
+                        ? Icon(Icons.check_rounded,
                             size: 16, color: AppColors.onAccent)
                         : null,
                   ),
@@ -227,7 +227,7 @@ class _PrimeiroAcesso extends ConsumerWidget {
                     ),
                   ),
                   if (!feito)
-                    const Icon(Icons.chevron_right_rounded,
+                    Icon(Icons.chevron_right_rounded,
                         size: 20, color: AppColors.textMuted),
                 ],
               ),
@@ -343,11 +343,20 @@ class _Painel extends ConsumerWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.line),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
-          colors: [Color(0xFF1E2410), AppColors.surface, AppColors.surface],
-          stops: [0, 0.55, 1],
+          colors: [
+            // Brilho azul no canto, sobre a própria superfície: a cor da
+            // marca sem pintar o cartão inteiro.
+            Color.alphaBlend(
+              AppColors.accent.withValues(alpha: AppColors.ehClaro ? 0.10 : 0.18),
+              AppColors.surface,
+            ),
+            AppColors.surface,
+            AppColors.surface,
+          ],
+          stops: const [0, 0.55, 1],
         ),
       ),
       padding: const EdgeInsets.all(AppSpacing.xl),
@@ -586,7 +595,7 @@ class _Painel extends ConsumerWidget {
             rotulos: const ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'],
           ),
           const SizedBox(height: AppSpacing.lg),
-          const Divider(height: 1, color: AppColors.line),
+          Divider(height: 1, color: AppColors.line),
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
@@ -873,11 +882,11 @@ class _Painel extends ConsumerWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFFF59EC8).withValues(alpha: 0.14),
+              color: const Color(0xFFEC4899).withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(Icons.cake_rounded,
-                size: 22, color: Color(0xFFF59EC8)),
+                size: 22, color: Color(0xFFEC4899)),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -934,7 +943,7 @@ class _Painel extends ConsumerWidget {
                   shape: BoxShape.circle,
                   border: Border.all(color: AppColors.lineStrong),
                 ),
-                child: const Icon(Icons.arrow_forward_rounded,
+                child: Icon(Icons.arrow_forward_rounded,
                     color: AppColors.textSecondary),
               ),
               nome: 'Ver todos',
@@ -1023,7 +1032,7 @@ class _Painel extends ConsumerWidget {
       child: Column(
         children: [
           for (final (i, t) in resumo.recentes.indexed) ...[
-            if (i > 0) const Divider(height: 1, color: AppColors.line),
+            if (i > 0) Divider(height: 1, color: AppColors.line),
             InkWell(
               onTap: () async {
                 await context.push('/alunos/perfil', extra: t.aluno.linha);
@@ -1069,7 +1078,7 @@ class _Painel extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    const Icon(Icons.check_circle_rounded,
+                    Icon(Icons.check_circle_rounded,
                         size: 18, color: AppColors.success),
                   ],
                 ),

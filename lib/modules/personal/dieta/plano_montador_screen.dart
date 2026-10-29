@@ -103,7 +103,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
               surfaceTintColor: Colors.transparent,
               tooltip: 'Opções do plano',
               shape: RoundedRectangleBorder(borderRadius: AppRadius.rMd),
-              icon: const Icon(Icons.more_vert_rounded,
+              icon: Icon(Icons.more_vert_rounded,
                   color: AppColors.textMuted, size: 20),
               onSelected: _menuPlano,
               itemBuilder: (_) => [
@@ -128,7 +128,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
 
   Widget _corpo() {
     if (_carregando && _plano == null) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppColors.accent),
       );
     }
@@ -230,7 +230,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
             _linhaDesvio(desvio),
           ],
           const SizedBox(height: AppSpacing.lg),
-          const Divider(color: AppColors.line, height: 1),
+          Divider(color: AppColors.line, height: 1),
           const SizedBox(height: AppSpacing.lg),
           _macro('Proteína', total.proteina, p.metaProteina),
           const SizedBox(height: AppSpacing.md),
@@ -311,8 +311,8 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
 
   Widget _assinatura(PlanoAlimentar p) {
     if (!p.assinado) {
-      return const Padding(
-        padding: EdgeInsets.only(top: AppSpacing.lg),
+      return Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.lg),
         child: PhdAviso(
           texto: 'Plano não assinado. A prescrição dietética é privativa do '
               'nutricionista — assine com seu CRN antes de liberar para o aluno.',
@@ -327,7 +327,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
       padding: const EdgeInsets.only(top: AppSpacing.lg),
       child: Row(
         children: [
-          const Icon(Icons.verified_rounded,
+          Icon(Icons.verified_rounded,
               size: 16, color: AppColors.successText),
           const SizedBox(width: 6),
           Expanded(
@@ -358,8 +358,8 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
             children: [
               ReorderableDragStartListener(
                 index: indice,
-                child: const Padding(
-                  padding: EdgeInsets.only(right: AppSpacing.sm),
+                child: Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.sm),
                   child: Icon(Icons.drag_indicator_rounded,
                       size: 18, color: AppColors.textMuted),
                 ),
@@ -392,7 +392,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
                 surfaceTintColor: Colors.transparent,
                 tooltip: 'Opções de ${r.nome}',
                 shape: RoundedRectangleBorder(borderRadius: AppRadius.rMd),
-                icon: const Icon(Icons.more_vert_rounded,
+                icon: Icon(Icons.more_vert_rounded,
                     color: AppColors.textMuted, size: 19),
                 onSelected: (v) => _menuRefeicao(v, r),
                 itemBuilder: (_) => [
@@ -419,7 +419,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
           ),
           if (agrupando) ...[
             const SizedBox(height: AppSpacing.md),
-            const PhdAviso(
+            PhdAviso(
               texto: 'Marque os alimentos que podem ser trocados entre si. '
                   'O aluno escolhe um deles, e o total da refeição conta '
                   'só uma vez.',
@@ -507,8 +507,8 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
                     Row(
                       children: [
                         if (item.temSubstitutos)
-                          const Padding(
-                            padding: EdgeInsets.only(right: 5),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 5),
                             child: Icon(Icons.swap_horiz_rounded,
                                 size: 15, color: AppColors.accent),
                           ),
@@ -983,9 +983,9 @@ class _FolhaAcoesItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
       ),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.md,
@@ -1003,21 +1003,21 @@ class _FolhaAcoesItem extends StatelessWidget {
             const SizedBox(height: AppSpacing.lg),
             PhdListRow(
               title: 'Mudar quantidade',
-              leading: const Icon(Icons.scale_rounded,
+              leading: Icon(Icons.scale_rounded,
                   size: 19, color: AppColors.textSecondary),
               onTap: () => Navigator.pop(context, 'quantidade'),
             ),
             if (item.temSubstitutos)
               PhdListRow(
                 title: 'Tirar do grupo de substitutos',
-                leading: const Icon(Icons.swap_horiz_rounded,
+                leading: Icon(Icons.swap_horiz_rounded,
                     size: 19, color: AppColors.textSecondary),
                 onTap: () => Navigator.pop(context, 'desagrupar'),
               ),
             PhdListRow(
               title: 'Remover do plano',
               subtitleColor: AppColors.dangerText,
-              leading: const Icon(Icons.delete_outline_rounded,
+              leading: Icon(Icons.delete_outline_rounded,
                   size: 19, color: AppColors.dangerText),
               onTap: () => Navigator.pop(context, 'remover'),
             ),

@@ -37,7 +37,7 @@ class PersonalShell extends StatelessWidget {
       backgroundColor: AppColors.bg,
       body: child,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.bg,
           border: Border(top: BorderSide(color: AppColors.line)),
         ),

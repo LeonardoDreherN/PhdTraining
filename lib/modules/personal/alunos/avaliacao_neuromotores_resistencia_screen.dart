@@ -208,10 +208,10 @@ class _ListaTab extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white24),
+                border: Border.all(color: AppColors.lineStrong),
               ),
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Icon(Icons.add, color: Colors.white, size: 18),
+                Icon(Icons.add, color: AppColors.textPrimary, size: 18),
                 const SizedBox(width: 6),
                 Text('Realizar novo teste',
                     style: GoogleFonts.montserrat(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
@@ -220,13 +220,13 @@ class _ListaTab extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           if (carregando)
-            const Center(child: CircularProgressIndicator(color: Colors.white))
+            Center(child: CircularProgressIndicator(color: AppColors.accent))
           else if (lista.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.only(top: 40),
                 child: Column(children: [
-                  const Icon(Icons.description_outlined, color: Colors.white38, size: 48),
+                  Icon(Icons.description_outlined, color: AppColors.textMuted, size: 48),
                   const SizedBox(height: 12),
                   Text('Você ainda não realizou nenhum teste para esse aluno',
                       textAlign: TextAlign.center,
@@ -247,7 +247,7 @@ class _ListaTab extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white12),
+                    border: Border.all(color: AppColors.line),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -452,7 +452,7 @@ class _TabelaReferencia extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white12),
+            border: Border.all(color: AppColors.line),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -469,7 +469,7 @@ class _TabelaReferencia extends StatelessWidget {
                           color: AppColors.textSecondary, fontSize: 11)),
                 ]),
               ),
-              const Divider(height: 1, color: Colors.white12),
+              Divider(height: 1, color: AppColors.line),
               ...List.generate(5, (i) => _LinhaTabela(labels[i], ranges[i], cores[i])),
             ],
           ),

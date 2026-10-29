@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
 
 class PHDLogo extends StatelessWidget {
   final double fontSize;
@@ -7,7 +8,7 @@ class PHDLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Image.asset(
-      'assets/images/logo_white.png',
+      AppColors.ehClaro ? 'assets/images/logo_black.png' : 'assets/images/logo_white.png',
       height: fontSize * 1.1,
       fit: BoxFit.contain,
     );

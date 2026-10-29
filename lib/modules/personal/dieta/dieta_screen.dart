@@ -89,7 +89,7 @@ class _DietaScreenState extends State<DietaScreen> {
 
   Widget _corpo(PlanoAlimentar? ativo, List<PlanoAlimentar> anteriores) {
     if (_carregando && _planos.isEmpty) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppColors.accent),
       );
     }
@@ -113,7 +113,7 @@ class _DietaScreenState extends State<DietaScreen> {
         ),
         children: [
           if (_crnChecado && _crn == null) ...[
-            const PhdAviso(
+            PhdAviso(
               texto: 'Você não tem CRN no perfil. Pode montar o plano, mas '
                   'não assinar — a prescrição dietética é privativa do '
                   'nutricionista.',
@@ -185,7 +185,7 @@ class _DietaScreenState extends State<DietaScreen> {
                 surfaceTintColor: Colors.transparent,
                 tooltip: 'Opções de ${p.nome}',
                 shape: RoundedRectangleBorder(borderRadius: AppRadius.rMd),
-                icon: const Icon(Icons.more_vert_rounded,
+                icon: Icon(Icons.more_vert_rounded,
                     color: AppColors.textMuted, size: 19),
                 onSelected: (v) => _menu(v, p),
                 itemBuilder: (_) => [

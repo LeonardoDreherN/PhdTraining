@@ -38,7 +38,7 @@ class NeuromotoresListScaffold extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => context.pop(),
         ),
@@ -70,7 +70,7 @@ class NeuromotoresListScaffold extends StatelessWidget {
                         fontWeight: FontWeight.w600, fontSize: 14)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textPrimary,
-                  side: const BorderSide(color: AppColors.divider),
+                  side: BorderSide(color: AppColors.divider),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -81,7 +81,7 @@ class NeuromotoresListScaffold extends StatelessWidget {
           const SizedBox(height: 16),
           Expanded(
             child: carregando
-                ? const Center(
+                ? Center(
                     child: CircularProgressIndicator(color: AppColors.primary))
                 : lista.isEmpty
                     ? _buildEmpty()
@@ -109,7 +109,7 @@ class NeuromotoresListScaffold extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.divider, width: 0.5),
             ),
-            child: const Icon(Icons.folder_open_rounded,
+            child: Icon(Icons.folder_open_rounded,
                 color: AppColors.textHint, size: 30),
           ),
           const SizedBox(height: 16),
@@ -213,7 +213,7 @@ class NeuromotoresFormScaffold extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -231,8 +231,8 @@ class NeuromotoresFormScaffold extends StatelessWidget {
                     color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
         actions: [
           if (salvando)
-            const Padding(
-              padding: EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: SizedBox(
                   width: 20,
                   height: 20,
@@ -267,7 +267,7 @@ class NeuromotoresFormScaffold extends StatelessWidget {
                 onPressed: podeSalvar ? onSalvar : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.black,
+                  foregroundColor: AppColors.onAccent,
                   disabledBackgroundColor: AppColors.divider,
                   disabledForegroundColor: AppColors.textHint,
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -307,7 +307,7 @@ class NeuromotoresFormScaffold extends StatelessWidget {
           child: Column(
             children: neuroIntercalar(
               secao.filhos,
-              const Divider(
+              Divider(
                   height: 1, thickness: 0.5, color: AppColors.divider),
             ),
           ),
@@ -361,7 +361,7 @@ class NeuroLinhaEdit extends StatelessWidget {
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
             const SizedBox(width: 8),
-            const Icon(Icons.edit_outlined,
+            Icon(Icons.edit_outlined,
                 color: AppColors.textHint, size: 14),
           ],
         ),
@@ -480,7 +480,7 @@ class NeuroLinhaDate extends StatelessWidget {
           lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
           builder: (ctx, child) => Theme(
             data: ThemeData.dark().copyWith(
-              colorScheme: const ColorScheme.dark(
+              colorScheme: ColorScheme.dark(
                   primary: AppColors.primary, surface: AppColors.surface),
             ),
             child: child!,
@@ -507,7 +507,7 @@ class NeuroLinhaDate extends StatelessWidget {
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
             const SizedBox(width: 8),
-            const Icon(Icons.calendar_today_rounded,
+            Icon(Icons.calendar_today_rounded,
                 color: AppColors.textHint, size: 14),
           ],
         ),
@@ -545,11 +545,11 @@ class NeuroLinhaTextarea extends StatelessWidget {
                   GoogleFonts.montserrat(color: AppColors.textHint, fontSize: 12),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.divider),
+                borderSide: BorderSide(color: AppColors.divider),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.primary),
+                borderSide: BorderSide(color: AppColors.primary),
               ),
               contentPadding: const EdgeInsets.all(10),
             ),
@@ -615,9 +615,9 @@ Future<void> neuroEditDouble(BuildContext context, String label,
           suffixText: unidade,
           suffixStyle:
               GoogleFonts.montserrat(color: AppColors.textSecondary),
-          enabledBorder: const UnderlineInputBorder(
+          enabledBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: AppColors.divider)),
-          focusedBorder: const UnderlineInputBorder(
+          focusedBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: AppColors.primary)),
         ),
       ),
@@ -663,9 +663,9 @@ Future<void> neuroEditInt(BuildContext context, String label, String unidade,
           suffixText: unidade,
           suffixStyle:
               GoogleFonts.montserrat(color: AppColors.textSecondary),
-          enabledBorder: const UnderlineInputBorder(
+          enabledBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: AppColors.divider)),
-          focusedBorder: const UnderlineInputBorder(
+          focusedBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: AppColors.primary)),
         ),
       ),
@@ -695,7 +695,7 @@ void neuroShowErro(BuildContext context, Object e) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text('Erro ao salvar: $e',
-          style: GoogleFonts.montserrat(color: Colors.black)),
+          style: GoogleFonts.montserrat(color: AppColors.onAccent)),
       backgroundColor: Colors.red,
     ),
   );

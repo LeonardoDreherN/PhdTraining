@@ -15,7 +15,7 @@ class PhdRing extends StatelessWidget {
     required this.child,
     this.tamanho = 96,
     this.espessura = 9,
-    this.cor = AppColors.accent,
+    this.cor,
   });
 
   /// 0 a 1; fora disso é preso.
@@ -23,10 +23,13 @@ class PhdRing extends StatelessWidget {
   final Widget child;
   final double tamanho;
   final double espessura;
-  final Color cor;
+
+  /// Padrão: o acento do tema ativo.
+  final Color? cor;
 
   @override
   Widget build(BuildContext context) {
+    final cor = this.cor ?? AppColors.accent;
     return SizedBox.square(
       dimension: tamanho,
       child: TweenAnimationBuilder<double>(
@@ -81,16 +84,17 @@ class PhdSparkline extends StatelessWidget {
   const PhdSparkline({
     super.key,
     required this.valores,
-    this.cor = AppColors.accent,
+    this.cor,
     this.altura = 44,
   });
 
   final List<double> valores;
-  final Color cor;
+  final Color? cor;
   final double altura;
 
   @override
   Widget build(BuildContext context) {
+    final cor = this.cor ?? AppColors.accent;
     return SizedBox(
       height: altura,
       width: double.infinity,
@@ -173,17 +177,18 @@ class PhdBars extends StatelessWidget {
     required this.rotulos,
     this.destaque,
     this.altura = 64,
-    this.cor = AppColors.accent,
+    this.cor,
   });
 
   final List<num> valores;
   final List<String> rotulos;
   final int? destaque;
   final double altura;
-  final Color cor;
+  final Color? cor;
 
   @override
   Widget build(BuildContext context) {
+    final cor = this.cor ?? AppColors.accent;
     final maximo = valores.fold<num>(0, (m, v) => v > m ? v : m);
 
     return Row(

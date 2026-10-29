@@ -167,7 +167,7 @@ class LinhaMedida extends StatelessWidget {
               ),
               if (onTap != null) ...[
                 const SizedBox(width: AppSpacing.sm),
-                const Icon(Icons.edit_outlined, size: 16, color: AppColors.textMuted),
+                Icon(Icons.edit_outlined, size: 16, color: AppColors.textMuted),
               ],
             ],
           ),

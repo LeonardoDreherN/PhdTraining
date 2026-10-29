@@ -468,7 +468,7 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
           ),
           if (m != null && dist != null) ...[
             const SizedBox(height: AppSpacing.lg),
-            const Divider(color: AppColors.line, height: 1),
+            Divider(color: AppColors.line, height: 1),
             const SizedBox(height: AppSpacing.lg),
             _linhaMacro('Proteína', m.proteina, dist.proteina),
             const SizedBox(height: AppSpacing.sm),

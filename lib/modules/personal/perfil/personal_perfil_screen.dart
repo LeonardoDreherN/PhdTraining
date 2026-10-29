@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/widgets.dart';
 import '../../../core/services/profile_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/providers/app_providers.dart';
@@ -121,7 +122,7 @@ class _PersonalPerfilScreenState extends ConsumerState<PersonalPerfilScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _carregando
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : CustomScrollView(
               slivers: [
                 SliverAppBar(
@@ -129,7 +130,7 @@ class _PersonalPerfilScreenState extends ConsumerState<PersonalPerfilScreen> {
                   backgroundColor: AppColors.background,
                   surfaceTintColor: Colors.transparent,
                   automaticallyImplyLeading: false,
-                  title: Image.asset('assets/images/logo_white.png',
+                  title: Image.asset(AppColors.ehClaro ? 'assets/images/logo_black.png' : 'assets/images/logo_white.png',
                       height: 34, fit: BoxFit.contain),
                   centerTitle: true,
                 ),
@@ -164,6 +165,10 @@ class _PersonalPerfilScreenState extends ConsumerState<PersonalPerfilScreen> {
                         _buildCampo(_nomeCtrl, 'Nome'),
                         const SizedBox(height: 8),
                         _buildBotaoPrimario('Salvar nome', _salvarNome),
+                        const SizedBox(height: 28),
+                        _rotulo('APARÊNCIA'),
+                        const SizedBox(height: 10),
+                        const PhdSeletorTema(),
                         const SizedBox(height: 28),
                         _rotulo('CONTA'),
                         const SizedBox(height: 10),
@@ -214,12 +219,12 @@ class _PersonalPerfilScreenState extends ConsumerState<PersonalPerfilScreen> {
               border: Border.all(color: AppColors.background, width: 2),
             ),
             child: _uploadando
-                ? const Padding(
-                    padding: EdgeInsets.all(5),
+                ? Padding(
+                    padding: const EdgeInsets.all(5),
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.black),
+                        strokeWidth: 2, color: AppColors.onAccent),
                   )
-                : const Icon(Icons.camera_alt, color: Colors.black, size: 15),
+                : Icon(Icons.camera_alt, color: AppColors.onAccent, size: 15),
           ),
         ],
       ),
@@ -247,13 +252,13 @@ class _PersonalPerfilScreenState extends ConsumerState<PersonalPerfilScreen> {
         fillColor: AppColors.surface,
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: AppColors.divider)),
+            borderSide: BorderSide(color: AppColors.divider)),
         enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: AppColors.divider, width: 0.5)),
+            borderSide: BorderSide(color: AppColors.divider, width: 0.5)),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: AppColors.primary)),
+            borderSide: BorderSide(color: AppColors.primary)),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       ),
@@ -268,7 +273,7 @@ class _PersonalPerfilScreenState extends ConsumerState<PersonalPerfilScreen> {
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: Colors.black,
+          foregroundColor: AppColors.onAccent,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           elevation: 0,
@@ -312,7 +317,7 @@ class _PlaceholderIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.surface,
-      child: const Icon(Icons.person, color: AppColors.textSecondary, size: 46),
+      child: Icon(Icons.person, color: AppColors.textSecondary, size: 46),
     );
   }
 }

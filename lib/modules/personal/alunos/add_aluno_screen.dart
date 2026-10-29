@@ -100,7 +100,7 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 AppStrings.adicionarAluno,
                 style: TextStyle(
                   color: AppColors.textPrimary,
@@ -181,10 +181,10 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
               ElevatedButton(
                 onPressed: _salvando ? null : _salvar,
                 child: _salvando
-                    ? const SizedBox(
+                    ? SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        child: CircularProgressIndicator(color: AppColors.onAccent, strokeWidth: 2),
                       )
                     : const Text(AppStrings.salvar),
               ),
@@ -202,8 +202,8 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
       elevation: 0,
       leading: GestureDetector(
         onTap: () => context.voltar(senaoPara: '/alunos'),
-        child: const Padding(
-          padding: EdgeInsets.only(left: 12),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 12),
           child: Row(
             children: [
               Icon(Icons.chevron_left, color: AppColors.textSecondary, size: 18),
@@ -221,7 +221,7 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textSecondary,
         fontSize: 13,
         fontWeight: FontWeight.w500,
@@ -243,7 +243,7 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
       readOnly: readOnly,
       onTap: onTap,
       validator: validator,
-      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+      style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
       decoration: InputDecoration(hintText: hint),
     );
   }
@@ -258,13 +258,13 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
       initialValue: value,
       onChanged: onChanged,
       dropdownColor: AppColors.surface,
-      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+      style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
       decoration: InputDecoration(hintText: hint),
-      icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.textSecondary),
+      icon: Icon(Icons.keyboard_arrow_down, color: AppColors.textSecondary),
       items: items
           .map((e) => DropdownMenuItem(
                 value: e,
-                child: Text(e, style: const TextStyle(color: AppColors.textPrimary)),
+                child: Text(e, style: TextStyle(color: AppColors.textPrimary)),
               ))
           .toList(),
     );
@@ -283,7 +283,7 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             AppStrings.enviarAnamnese,
             style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
@@ -308,7 +308,7 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
                       o.$2,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: sel ? Colors.black : AppColors.textSecondary,
+                        color: sel ? AppColors.onAccent : AppColors.textSecondary,
                         fontSize: 13,
                         fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
                       ),
@@ -341,7 +341,7 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
           ),
           Switch(
@@ -374,7 +374,7 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
       lastDate: DateTime.now(),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(
+          colorScheme: ColorScheme.dark(
             primary: AppColors.primary,
             surface: AppColors.surface,
           ),

@@ -114,7 +114,7 @@ class _TreinoSimplesScreenState extends State<TreinoSimplesScreen> {
 
   Widget _corpo() {
     if (_carregando) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+      return Center(child: CircularProgressIndicator(color: AppColors.accent));
     }
     if (_erro != null) {
       return PhdEmptyState(
@@ -209,7 +209,7 @@ class _TreinoSimplesScreenState extends State<TreinoSimplesScreen> {
               ),
             ),
             child: feito
-                ? const Icon(Icons.check_rounded, size: 15, color: AppColors.bg)
+                ? Icon(Icons.check_rounded, size: 15, color: AppColors.bg)
                 : null,
           ),
           const SizedBox(width: AppSpacing.md),
@@ -232,7 +232,7 @@ class _TreinoSimplesScreenState extends State<TreinoSimplesScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.campaign_outlined,
+                      Icon(Icons.campaign_outlined,
                           size: 12, color: AppColors.accent),
                       const SizedBox(width: 4),
                       Expanded(

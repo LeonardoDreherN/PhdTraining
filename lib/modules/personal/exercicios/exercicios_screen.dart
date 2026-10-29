@@ -77,7 +77,7 @@ class _ExerciciosScreenState extends State<ExerciciosScreen> {
           _buildGruposFiltro(),
           Expanded(
             child: _carregando
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                ? Center(child: CircularProgressIndicator(color: AppColors.primary))
                 : _filtrados.isEmpty
                     ? _buildVazio()
                     : _buildLista(),
@@ -93,17 +93,17 @@ class _ExerciciosScreenState extends State<ExerciciosScreen> {
       child: TextField(
         controller: _searchController,
         onChanged: (v) => setState(() => _busca = v),
-        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+        style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
         decoration: InputDecoration(
           hintText: 'Buscar exercício...',
-          prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
+          prefixIcon: Icon(Icons.search, color: AppColors.textSecondary, size: 20),
           suffixIcon: _busca.isNotEmpty
               ? GestureDetector(
                   onTap: () {
                     _searchController.clear();
                     setState(() => _busca = '');
                   },
-                  child: const Icon(Icons.close, color: AppColors.textSecondary, size: 18),
+                  child: Icon(Icons.close, color: AppColors.textSecondary, size: 18),
                 )
               : null,
         ),
@@ -140,7 +140,7 @@ class _ExerciciosScreenState extends State<ExerciciosScreen> {
               child: Text(
                 grupo,
                 style: TextStyle(
-                  color: selected ? Colors.black : AppColors.textSecondary,
+                  color: selected ? AppColors.onAccent : AppColors.textSecondary,
                   fontSize: 12,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 ),
@@ -186,22 +186,22 @@ class _ExerciciosScreenState extends State<ExerciciosScreen> {
                   borderRadius: BorderRadius.circular(10),
                   child: Image.network(exercicio['midia_url'], fit: BoxFit.cover),
                 )
-              : const Icon(Icons.fitness_center, color: AppColors.primary, size: 24),
+              : Icon(Icons.fitness_center, color: AppColors.primary, size: 24),
         ),
         title: Text(
           exercicio['nome'],
-          style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14),
+          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14),
         ),
         subtitle: exercicio['grupo_muscular'] != null
-            ? Text(exercicio['grupo_muscular'], style: const TextStyle(color: AppColors.textSecondary, fontSize: 12))
+            ? Text(exercicio['grupo_muscular'], style: TextStyle(color: AppColors.textSecondary, fontSize: 12))
             : null,
         trailing: PopupMenuButton<String>(
           color: AppColors.surface,
-          icon: const Icon(Icons.more_vert, color: AppColors.textSecondary, size: 20),
+          icon: Icon(Icons.more_vert, color: AppColors.textSecondary, size: 20),
           onSelected: (v) => _onMenuAction(v, exercicio),
           itemBuilder: (_) => [
-            const PopupMenuItem(value: 'editar', child: Text('Editar', style: TextStyle(color: AppColors.textPrimary))),
-            const PopupMenuItem(value: 'deletar', child: Text('Excluir', style: TextStyle(color: AppColors.error))),
+            PopupMenuItem(value: 'editar', child: Text('Editar', style: TextStyle(color: AppColors.textPrimary))),
+            PopupMenuItem(value: 'deletar', child: Text('Excluir', style: TextStyle(color: AppColors.error))),
           ],
         ),
       ),
@@ -213,11 +213,11 @@ class _ExerciciosScreenState extends State<ExerciciosScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.fitness_center, color: AppColors.textHint, size: 64),
+          Icon(Icons.fitness_center, color: AppColors.textHint, size: 64),
           const SizedBox(height: 16),
           Text(
             _busca.isNotEmpty ? 'Nenhum exercício encontrado' : 'Nenhum exercício cadastrado',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
           ),
           if (_busca.isEmpty) ...[
             const SizedBox(height: 20),
@@ -242,11 +242,11 @@ class _ExerciciosScreenState extends State<ExerciciosScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: AppColors.surface,
-          title: const Text('Excluir exercício', style: TextStyle(color: AppColors.textPrimary)),
-          content: Text('Deseja excluir "${exercicio['nome']}"?', style: const TextStyle(color: AppColors.textSecondary)),
+          title: Text('Excluir exercício', style: TextStyle(color: AppColors.textPrimary)),
+          content: Text('Deseja excluir "${exercicio['nome']}"?', style: TextStyle(color: AppColors.textSecondary)),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir', style: TextStyle(color: AppColors.error))),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Excluir', style: TextStyle(color: AppColors.error))),
           ],
         ),
       );

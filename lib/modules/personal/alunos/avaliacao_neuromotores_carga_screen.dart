@@ -258,14 +258,14 @@ class _TabelaRM extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: AppColors.line),
       ),
       child: Column(
         children: rows.map((r) {
           final isFirst = r == rows.first;
           return Column(
             children: [
-              if (!isFirst) const Divider(height: 1, color: Colors.white12),
+              if (!isFirst) Divider(height: 1, color: AppColors.line),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 child: Row(

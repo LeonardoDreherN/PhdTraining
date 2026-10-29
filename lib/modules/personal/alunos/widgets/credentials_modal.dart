@@ -39,10 +39,10 @@ class _CredentialsModalState extends State<CredentialsModal> {
     final text = 'Login: ${widget.email}\nSenha: $_senha';
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Credenciais copiadas!'),
+      SnackBar(
+        content: const Text('Credenciais copiadas!'),
         backgroundColor: AppColors.active,
-        duration: Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -75,7 +75,7 @@ class _CredentialsModalState extends State<CredentialsModal> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               AppStrings.envieInfoAluno,
               style: TextStyle(
                 color: AppColors.textPrimary,
@@ -95,7 +95,7 @@ class _CredentialsModalState extends State<CredentialsModal> {
                 RichText(
                   text: TextSpan(
                     children: [
-                      const TextSpan(
+                      TextSpan(
                         text: '${AppStrings.senhaLabel} ',
                         style: TextStyle(
                           color: AppColors.textPrimary,
@@ -105,7 +105,7 @@ class _CredentialsModalState extends State<CredentialsModal> {
                       ),
                       TextSpan(
                         text: _senha,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 14,
                         ),
@@ -116,7 +116,7 @@ class _CredentialsModalState extends State<CredentialsModal> {
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: _copyCredentials,
-                  child: const Text(
+                  child: Text(
                     AppStrings.copiar,
                     style: TextStyle(
                       color: AppColors.primary,
@@ -132,7 +132,7 @@ class _CredentialsModalState extends State<CredentialsModal> {
               widget.senhaGerada != null
                   ? 'Data de nascimento sem barras'
                   : AppStrings.geraSenha,
-              style: const TextStyle(color: AppColors.textHint, fontSize: 12),
+              style: TextStyle(color: AppColors.textHint, fontSize: 12),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -156,7 +156,7 @@ class _CredentialsModalState extends State<CredentialsModal> {
         children: [
           TextSpan(
             text: '$label ',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -164,7 +164,7 @@ class _CredentialsModalState extends State<CredentialsModal> {
           ),
           TextSpan(
             text: value,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 14,
             ),

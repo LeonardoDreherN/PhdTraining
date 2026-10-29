@@ -58,7 +58,7 @@ class _AvaliacaoAnamneseViewScreenState
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => context.pop(),
         ),
@@ -79,7 +79,7 @@ class _AvaliacaoAnamneseViewScreenState
         ),
       ),
       body: _carregando
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(color: AppColors.primary))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -99,7 +99,7 @@ class _AvaliacaoAnamneseViewScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.assignment_outlined,
+            Icon(Icons.assignment_outlined,
                 color: AppColors.textHint, size: 48),
             const SizedBox(height: 16),
             Text('Anamnese não configurada',
@@ -170,7 +170,7 @@ class _AvaliacaoAnamneseViewScreenState
             border: Border.all(color: AppColors.divider, width: 0.5),
           ),
           child: Row(children: [
-            const Icon(Icons.check_circle_rounded, color: AppColors.active, size: 20),
+            Icon(Icons.check_circle_rounded, color: AppColors.active, size: 20),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -214,7 +214,7 @@ class _AvaliacaoAnamneseViewScreenState
               border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
             ),
             child: Row(children: [
-              const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
+              Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(

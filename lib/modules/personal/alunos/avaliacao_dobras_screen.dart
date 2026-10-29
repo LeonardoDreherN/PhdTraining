@@ -100,7 +100,7 @@ class _AvaliacaoDobraScreenState extends State<AvaliacaoDobraScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => context.pop(),
         ),
@@ -141,7 +141,7 @@ class _AvaliacaoDobraScreenState extends State<AvaliacaoDobraScreen> {
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textPrimary,
-                  side: const BorderSide(color: AppColors.divider),
+                  side: BorderSide(color: AppColors.divider),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -152,7 +152,7 @@ class _AvaliacaoDobraScreenState extends State<AvaliacaoDobraScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: _carregando
-                ? const Center(
+                ? Center(
                     child: CircularProgressIndicator(color: AppColors.primary))
                 : _avaliacoes.isEmpty
                     ? _buildEmpty()
@@ -176,7 +176,7 @@ class _AvaliacaoDobraScreenState extends State<AvaliacaoDobraScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.divider, width: 0.5),
             ),
-            child: const Icon(Icons.folder_open_rounded,
+            child: Icon(Icons.folder_open_rounded,
                 color: AppColors.textHint, size: 30),
           ),
           const SizedBox(height: 16),
@@ -225,12 +225,12 @@ class _AvaliacaoDobraScreenState extends State<AvaliacaoDobraScreen> {
                     border: Border.all(color: AppColors.divider, width: 0.5),
                   ),
                   child: Row(children: [
-                    const Icon(Icons.bar_chart_rounded, color: AppColors.textPrimary, size: 22),
+                    Icon(Icons.bar_chart_rounded, color: AppColors.textPrimary, size: 22),
                     const SizedBox(width: 12),
                     Text('Gráficos', style: GoogleFonts.montserrat(
                         color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
                     const Spacer(),
-                    const Icon(Icons.arrow_forward_ios_rounded,
+                    Icon(Icons.arrow_forward_ios_rounded,
                         color: AppColors.textSecondary, size: 14),
                   ]),
                 ),
@@ -397,14 +397,14 @@ class _ProtocoloSheet extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded,
+                  icon: Icon(Icons.close_rounded,
                       color: AppColors.textSecondary),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 8),
-          const Divider(height: 1, color: AppColors.divider),
+          Divider(height: 1, color: AppColors.divider),
           Expanded(
             child: ListView(
               controller: ctrl,
@@ -442,7 +442,7 @@ class _ProtocoloSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const Icon(Icons.chevron_right_rounded,
+            Icon(Icons.chevron_right_rounded,
                 color: AppColors.textHint, size: 18),
           ],
         ),

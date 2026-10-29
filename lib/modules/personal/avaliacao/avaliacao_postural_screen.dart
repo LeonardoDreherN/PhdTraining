@@ -111,12 +111,12 @@ class _AvaliacaoPosturalScreenState extends State<AvaliacaoPosturalScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.photo_camera_outlined, color: AppColors.textPrimary),
+                leading: Icon(Icons.photo_camera_outlined, color: AppColors.textPrimary),
                 title: Text('Tirar foto', style: AppText.body(14)),
                 onTap: () => Navigator.pop(ctx, ImageSource.camera),
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library_outlined, color: AppColors.textPrimary),
+                leading: Icon(Icons.photo_library_outlined, color: AppColors.textPrimary),
                 title: Text('Escolher da galeria', style: AppText.body(14)),
                 onTap: () => Navigator.pop(ctx, ImageSource.gallery),
               ),
@@ -237,7 +237,7 @@ class _AvaliacaoPosturalScreenState extends State<AvaliacaoPosturalScreen> {
           ],
         ),
         body: _carregando
-            ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+            ? Center(child: CircularProgressIndicator(color: AppColors.accent))
             : _erro != null
                 ? PhdEmptyState(
                     icon: Icons.cloud_off_rounded,
@@ -326,15 +326,15 @@ class _AvaliacaoPosturalScreenState extends State<AvaliacaoPosturalScreen> {
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.add_a_photo_outlined, color: AppColors.textMuted, size: 26),
+                        Icon(Icons.add_a_photo_outlined, color: AppColors.textMuted, size: 26),
                         const SizedBox(height: AppSpacing.sm),
                         Text('Adicionar', style: AppText.caption(12)),
                       ],
                     ),
                   if (_grade) const IgnorePointer(child: CustomPaint(painter: GradePostural())),
                   if (enviando)
-                    const ColoredBox(
-                      color: Color(0x99000000),
+                    ColoredBox(
+                      color: const Color(0x99000000),
                       child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
                     ),
                 ],
@@ -503,10 +503,13 @@ class _FotoAmpliadaState extends State<_FotoAmpliada> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      // Visualizador de foto: preto nos dois temas, então o texto é branco
+      // fixo em vez de `textPrimary`.
       appBar: AppBar(
         backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
-        title: Text(widget.titulo, style: AppText.title(17)),
+        title: Text(widget.titulo, style: AppText.title(17, color: Colors.white)),
         actions: [
           IconButton(
             tooltip: _grade ? 'Esconder grade' : 'Mostrar grade',

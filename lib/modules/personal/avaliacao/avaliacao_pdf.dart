@@ -122,9 +122,9 @@ abstract class AvaliacaoPdf {
 
   static PdfColor _cor(String? hex) {
     try {
-      return PdfColor.fromHex((hex ?? '#D7FF3E').replaceFirst('#', ''));
+      return PdfColor.fromHex((hex ?? '#2F6BFF').replaceFirst('#', ''));
     } catch (_) {
-      return PdfColor.fromHex('D7FF3E');
+      return PdfColor.fromHex('2F6BFF');
     }
   }
 

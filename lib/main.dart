@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
 import 'core/theme/app_colors.dart';
-import 'core/theme/app_theme.dart';
+import 'core/theme/tema.dart';
 import 'core/router/app_router.dart';
 import 'core/services/notification_service.dart';
 
@@ -16,8 +16,12 @@ void main() async {
   );
 
   await NotificationService.init();
+  final tema = await TemaApp.carregar();
 
-  runApp(const ProviderScope(child: PHDApp()));
+  runApp(ProviderScope(
+    overrides: [temaProvider.overrideWith(() => TemaNotifier(tema))],
+    child: const PHDApp(),
+  ));
 }
 
 class PHDApp extends ConsumerWidget {
@@ -26,10 +30,8 @@ class PHDApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    return MaterialApp.router(
+    return PhdMaterialApp(
       title: 'PHD Personal',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
       routerConfig: router,
       builder: (context, child) => _LarguraDeLeitura(child: child),
     );

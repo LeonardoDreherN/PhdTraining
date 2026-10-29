@@ -5,15 +5,19 @@ import 'app_text.dart';
 import 'app_tokens.dart';
 
 abstract class AppTheme {
-  static ThemeData get dark {
+  /// O tema da paleta ativa. Chame depois de `AppColors.usar(...)`: cada
+  /// cor abaixo é lida da paleta naquele momento.
+  static ThemeData get atual {
+    final claro = AppColors.ehClaro;
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
+      brightness: AppColors.brilho,
       scaffoldBackgroundColor: AppColors.bg,
       primaryColor: AppColors.accent,
       splashFactory: InkSparkle.splashFactory,
 
-      colorScheme: const ColorScheme.dark(
+      colorScheme: ColorScheme(
+        brightness: AppColors.brilho,
         primary: AppColors.accent,
         onPrimary: AppColors.onAccent,
         secondary: AppColors.surfaceHigh,
@@ -52,12 +56,13 @@ abstract class AppTheme {
         elevation: 0,
         centerTitle: false,
         titleSpacing: AppSpacing.xl,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary, size: 22),
+        iconTheme: IconThemeData(color: AppColors.textPrimary, size: 22),
         titleTextStyle: AppText.title(20),
-        systemOverlayStyle: const SystemUiOverlayStyle(
+        systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.light,
-          statusBarBrightness: Brightness.dark,
+          // Ícones da barra de status na cor oposta ao fundo.
+          statusBarIconBrightness: claro ? Brightness.dark : Brightness.light,
+          statusBarBrightness: claro ? Brightness.light : Brightness.dark,
         ),
       ),
 
@@ -77,7 +82,7 @@ abstract class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textPrimary,
-          side: const BorderSide(color: AppColors.lineStrong),
+          side: BorderSide(color: AppColors.lineStrong),
           minimumSize: const Size(double.infinity, 50),
           shape: RoundedRectangleBorder(borderRadius: AppRadius.rLg),
           textStyle: AppText.bodyStrong(14.5),
@@ -125,7 +130,7 @@ abstract class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: AppRadius.rXl),
       ),
 
-      dividerTheme: const DividerThemeData(
+      dividerTheme: DividerThemeData(
         color: AppColors.line,
         thickness: 1,
         space: 1,
@@ -173,8 +178,8 @@ abstract class AppTheme {
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith((s) =>
             s.contains(WidgetState.selected) ? AppColors.accent : Colors.transparent),
-        checkColor: const WidgetStatePropertyAll(AppColors.onAccent),
-        side: const BorderSide(color: AppColors.lineStrong, width: 1.5),
+        checkColor: WidgetStatePropertyAll(AppColors.onAccent),
+        side: BorderSide(color: AppColors.lineStrong, width: 1.5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
       ),
 
@@ -183,7 +188,7 @@ abstract class AppTheme {
             s.contains(WidgetState.selected) ? AppColors.accent : AppColors.lineStrong),
       ),
 
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
+      progressIndicatorTheme: ProgressIndicatorThemeData(
         color: AppColors.accent,
         linearTrackColor: AppColors.surfaceHigh,
         circularTrackColor: AppColors.surfaceHigh,
@@ -197,10 +202,10 @@ abstract class AppTheme {
         insetPadding: const EdgeInsets.all(AppSpacing.lg),
       ),
 
-      bottomSheetTheme: const BottomSheetThemeData(
+      bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
         ),
         showDragHandle: true,

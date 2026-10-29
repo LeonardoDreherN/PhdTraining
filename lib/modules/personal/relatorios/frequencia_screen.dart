@@ -116,7 +116,7 @@ class _FrequenciaScreenState extends State<FrequenciaScreen>
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -143,7 +143,7 @@ class _FrequenciaScreenState extends State<FrequenciaScreen>
         ),
       ),
       body: _carregando
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(color: AppColors.primary))
           : RefreshIndicator(
               color: AppColors.primary,
@@ -370,7 +370,7 @@ class _FrequenciaScreenState extends State<FrequenciaScreen>
                   ),
                 ),
                 child: treinou
-                    ? const Icon(Icons.check_rounded,
+                    ? Icon(Icons.check_rounded,
                         color: AppColors.active, size: 14)
                     : null,
               ),

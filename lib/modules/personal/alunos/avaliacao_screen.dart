@@ -76,7 +76,7 @@ class _AvaliacaoScreenState extends State<AvaliacaoScreen> {
       backgroundColor: AppColors.bg,
       appBar: appBarAvaliacao(_nome, 'Avaliação física'),
       body: _carregando
-          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          ? Center(child: CircularProgressIndicator(color: AppColors.accent))
           : _erro != null
               ? PhdEmptyState(
                   icon: Icons.cloud_off_rounded,
@@ -136,7 +136,7 @@ class _AvaliacaoScreenState extends State<AvaliacaoScreen> {
                         title: 'Anamnese',
                         subtitle: 'Respostas do aluno sobre saúde e hábitos',
                         leading: const _Icone(Icons.assignment_outlined),
-                        trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                        trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -210,7 +210,7 @@ class _AvaliacaoScreenState extends State<AvaliacaoScreen> {
               ? AppColors.successText
               : AppColors.warningText,
       trailing: s.percGordura == null
-          ? const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted)
+          ? Icon(Icons.chevron_right_rounded, color: AppColors.textMuted)
           : null,
       onTap: () => _abrir(s.sessao.data),
     );

@@ -351,7 +351,7 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
 
   Widget _corpo() {
     if (_carregando) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+      return Center(child: CircularProgressIndicator(color: AppColors.accent));
     }
     if (_erro != null) {
       return PhdEmptyState(
@@ -389,7 +389,7 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
                 context.pop();
               }
             },
-            icon: const Icon(Icons.close_rounded,
+            icon: Icon(Icons.close_rounded,
                 color: AppColors.textSecondary, size: 22),
             tooltip: 'Sair do treino',
           ),
@@ -503,7 +503,7 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.campaign_outlined, size: 17, color: AppColors.accent),
+            Icon(Icons.campaign_outlined, size: 17, color: AppColors.accent),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(obs, style: AppText.body(13, color: AppColors.textPrimary)),
@@ -526,7 +526,7 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
               ? null
               : IconButton(
                   onPressed: () => setState(() => _demo = true),
-                  icon: const Icon(Icons.ondemand_video_rounded,
+                  icon: Icon(Icons.ondemand_video_rounded,
                       color: AppColors.textSecondary, size: 20),
                   tooltip: 'Ver demonstração',
                 ),
@@ -632,7 +632,7 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
             padding: const EdgeInsets.only(bottom: 4),
             child: Row(
               children: [
-                const Icon(Icons.check_circle_rounded,
+                Icon(Icons.check_circle_rounded,
                     size: 15, color: AppColors.success),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
@@ -754,7 +754,7 @@ class _FolhaCargaState extends State<_FolhaCarga> {
                   color: AppColors.tint(AppColors.success),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_rounded,
+                child: Icon(Icons.check_rounded,
                     color: AppColors.success, size: 20),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -837,7 +837,7 @@ class _SemDemonstracao extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.videocam_off_outlined,
+          Icon(Icons.videocam_off_outlined,
               size: 30, color: AppColors.textMuted),
           const SizedBox(height: AppSpacing.sm),
           Text('Sem demonstração para este exercício',
@@ -896,7 +896,7 @@ class _VideoDemoState extends State<_VideoDemo> {
         height: 200,
         color: AppColors.surface,
         alignment: Alignment.center,
-        child: const CircularProgressIndicator(color: AppColors.accent),
+        child: CircularProgressIndicator(color: AppColors.accent),
       );
     }
 

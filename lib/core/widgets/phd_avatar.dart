@@ -38,7 +38,7 @@ class PhdAvatar extends StatelessWidget {
       width: inner,
       height: inner,
       alignment: Alignment.center,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surfaceHigh,
         shape: BoxShape.circle,
       ),

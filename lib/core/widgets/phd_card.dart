@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
 
-/// Superfície padrão. Sem borda e sem sombra: a separação vem da diferença
-/// entre `bg` e `surface`, não de um contorno. Empilhar borda com contraste
-/// de fundo é o que deixava o app antigo com cara de wireframe.
+/// Superfície padrão. Sem borda: a separação vem da diferença entre `bg` e
+/// `surface`, não de um contorno. Empilhar borda com contraste de fundo é o
+/// que deixava o app antigo com cara de wireframe.
+///
+/// No tema claro, branco sobre cinza-gelo é pouca diferença; ali o cartão
+/// ganha uma sombra curta e difusa. No escuro, sombra não aparece e fica
+/// sem.
 class PhdCard extends StatelessWidget {
   const PhdCard({
     super.key,
@@ -49,13 +53,25 @@ class PhdCard extends StatelessWidget {
       child: child,
     );
 
-    return Material(
+    final card = Material(
       color: color ?? AppColors.surface,
       borderRadius: r,
       clipBehavior: Clip.antiAlias,
       child: onTap == null
           ? content
           : InkWell(onTap: onTap, child: content),
+    );
+
+    if (!AppColors.ehClaro) return card;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: r,
+        boxShadow: const [
+          BoxShadow(color: Color(0x0F0D0F14), blurRadius: 14, offset: Offset(0, 4)),
+          BoxShadow(color: Color(0x0A0D0F14), blurRadius: 2, offset: Offset(0, 1)),
+        ],
+      ),
+      child: card,
     );
   }
 }

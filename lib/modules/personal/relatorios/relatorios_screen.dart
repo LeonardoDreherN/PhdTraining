@@ -123,7 +123,7 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
         centerTitle: false,
       ),
       body: _carregando
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : RefreshIndicator(
               color: AppColors.primary,
               onRefresh: _carregar,
@@ -178,7 +178,7 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Resumo deste mês',
+          Text('Resumo deste mês',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
           const SizedBox(height: 16),
           Row(
@@ -207,9 +207,9 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
         Icon(icon, color: AppColors.textSecondary, size: 18),
         const SizedBox(height: 4),
         Text(value,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
+            style: TextStyle(color: AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
         Text(label,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
             textAlign: TextAlign.center),
       ],
     );
@@ -219,13 +219,13 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
     return TextField(
       controller: _buscaCtrl,
       onChanged: _filtrar,
-      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+      style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
       decoration: InputDecoration(
         hintText: 'Buscar aluno ou treino...',
-        prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
+        prefixIcon: Icon(Icons.search, color: AppColors.textSecondary, size: 20),
         suffixIcon: _buscaCtrl.text.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.close, color: AppColors.textSecondary, size: 18),
+                icon: Icon(Icons.close, color: AppColors.textSecondary, size: 18),
                 onPressed: () {
                   _buscaCtrl.clear();
                   _filtrar('');
@@ -278,7 +278,7 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
                     child: Center(
                       child: Text(
                         alunoNome.substring(0, 1).toUpperCase(),
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 18),
                       ),
                     ),
@@ -289,10 +289,10 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(alunoNome,
-                            style: const TextStyle(
-                                color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+                            style: TextStyle(
+                                color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 15)),
                         Text(ex['ficha_nome'] ?? '',
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                         const SizedBox(height: 6),
                         Wrap(
                           spacing: 10,
@@ -315,10 +315,10 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
                       if (volume > 0) ...[
                         Text(
                           '${volume.toStringAsFixed(0)} kg',
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppColors.active, fontWeight: FontWeight.w700, fontSize: 14),
                         ),
-                        const Text('volume',
+                        Text('volume',
                             style: TextStyle(color: AppColors.textHint, fontSize: 10)),
                         const SizedBox(height: 4),
                       ],
@@ -347,7 +347,7 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
       children: [
         Icon(icon, color: AppColors.textHint, size: 11),
         const SizedBox(width: 3),
-        Text(text, style: const TextStyle(color: AppColors.textHint, fontSize: 11)),
+        Text(text, style: TextStyle(color: AppColors.textHint, fontSize: 11)),
       ],
     );
   }
@@ -355,14 +355,14 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
   Widget _buildDetalhes(List<dynamic> detalhes, double volumeTotal) {
     return Column(
       children: [
-        const Divider(height: 1, color: AppColors.divider),
+        Divider(height: 1, color: AppColors.divider),
         Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (detalhes.isEmpty)
-                const Text('Nenhum detalhe registrado',
+                Text('Nenhum detalhe registrado',
                     style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
               ...detalhes.map((ex) => _buildExercicioDetalhe(ex as Map<String, dynamic>)),
               if (volumeTotal > 0) ...[
@@ -378,10 +378,10 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Volume total do treino',
+                      Text('Volume total do treino',
                           style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                       Text('${volumeTotal.toStringAsFixed(0)} kg',
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppColors.active, fontWeight: FontWeight.w700, fontSize: 15)),
                     ],
                   ),
@@ -421,11 +421,11 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(ex['exercicio_nome'] ?? '',
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+                        style: TextStyle(
+                            color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
                     if ((ex['grupo_muscular'] as String?)?.isNotEmpty == true)
                       Text(ex['grupo_muscular'],
-                          style: const TextStyle(color: AppColors.textHint, fontSize: 11)),
+                          style: TextStyle(color: AppColors.textHint, fontSize: 11)),
                   ],
                 ),
               ),
@@ -437,7 +437,7 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text('${volumeEx.toStringAsFixed(0)} kg',
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.active, fontSize: 11, fontWeight: FontWeight.w600)),
                 ),
             ],
@@ -470,7 +470,7 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
                     ),
                     child: Center(
                       child: Text('$serieNum',
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w700)),
                     ),
                   ),
@@ -479,12 +479,12 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
                       carga != null && cargaVal > 0
                           ? '${carga}kg × $reps reps'
                           : '$reps reps (sem carga)',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                     ),
                   ),
                   if (volSerie > 0)
                     Text('= ${volSerie.toStringAsFixed(0)}kg',
-                        style: const TextStyle(color: AppColors.textHint, fontSize: 11)),
+                        style: TextStyle(color: AppColors.textHint, fontSize: 11)),
                 ],
               ),
             );
@@ -509,13 +509,13 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.divider),
               ),
-              child: const Icon(Icons.bar_chart_rounded, color: AppColors.textHint, size: 40),
+              child: Icon(Icons.bar_chart_rounded, color: AppColors.textHint, size: 40),
             ),
             const SizedBox(height: 20),
-            const Text('Nenhum relatório ainda',
+            Text('Nenhum relatório ainda',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Os relatórios aparecem aqui quando seus alunos completam treinos no app',
               style: TextStyle(color: AppColors.textHint, fontSize: 13),
               textAlign: TextAlign.center,

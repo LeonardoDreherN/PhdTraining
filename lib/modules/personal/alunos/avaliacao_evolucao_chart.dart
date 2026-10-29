@@ -110,13 +110,13 @@ class _AvaliacaoEvolucaoChartState extends State<AvaliacaoEvolucaoChart> {
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: sel ? Colors.white : Colors.transparent,
+                    color: sel ? AppColors.textPrimary : Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: sel ? Colors.white : Colors.white30),
+                    border: Border.all(color: sel ? AppColors.textPrimary : AppColors.lineStrong),
                   ),
                   child: Text(t.$2,
                       style: GoogleFonts.montserrat(
-                          color: sel ? Colors.black : AppColors.textSecondary,
+                          color: sel ? AppColors.bg : AppColors.textSecondary,
                           fontSize: 11,
                           fontWeight: sel ? FontWeight.w700 : FontWeight.w400)),
                 ),
@@ -135,8 +135,8 @@ class _AvaliacaoEvolucaoChartState extends State<AvaliacaoEvolucaoChart> {
                   show: true,
                   drawVerticalLine: false,
                   horizontalInterval: interval,
-                  getDrawingHorizontalLine: (_) => const FlLine(
-                    color: Colors.white12,
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: AppColors.line,
                     strokeWidth: 1,
                   ),
                 ),
@@ -179,7 +179,7 @@ class _AvaliacaoEvolucaoChartState extends State<AvaliacaoEvolucaoChart> {
                 lineTouchData: LineTouchData(
                   touchTooltipData: LineTouchTooltipData(
                     getTooltipColor: (_) => AppColors.surface,
-                    tooltipBorder: const BorderSide(color: Colors.white24),
+                    tooltipBorder: BorderSide(color: AppColors.lineStrong),
                     getTooltipItems: (spots) => spots.map((s) => LineTooltipItem(
                       '${s.y.toStringAsFixed(1)} $unidade\n'
                       '${_dataLabel(dados[s.spotIndex].av['data_avaliacao'] as String?)}',
@@ -192,14 +192,14 @@ class _AvaliacaoEvolucaoChartState extends State<AvaliacaoEvolucaoChart> {
                     spots: spots,
                     isCurved: true,
                     curveSmoothness: 0.3,
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     barWidth: 2,
                     isStrokeCapRound: true,
                     dotData: FlDotData(
                       show: true,
                       getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
                         radius: 4,
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         strokeWidth: 2,
                         strokeColor: AppColors.background,
                       ),
@@ -210,8 +210,8 @@ class _AvaliacaoEvolucaoChartState extends State<AvaliacaoEvolucaoChart> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.white.withValues(alpha: 0.15),
-                          Colors.white.withValues(alpha: 0.0),
+                          AppColors.textPrimary.withValues(alpha: 0.15),
+                          AppColors.textPrimary.withValues(alpha: 0.0),
                         ],
                       ),
                     ),

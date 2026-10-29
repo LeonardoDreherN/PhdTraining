@@ -80,7 +80,7 @@ class _AvaliacaoDobraGraficosScreenState
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -175,14 +175,14 @@ class _ModoToggle extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: modo == m ? Colors.white : Colors.transparent,
+              color: modo == m ? AppColors.textPrimary : Colors.transparent,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: modo == m ? Colors.white : Colors.white30),
+              border: Border.all(color: modo == m ? AppColors.textPrimary : AppColors.lineStrong),
             ),
             child: Text(
               m == _Modo.simplificado ? 'SIMPLIFICADO' : 'COMPLETO',
               style: GoogleFonts.montserrat(
-                color: modo == m ? Colors.black : AppColors.textSecondary,
+                color: modo == m ? AppColors.bg : AppColors.textSecondary,
                 fontSize: 11, fontWeight: FontWeight.w700),
             ),
           ),
@@ -349,7 +349,7 @@ class _BarEvoPeso extends StatelessWidget {
         barGroups: grupos,
         gridData: FlGridData(
           show: true, drawVerticalLine: false,
-          getDrawingHorizontalLine: (_) => const FlLine(color: Colors.white12, strokeWidth: 1),
+          getDrawingHorizontalLine: (_) => FlLine(color: AppColors.line, strokeWidth: 1),
         ),
         borderData: FlBorderData(show: false),
         barTouchData: BarTouchData(
@@ -412,7 +412,7 @@ class _LineEvoMassa extends StatelessWidget {
           gridData: FlGridData(
             show: true, drawVerticalLine: false,
             horizontalInterval: 20,
-            getDrawingHorizontalLine: (_) => const FlLine(color: Colors.white12, strokeWidth: 1),
+            getDrawingHorizontalLine: (_) => FlLine(color: AppColors.line, strokeWidth: 1),
           ),
           borderData: FlBorderData(show: false),
           titlesData: FlTitlesData(
@@ -437,7 +437,7 @@ class _LineEvoMassa extends StatelessWidget {
           lineTouchData: LineTouchData(
             touchTooltipData: LineTouchTooltipData(
               getTooltipColor: (_) => AppColors.surface,
-              tooltipBorder: const BorderSide(color: Colors.white24),
+              tooltipBorder: BorderSide(color: AppColors.lineStrong),
               getTooltipItems: (spots) => spots.map((s) => LineTooltipItem(
                 '${s.y.toStringAsFixed(1)}%',
                 GoogleFonts.montserrat(color: AppColors.textPrimary, fontSize: 10),
@@ -516,7 +516,7 @@ class _BarMedida extends StatelessWidget {
         barGroups: grupos,
         gridData: FlGridData(
           show: true, drawVerticalLine: false,
-          getDrawingHorizontalLine: (_) => const FlLine(color: Colors.white12, strokeWidth: 1),
+          getDrawingHorizontalLine: (_) => FlLine(color: AppColors.line, strokeWidth: 1),
         ),
         borderData: FlBorderData(show: false),
         barTouchData: BarTouchData(

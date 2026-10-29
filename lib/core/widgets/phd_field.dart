@@ -122,17 +122,21 @@ class PhdAviso extends StatelessWidget {
     super.key,
     required this.texto,
     this.icone = Icons.error_outline_rounded,
-    this.cor = AppColors.danger,
-    this.corTexto = AppColors.dangerText,
+    this.cor,
+    this.corTexto,
   });
 
   final String texto;
   final IconData icone;
-  final Color cor;
-  final Color corTexto;
+
+  /// Padrão: o vermelho de erro do tema ativo.
+  final Color? cor;
+  final Color? corTexto;
 
   @override
   Widget build(BuildContext context) {
+    final cor = this.cor ?? AppColors.danger;
+    final corTexto = this.corTexto ?? AppColors.dangerText;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md + 2,

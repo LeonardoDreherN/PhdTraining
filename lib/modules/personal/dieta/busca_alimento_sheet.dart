@@ -113,9 +113,9 @@ class _BuscaAlimentoSheetState extends State<_BuscaAlimentoSheet> {
         maxChildSize: 0.95,
         expand: false,
         builder: (context, scroll) => Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.vertical(
+            borderRadius: const BorderRadius.vertical(
               top: Radius.circular(AppRadius.xxl),
             ),
           ),
@@ -184,7 +184,7 @@ class _BuscaAlimentoSheetState extends State<_BuscaAlimentoSheet> {
 
   Widget _corpo(ScrollController scroll) {
     if (_carregando && _resultados.isEmpty) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppColors.accent),
       );
     }
@@ -353,9 +353,9 @@ class _QuantidadeSheetState extends State<_QuantidadeSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: fundoTeclado),
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(
+          borderRadius: const BorderRadius.vertical(
             top: Radius.circular(AppRadius.xxl),
           ),
         ),

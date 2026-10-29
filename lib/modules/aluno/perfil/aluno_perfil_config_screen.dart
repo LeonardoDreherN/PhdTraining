@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/widgets.dart';
 import '../../../core/services/profile_service.dart';
 import '../../../core/services/auth_service.dart';
 
@@ -85,7 +86,7 @@ class _AlunoPerfilConfigScreenState extends State<AlunoPerfilConfigScreen> {
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
@@ -96,7 +97,7 @@ class _AlunoPerfilConfigScreenState extends State<AlunoPerfilConfigScreen> {
                 fontWeight: FontWeight.w700)),
       ),
       body: _carregando
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(color: AppColors.primary))
           : SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
@@ -141,6 +142,10 @@ class _AlunoPerfilConfigScreenState extends State<AlunoPerfilConfigScreen> {
                     ],
                     const SizedBox(height: 28),
                   ],
+                  _rotulo('APARÊNCIA'),
+                  const SizedBox(height: 10),
+                  const PhdSeletorTema(),
+                  const SizedBox(height: 28),
                   _rotulo('CONTA'),
                   const SizedBox(height: 10),
                   SizedBox(
@@ -148,7 +153,7 @@ class _AlunoPerfilConfigScreenState extends State<AlunoPerfilConfigScreen> {
                     height: 48,
                     child: OutlinedButton.icon(
                       onPressed: _logout,
-                      icon: const Icon(Icons.logout,
+                      icon: Icon(Icons.logout,
                           color: AppColors.error, size: 18),
                       label: Text('Sair',
                           style: GoogleFonts.montserrat(
@@ -203,12 +208,12 @@ class _AlunoPerfilConfigScreenState extends State<AlunoPerfilConfigScreen> {
               border: Border.all(color: AppColors.background, width: 2),
             ),
             child: _uploadando
-                ? const Padding(
-                    padding: EdgeInsets.all(5),
+                ? Padding(
+                    padding: const EdgeInsets.all(5),
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.black),
+                        strokeWidth: 2, color: AppColors.onAccent),
                   )
-                : const Icon(Icons.camera_alt, color: Colors.black, size: 15),
+                : Icon(Icons.camera_alt, color: AppColors.onAccent, size: 15),
           ),
         ],
       ),
@@ -262,7 +267,7 @@ class _PlaceholderIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.surface,
-      child: const Icon(Icons.person, color: AppColors.textSecondary, size: 46),
+      child: Icon(Icons.person, color: AppColors.textSecondary, size: 46),
     );
   }
 }

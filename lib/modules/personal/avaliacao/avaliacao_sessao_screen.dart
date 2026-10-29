@@ -185,7 +185,7 @@ class _AvaliacaoSessaoScreenState extends ConsumerState<AvaliacaoSessaoScreen> {
       backgroundColor: AppColors.bg,
       appBar: appBarAvaliacao(_nome, 'Avaliação de ${Datas.curta(_data)}', actions: [
         PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
+          icon: Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
           color: AppColors.surfaceHigh,
           onSelected: (v) {
             if (v == 'excluir') _excluir();
@@ -199,7 +199,7 @@ class _AvaliacaoSessaoScreenState extends ConsumerState<AvaliacaoSessaoScreen> {
         ),
       ]),
       body: _carregando
-          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          ? Center(child: CircularProgressIndicator(color: AppColors.accent))
           : av == null
               ? PhdEmptyState(
                   icon: Icons.cloud_off_rounded,
@@ -216,7 +216,7 @@ class _AvaliacaoSessaoScreenState extends ConsumerState<AvaliacaoSessaoScreen> {
                         AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.huge),
                     children: [
                       if (av.sexoIndefinido) ...[
-                        const PhdAviso(
+                        PhdAviso(
                           texto: 'O cadastro do aluno não diz se é masculino ou feminino. '
                               'Os índices estão usando os valores de referência masculinos.',
                           icone: Icons.info_outline_rounded,
@@ -276,7 +276,7 @@ class _AvaliacaoSessaoScreenState extends ConsumerState<AvaliacaoSessaoScreen> {
         child: Column(
           children: [
             for (final (i, l) in linhas.indexed) ...[
-              if (i > 0) const Divider(height: 1, thickness: 0.5, color: AppColors.line, indent: AppSpacing.lg),
+              if (i > 0) Divider(height: 1, thickness: 0.5, color: AppColors.line, indent: AppSpacing.lg),
               l,
             ],
           ],
@@ -451,7 +451,7 @@ class _AvaliacaoSessaoScreenState extends ConsumerState<AvaliacaoSessaoScreen> {
             child: Icon(feito ? Icons.check_rounded : icone,
                 size: 20, color: feito ? AppColors.successText : AppColors.textSecondary),
           ),
-          trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
           onTap: () => _abrirTeste(rota),
         );
 
@@ -581,8 +581,8 @@ class _AvaliacaoSessaoScreenState extends ConsumerState<AvaliacaoSessaoScreen> {
                 children: [
                   Expanded(child: Text(l.rotulo, style: AppText.body(13.5, color: AppColors.textSecondary))),
                   Text(numBr(l.anterior), style: AppText.caption(13, color: AppColors.textMuted)),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: Icon(Icons.arrow_forward_rounded, size: 13, color: AppColors.textMuted),
                   ),
                   Text(comUnidade(numBr(l.atual), l.unidade), style: AppText.number(14)),

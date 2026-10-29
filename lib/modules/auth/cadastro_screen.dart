@@ -237,7 +237,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
             color: AppColors.tint(AppColors.accent),
             borderRadius: AppRadius.rXl,
           ),
-          child: const Icon(Icons.mark_email_unread_outlined,
+          child: Icon(Icons.mark_email_unread_outlined,
               color: AppColors.accent, size: 28),
         ),
         const SizedBox(height: AppSpacing.xxl),
