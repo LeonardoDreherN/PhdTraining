@@ -79,9 +79,14 @@ class _AlunoAnamneseScreenState extends State<AlunoAnamneseScreen> {
         'preenchida_em': DateTime.now().toIso8601String(),
       }, onConflict: 'aluno_id');
 
-      await _db.from('alunos')
-          .update({'anamnese_preenchida': true})
-          .eq('id', widget.alunoId);
+      // Via função, não `update` direto: a policy de escrita de `alunos` é
+      // só do personal, então o update do aluno casava zero linhas — e
+      // UPDATE sem linha não é erro. O formulário fechava "salvo" e voltava
+      // no próximo abrir, para sempre. A função levanta erro se falhar.
+      await _db.rpc(
+        'marcar_anamnese_preenchida',
+        params: {'p_aluno_id': widget.alunoId},
+      );
 
       if (mounted) Navigator.of(context).pop();
     } catch (e) {

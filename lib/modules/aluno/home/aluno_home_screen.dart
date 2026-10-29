@@ -171,14 +171,18 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     final preenchida = a['anamnese_preenchida'] as bool? ?? false;
     if (tipo == 'nenhuma' || preenchida) return;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      Navigator.of(context).push(MaterialPageRoute(
+      await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => AlunoAnamneseScreen(
           tipo: tipo,
           alunoId: a['id'] as String,
         ),
       ));
+      // Recarrega ao fechar: `_aluno` em memória ainda diz que a anamnese
+      // está pendente, e sem reler o banco a home ficaria com o estado
+      // velho até o próximo abrir do app.
+      if (mounted) await _carregar();
     });
   }
 

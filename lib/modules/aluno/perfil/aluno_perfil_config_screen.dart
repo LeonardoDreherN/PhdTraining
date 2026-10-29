@@ -56,11 +56,10 @@ class _AlunoPerfilConfigScreenState extends State<AlunoPerfilConfigScreen> {
       final url = await ProfileService.uploadAvatar(img.name, bytes);
       if (url != null) {
         await ProfileService.atualizar({'avatar_url': url});
-        // Atualiza foto_url em alunos para o personal ver na lista
-        final user = _db.auth.currentUser;
-        if (user != null) {
-          await _db.from('alunos').update({'foto_url': url}).eq('user_id', user.id);
-        }
+        // Espelha em `alunos.foto_url` para o personal ver na lista. Vai por
+        // função porque a policy de escrita de `alunos` é só do personal: o
+        // update direto era recusado sem erro, e a foto nunca chegava lá.
+        await _db.rpc('definir_minha_foto', params: {'p_url': url});
         await _carregar();
       }
     } catch (e) {
