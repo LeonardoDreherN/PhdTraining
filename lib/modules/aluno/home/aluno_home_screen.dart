@@ -419,30 +419,53 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   }
 
   Widget _atalhos() {
+    final alunoId = _aluno?['id']?.toString();
+
     return Padding(
       padding: AppSpacing.screen,
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _atalho(
-              icone: Icons.trending_up_rounded,
-              titulo: 'Progresso',
-              onTap: () => context.push('/aluno/progresso'),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: _atalho(
-              icone: Icons.assignment_outlined,
-              titulo: 'Avaliações',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AlunoAvaliacoesScreen()),
+          // A dieta ganha a linha inteira: é consultada várias vezes por dia,
+          // uma por refeição, diferente de progresso e avaliações.
+          if (alunoId != null) ...[
+            _atalho(
+              icone: Icons.restaurant_menu_rounded,
+              titulo: 'Minha dieta',
+              onTap: () => context.push(
+                '/aluno/dieta',
+                extra: {'alunoId': alunoId},
               ),
             ),
-          ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          _linhaAtalhos(),
         ],
       ),
+    );
+  }
+
+  Widget _linhaAtalhos() {
+    return Row(
+      children: [
+        Expanded(
+          child: _atalho(
+            icone: Icons.trending_up_rounded,
+            titulo: 'Progresso',
+            onTap: () => context.push('/aluno/progresso'),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _atalho(
+            icone: Icons.assignment_outlined,
+            titulo: 'Avaliações',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AlunoAvaliacoesScreen()),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

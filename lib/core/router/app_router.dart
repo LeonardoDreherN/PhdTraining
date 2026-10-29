@@ -19,6 +19,7 @@ import '../../modules/aluno/home/aluno_home_screen.dart';
 import '../../modules/aluno/treino/executar_treino_screen.dart';
 import '../../modules/aluno/treino/treino_simples_screen.dart';
 import '../../modules/aluno/progresso/progresso_screen.dart';
+import '../../modules/aluno/dieta/aluno_dieta_screen.dart';
 import '../../modules/auth/cadastro_screen.dart';
 import '../../modules/auth/landing_screen.dart';
 import '../../modules/auth/login_screen.dart';
@@ -297,6 +298,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/aluno/progresso',
         builder: (context, state) => const ProgressoScreen(),
+      ),
+      GoRoute(
+        path: '/aluno/dieta',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AlunoDietaScreen(alunoId: e['alunoId'] as String),
+          voltarPara: '/aluno/home',
+        ),
       ),
       GoRoute(
         path: '/aluno/treino',
