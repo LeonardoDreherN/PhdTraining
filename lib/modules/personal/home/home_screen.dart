@@ -352,7 +352,8 @@ class _Painel extends ConsumerWidget {
             // Brilho azul no canto, sobre a própria superfície: a cor da
             // marca sem pintar o cartão inteiro.
             Color.alphaBlend(
-              AppColors.accent.withValues(alpha: AppColors.ehClaro ? 0.10 : 0.18),
+              AppColors.accent
+                  .withValues(alpha: AppColors.ehClaro ? 0.10 : 0.18),
               AppColors.surface,
             ),
             AppColors.surface,
@@ -695,7 +696,9 @@ class _Painel extends ConsumerWidget {
                     tamanho: 52,
                     espessura: 6,
                     cor: adesao >= 0.6
-                        ? AppColors.accent
+                        // Verde, não a cor da marca: com a marca vermelha,
+                        // adesão boa pintada de vermelho pareceria alerta.
+                        ? AppColors.success
                         : adesao >= 0.3
                             ? AppColors.warning
                             : AppColors.danger,

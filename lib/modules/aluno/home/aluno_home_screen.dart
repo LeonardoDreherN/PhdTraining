@@ -48,7 +48,9 @@ class AlunoHomeScreen extends StatefulWidget {
 
 /// Cores dos macros. Fora de `AppColors` porque só existem aqui e na dieta:
 /// são categorias, não estados. Tons médios, que leem sobre preto e branco.
-Color get _corProteina => AppColors.accent;
+// Azul fixo, não a cor da marca: com a marca vermelha, proteína em
+// vermelho ficaria colada na gordura (rosa).
+const _corProteina = Color(0xFF3B82F6);
 const _corCarbo = Color(0xFFF59E0B);
 const _corGordura = Color(0xFFEC4899);
 const _corDescanso = Color(0xFF818CF8);

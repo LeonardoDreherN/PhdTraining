@@ -15,7 +15,7 @@ class Perfil {
     this.cref,
     this.marcaNome,
     this.marcaLogoUrl,
-    this.marcaCor = '#2F6BFF',
+    this.marcaCor = '#DC2626',
     this.onboardingEtapa = 'conta',
     this.isPlatformAdmin = false,
   });
@@ -62,7 +62,7 @@ class Perfil {
         cref: m['cref'] as String?,
         marcaNome: m['marca_nome'] as String?,
         marcaLogoUrl: m['marca_logo_url'] as String?,
-        marcaCor: m['marca_cor'] as String? ?? '#2F6BFF',
+        marcaCor: m['marca_cor'] as String? ?? '#DC2626',
         onboardingEtapa: m['onboarding_etapa'] as String? ?? 'conta',
         isPlatformAdmin: m['is_platform_admin'] as bool? ?? false,
       );

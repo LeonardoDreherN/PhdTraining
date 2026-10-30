@@ -215,7 +215,7 @@ class _AcompanhamentoAlunoState extends State<AcompanhamentoAluno> {
   Widget _linha(RegistroDiario r) {
     final (tom, rotulo) = switch (r.aderencia) {
       Aderencia.seguiu => (PhdTone.success, 'Seguiu'),
-      Aderencia.parecido => (PhdTone.accent, 'Parecido'),
+      Aderencia.parecido => (PhdTone.neutral, 'Parecido'),
       Aderencia.fora => (PhdTone.warning, 'Fugiu'),
       null => (PhdTone.neutral, 'Fora do plano'),
     };

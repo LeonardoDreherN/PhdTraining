@@ -407,9 +407,9 @@ abstract class PlanoPdf {
 
   static PdfColor _cor(String? hex) {
     try {
-      return PdfColor.fromHex((hex ?? '#2F6BFF').replaceFirst('#', ''));
+      return PdfColor.fromHex((hex ?? '#DC2626').replaceFirst('#', ''));
     } catch (_) {
-      return PdfColor.fromHex('2F6BFF');
+      return PdfColor.fromHex('DC2626');
     }
   }
 }

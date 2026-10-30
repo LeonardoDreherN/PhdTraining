@@ -732,7 +732,7 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
   Widget _linhaRegistro(RegistroDiario r) {
     final (tom, rotulo) = switch (r.aderencia) {
       Aderencia.seguiu => (PhdTone.success, 'Seguiu'),
-      Aderencia.parecido => (PhdTone.accent, 'Parecido'),
+      Aderencia.parecido => (PhdTone.neutral, 'Parecido'),
       Aderencia.fora => (PhdTone.warning, 'Fugiu'),
       null => (PhdTone.neutral, null),
     };

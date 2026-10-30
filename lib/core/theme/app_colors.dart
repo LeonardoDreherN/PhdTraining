@@ -37,7 +37,12 @@ class PhdPalette {
   final Color danger, dangerText;
 }
 
-/// Paleta do PHD: azul como marca, vermelho como energia e alerta.
+/// Paleta do PHD: vermelho da marca no que pede ação, neutros no resto,
+/// laranja nos alertas.
+///
+/// Laranja, e não vermelho, para alerta: com a marca vermelha, "mensalidade
+/// atrasada" pintada da mesma cor de "Começar treino" deixaria de parecer
+/// aviso — e o botão passaria a parecer erro.
 ///
 /// As cores são lidas da paleta ativa, que o app troca em [usar] conforme o
 /// tema (claro, escuro ou o do celular). Por isso são getters e não `const`:
@@ -61,17 +66,19 @@ abstract class AppColors {
     textPrimary: Color(0xFFF4F4F5),
     textSecondary: Color(0xFF9A9AA2),
     textMuted: Color(0xFF7A7A83),
-    accent: Color(0xFF2F6BFF),
-    accentLight: Color(0xFF5B8CFF),
-    accentDark: Color(0xFF1F4FD6),
+    // Branco sobre #DC2626 passa 4.8:1; um vermelho mais vivo ficaria
+    // abaixo de 4.5 e o texto dos botões perderia leitura.
+    accent: Color(0xFFDC2626),
+    accentLight: Color(0xFFEF4444),
+    accentDark: Color(0xFFB91C1C),
     onAccent: Color(0xFFFFFFFF),
-    energy: Color(0xFFFF4757),
+    energy: Color(0xFFEF4444),
     success: Color(0xFF4ADE80),
     successText: Color(0xFF7DEBA8),
     warning: Color(0xFFFBBF24),
     warningText: Color(0xFFFCD34D),
-    danger: Color(0xFFFF5A67),
-    dangerText: Color(0xFFFF8A93),
+    danger: Color(0xFFFB923C),
+    dangerText: Color(0xFFFDBA74),
   );
 
   // ── Claro ─────────────────────────────────────────────────
@@ -88,17 +95,17 @@ abstract class AppColors {
     textPrimary: Color(0xFF0D0F14),
     textSecondary: Color(0xFF545B6B),
     textMuted: Color(0xFF6B7282),
-    accent: Color(0xFF2F6BFF),
-    accentLight: Color(0xFF5B8CFF),
-    accentDark: Color(0xFF1F4FD6),
+    accent: Color(0xFFDC2626),
+    accentLight: Color(0xFFEF4444),
+    accentDark: Color(0xFFB91C1C),
     onAccent: Color(0xFFFFFFFF),
-    energy: Color(0xFFE5303F),
+    energy: Color(0xFFDC2626),
     success: Color(0xFF16A34A),
     successText: Color(0xFF15803D),
     warning: Color(0xFFF59E0B),
     warningText: Color(0xFFB45309),
-    danger: Color(0xFFE5303F),
-    dangerText: Color(0xFFC81E2C),
+    danger: Color(0xFFEA580C),
+    dangerText: Color(0xFFC2410C),
   );
 
   static PhdPalette _p = escuro;
@@ -127,13 +134,13 @@ abstract class AppColors {
   static Color get textMuted => _p.textMuted;
 
   // ── Acento ────────────────────────────────────────────────
-  // Azul. Só aparece onde há decisão a tomar: ação primária, métrica que
+  // Vermelho da marca. Só aparece onde há decisão a tomar: ação primária, métrica que
   // importa, item selecionado. Se estiver em tudo, não destaca nada.
   static Color get accent => _p.accent;
   static Color get onAccent => _p.onAccent;
 
-  /// Vermelho de energia: sequência, recorde, o "hoje". Pouco e pontual —
-  /// é o mesmo vermelho do alerta, então em excesso parece erro.
+  /// Energia: sequência, recorde, o "hoje". É o vermelho da marca —
+  /// pontual, para não competir com os botões.
   static Color get energy => _p.energy;
 
   // ── Estado ────────────────────────────────────────────────
