@@ -55,14 +55,20 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/images/app.png"
   remove_alpha_ios: true
-  adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/images/app.png"
+  # Preto, não branco: o ícone é uma peça escura com brilho vermelho, e o
+  # fundo branco de antes vinha da marca volt — aparecia como moldura
+  # clara em volta nos aparelhos que recortam em círculo.
+  adaptive_icon_background: "#000000"
+  # Arte própria para o adaptativo. O Android recorta em círculo, gota ou
+  # quadrado arredondado conforme o aparelho, e só os 61% centrais são
+  # garantidos — usar a mesma `app.png` cortaria as laterais do logo.
+  adaptive_icon_foreground: "assets/images/app_foreground.png"
   min_sdk_android: 21
   web:
     generate: true
     image_path: "assets/images/app.png"
-    background_color: "#FFFFFF"
-    theme_color: "#000000"
+    background_color: "#0A0A0B"
+    theme_color: "#0A0A0B"
 
 flutter:
   uses-material-design: true
