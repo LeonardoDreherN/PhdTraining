@@ -1,42 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/layout/desktop.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'menu_lateral.dart';
 
 class PersonalShell extends StatelessWidget {
   const PersonalShell({super.key, required this.child});
 
   final Widget child;
 
-  static const _abas = <_Aba>[
-    _Aba('/home', Icons.home_outlined, Icons.home_rounded, 'Início'),
-    _Aba('/alunos', Icons.people_outline_rounded, Icons.people_rounded, 'Alunos'),
-    // A aba Treinos abre as fichas, mas também fica acesa na biblioteca de
-    // exercícios — senão, entrar na biblioteca acenderia "Início" e a
-    // pessoa perderia a noção de onde está.
-    _Aba('/fichas', Icons.fitness_center_outlined, Icons.fitness_center_rounded,
-        'Treinos', ['/exercicios']),
-    _Aba('/relatorios', Icons.bar_chart_outlined, Icons.bar_chart_rounded, 'Relatórios'),
-    _Aba('/perfil', Icons.person_outline_rounded, Icons.person_rounded, 'Perfil'),
-  ];
-
-  int _indiceAtual(BuildContext context) {
-    final rota = GoRouterState.of(context).uri.path;
-    for (var i = 0; i < _abas.length; i++) {
-      if (_abas[i].cobre(rota)) return i;
-    }
-    return 0;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final atual = _indiceAtual(context);
+    final caminho = GoRouterState.of(context).uri.path;
+    final atual = AbaPersonal.indiceDe(caminho);
+    final desktop = ehDesktop(context);
+    const abas = AbaPersonal.todas;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: child,
-      bottomNavigationBar: Container(
+      // No desktop o menu vai para a esquerda e o conteúdo (telas desenhadas
+      // para celular) fica numa coluna centralizada. A árvore é a mesma nos
+      // dois casos — só muda o limite — para a tela não ser recriada quando
+      // a janela cruza a largura de desktop.
+      body: Row(
+        children: [
+          if (desktop) MenuLateral(caminho: caminho),
+          Expanded(
+            key: const ValueKey('conteudo'),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: desktop ? 620 : double.infinity),
+                child: child,
+              ),
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: desktop ? null : Container(
         decoration: BoxDecoration(
           color: AppColors.bg,
           border: Border(top: BorderSide(color: AppColors.line)),
@@ -47,15 +50,15 @@ class PersonalShell extends StatelessWidget {
             height: 62,
             child: Row(
               children: [
-                for (var i = 0; i < _abas.length; i++)
+                for (var i = 0; i < abas.length; i++)
                   Expanded(
                     child: _BotaoAba(
-                      aba: _abas[i],
+                      aba: abas[i],
                       selecionado: i == atual,
                       // `go` e não `push`: as abas trocam a tela, não
                       // empilham. Com push, o botão "voltar" do navegador
                       // percorreria todas as abas já visitadas.
-                      onTap: () => context.go(_abas[i].rota),
+                      onTap: () => context.go(abas[i].rota),
                     ),
                   ),
               ],
@@ -67,24 +70,6 @@ class PersonalShell extends StatelessWidget {
   }
 }
 
-class _Aba {
-  const _Aba(this.rota, this.icone, this.iconeCheio, this.rotulo,
-      [this.tambem = const []]);
-
-  /// Para onde o toque leva.
-  final String rota;
-
-  /// Outras rotas que mantêm esta aba acesa.
-  final List<String> tambem;
-
-  final IconData icone;
-  final IconData iconeCheio;
-  final String rotulo;
-
-  bool cobre(String caminho) =>
-      caminho.startsWith(rota) || tambem.any(caminho.startsWith);
-}
-
 class _BotaoAba extends StatelessWidget {
   const _BotaoAba({
     required this.aba,
@@ -92,7 +77,7 @@ class _BotaoAba extends StatelessWidget {
     required this.onTap,
   });
 
-  final _Aba aba;
+  final AbaPersonal aba;
   final bool selecionado;
   final VoidCallback onTap;
 

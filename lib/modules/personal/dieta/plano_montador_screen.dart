@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/models/dieta.dart';
+import '../../../core/layout/desktop.dart';
 import '../../../core/services/dieta_service.dart';
 import '../../../core/services/modelo_plano_service.dart';
 import '../../../core/services/receita_service.dart';
@@ -8,7 +10,9 @@ import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/dieta_calculos.dart';
 import '../../../core/widgets/widgets.dart';
+import '../shell/menu_lateral.dart';
 import 'busca_alimento_sheet.dart';
+import 'painel_alimentos.dart';
 import 'plano_pdf.dart';
 import 'receitas_screen.dart';
 
@@ -41,10 +45,20 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
   String? _agrupandoEm;
   final _selecionados = <String>{};
 
+  /// Desktop: refeição que recebe o que for escolhido no painel da direita.
+  String? _destino;
+  final _focoBusca = FocusNode();
+
   @override
   void initState() {
     super.initState();
     _carregar();
+  }
+
+  @override
+  void dispose() {
+    _focoBusca.dispose();
+    super.dispose();
   }
 
   Future<void> _carregar() async {
@@ -85,6 +99,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (ehDesktop(context)) return _desktop();
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
@@ -211,6 +226,599 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
         child: _cartaoRefeicao(p.refeicoes[i], i),
       ),
     );
+  }
+
+  // ── Desktop ─────────────────────────────────────────────────
+  //
+  // Mesmo estado e mesmas ações do celular, outra disposição: menu à
+  // esquerda, totais presos no topo, refeições em duas colunas e a busca de
+  // alimentos sempre aberta à direita. O layout de celular acima não muda.
+
+  Widget _desktop() {
+    final p = _plano;
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyK, control: true): _focoBusca.requestFocus,
+          const SingleActivator(LogicalKeyboardKey.keyK, meta: true): _focoBusca.requestFocus,
+        },
+        child: Focus(
+          autofocus: true,
+          child: Row(
+            children: [
+              const MenuLateral(caminho: '/alunos'),
+              Expanded(
+                child: Column(
+                  children: [
+                    _topoDesktop(p),
+                    Expanded(
+                      child: p == null
+                          ? _corpo()
+                          : Row(
+                              children: [
+                                Expanded(child: _centroDesktop(p)),
+                                SizedBox(
+                                  width: 400,
+                                  child: PainelAlimentos(
+                                    destinos: [for (final r in p.refeicoes) (id: r.id, nome: r.nome)],
+                                    destino: _destinoValido(p),
+                                    aoTrocarDestino: (id) => setState(() => _destino = id),
+                                    aoAdicionar: _adicionarDoPainel,
+                                    focoBusca: _focoBusca,
+                                    kcalAtual: p.totalPrescrito.kcal,
+                                    metaKcal: p.metaKcal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// A refeição que recebe o que for escolhido no painel. Se a escolhida
+  /// sumiu (foi excluída), cai na primeira vazia — é a que mais precisa.
+  String? _destinoValido(PlanoAlimentar p) {
+    if (p.refeicoes.any((r) => r.id == _destino)) return _destino;
+    for (final r in p.refeicoes) {
+      if (r.vazia) return r.id;
+    }
+    return p.refeicoes.isEmpty ? null : p.refeicoes.first.id;
+  }
+
+  Future<void> _adicionarDoPainel(AlimentoEscolhido e) async {
+    final p = _plano;
+    if (p == null) return;
+    final id = _destinoValido(p);
+    final r = p.refeicoes.where((x) => x.id == id).firstOrNull;
+    if (r == null) return;
+    await _gravar(
+      () => DietaService.adicionarItem(
+        refeicaoId: r.id,
+        alimentoId: e.alimento.id,
+        quantidadeG: e.gramas,
+        medidaExibicao: e.medidaExibicao,
+        ordem: r.itens.length,
+      ),
+    );
+  }
+
+  Widget _topoDesktop(PlanoAlimentar? p) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.xxl, AppSpacing.lg),
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.line))),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: 'Voltar',
+            onPressed: () => Navigator.maybePop(context),
+            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textSecondary),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          PhdAvatar(name: widget.alunoNome, size: 46, ringColor: AppColors.accent),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Alunos  /  ${widget.alunoNome}  /  Plano alimentar',
+                    style: AppText.caption(12, color: AppColors.textMuted)),
+                const SizedBox(height: 2),
+                Text(p?.nome ?? 'Plano alimentar', style: AppText.display(21)),
+                if (p != null) ...[
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      if ((p.objetivo ?? '').trim().isNotEmpty) PhdStatusChip(label: p.objetivo!, tone: PhdTone.accent),
+                      PhdStatusChip(
+                        label: p.assinado ? 'assinado · CRN ${p.crnAssinatura}' : 'não assinado',
+                        tone: p.assinado ? PhdTone.success : PhdTone.warning,
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (p != null) ...[
+            _botaoTopo('Receitas', Icons.menu_book_outlined, () => _menuPlano('receitas')),
+            _botaoTopo('Orientações', Icons.notes_rounded, () => _menuPlano('observacoes')),
+            _botaoTopo('PDF', Icons.picture_as_pdf_outlined, () => _menuPlano('pdf')),
+            _botaoTopo('Salvar modelo', Icons.bookmark_add_outlined, () => _menuPlano('modelo')),
+            PhdButton(
+              label: p.assinado ? 'Assinar de novo' : 'Assinar plano',
+              icon: Icons.verified_outlined,
+              size: PhdButtonSize.medium,
+              expand: false,
+              variant: p.assinado ? PhdButtonVariant.secondary : PhdButtonVariant.primary,
+              onPressed: () => _menuPlano('assinar'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _botaoTopo(String rotulo, IconData icone, VoidCallback onTap) => Padding(
+        padding: const EdgeInsets.only(right: AppSpacing.sm),
+        child: PhdButton(
+          label: rotulo,
+          icon: icone,
+          size: PhdButtonSize.medium,
+          expand: false,
+          variant: PhdButtonVariant.secondary,
+          onPressed: onTap,
+        ),
+      );
+
+  Widget _centroDesktop(PlanoAlimentar p) {
+    final n = p.refeicoes.length;
+    final meio = (n + 1) ~/ 2;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xxl, AppSpacing.lg, AppSpacing.xxl, 0),
+          child: _totaisDesktop(p),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xxl, AppSpacing.lg, AppSpacing.xxl, AppSpacing.huge),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < meio; i++) _refeicaoDesktop(p, p.refeicoes[i], i),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.lg),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = meio; i < n; i++) _refeicaoDesktop(p, p.refeicoes[i], i),
+                      PhdAddCard(label: 'Nova refeição', onTap: _adicionarRefeicao),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _totaisDesktop(PlanoAlimentar p) {
+    final t = p.totalPrescrito;
+    final meta = p.metaKcal;
+    final desvio = p.desvioKcal;
+    final kcalMacros = t.proteina * 4 + t.carboidrato * 4 + t.gordura * 9;
+    int pct(double kcal) => kcalMacros <= 0 ? 0 : (kcal / kcalMacros * 100).round();
+
+    final String textoDesvio;
+    final Color corDesvio;
+    if (desvio == null) {
+      textoDesvio = 'sem meta definida';
+      corDesvio = AppColors.textMuted;
+    } else if (desvio.abs() <= 50) {
+      // Até 50 kcal é arredondamento de porção, não erro de montagem.
+      textoDesvio = 'na meta';
+      corDesvio = AppColors.successText;
+    } else if (desvio < 0) {
+      textoDesvio = 'faltam ${_milhar(-desvio)} kcal';
+      corDesvio = AppColors.warningText;
+    } else {
+      textoDesvio = '${_milhar(desvio)} kcal acima';
+      corDesvio = AppColors.warningText;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.rXl,
+        border: Border.all(color: AppColors.line),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            PhdRing(
+              valor: meta == null ? 0 : proporcao(t.kcal, meta),
+              tamanho: 60,
+              espessura: 7,
+              child: Text(
+                meta == null ? '—' : '${(t.kcal / meta * 100).round()}%',
+                style: AppText.number(12.5),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('ENERGIA', style: AppText.label()),
+                Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: _milhar(t.kcal), style: AppText.number(24)),
+                    TextSpan(
+                      text: meta == null ? ' kcal' : ' / ${_milhar(meta)} kcal',
+                      style: AppText.caption(12.5, color: AppColors.textMuted),
+                    ),
+                  ]),
+                ),
+                Text(textoDesvio, style: AppText.bodyStrong(11.5, color: corDesvio)),
+              ],
+            ),
+            _divisor(),
+            Expanded(child: _macroDesktop('Proteína', t.proteina, p.metaProteina)),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(child: _macroDesktop('Carboidrato', t.carboidrato, p.metaCarboidrato)),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(child: _macroDesktop('Gordura', t.gordura, p.metaGordura)),
+            _divisor(),
+            SizedBox(
+              width: 170,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('DISTRIBUIÇÃO', style: AppText.label()),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: AppRadius.rPill,
+                    child: SizedBox(
+                      height: 8,
+                      child: Row(
+                        children: kcalMacros <= 0
+                            ? [Expanded(child: ColoredBox(color: AppColors.surfaceHigh))]
+                            : [
+                                Expanded(flex: (t.proteina * 4).round() + 1, child: ColoredBox(color: AppColors.accent)),
+                                Expanded(flex: (t.carboidrato * 4).round() + 1, child: ColoredBox(color: AppColors.warning)),
+                                Expanded(flex: (t.gordura * 9).round() + 1, child: ColoredBox(color: AppColors.textSecondary)),
+                              ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'P ${pct(t.proteina * 4)}%  ·  C ${pct(t.carboidrato * 4)}%  ·  G ${pct(t.gordura * 9)}%',
+                    style: AppText.caption(11),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _divisor() => Container(
+        width: 1,
+        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        color: AppColors.line,
+      );
+
+  Widget _macroDesktop(String nome, double prescrito, double? meta) {
+    final falta = meta == null ? null : meta - prescrito;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(nome, style: AppText.caption(11.5)),
+        Text.rich(
+          TextSpan(children: [
+            TextSpan(text: '${prescrito.round()}', style: AppText.number(17)),
+            TextSpan(
+              text: meta == null ? ' g' : ' / ${meta.round()} g',
+              style: AppText.caption(12, color: AppColors.textMuted),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 5),
+        PhdProgressBar(value: meta == null ? 0 : proporcao(prescrito, meta), height: 6),
+        const SizedBox(height: 3),
+        Text(
+          falta == null
+              ? 'sem meta'
+              : falta.abs() < 3
+                  ? 'na meta'
+                  : falta > 0
+                      ? 'faltam ${falta.round()} g'
+                      : '${(-falta).round()} g acima',
+          style: AppText.caption(10.5, color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+
+  Widget _refeicaoDesktop(PlanoAlimentar p, Refeicao r, int indice) {
+    final t = r.total;
+    final agrupando = _agrupandoEm == r.id;
+    final destino = _destinoValido(p) == r.id;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: AnimatedContainer(
+        duration: AppDuration.fast,
+        decoration: BoxDecoration(
+          color: destino ? Color.alphaBlend(AppColors.tint(AppColors.accent), AppColors.surface) : AppColors.surface,
+          borderRadius: AppRadius.rXl,
+          border: Border.all(
+            color: destino ? AppColors.accent : AppColors.line,
+            width: destino ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Clicar no cabeçalho escolhe a refeição como destino do painel.
+            InkWell(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+              onTap: () => setState(() => _destino = r.id),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.xs, AppSpacing.sm),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: destino ? AppColors.accent : AppColors.surfaceHigh,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(_iconeRefeicao(r.nome),
+                          size: 17, color: destino ? AppColors.onAccent : AppColors.textSecondary),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(r.nome, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.title(14.5)),
+                          Text(
+                            destino ? 'recebendo alimentos' : (r.horarioTexto ?? 'sem horário'),
+                            style: destino
+                                ? AppText.bodyStrong(11.5, color: AppColors.accent)
+                                : AppText.caption(11.5, color: AppColors.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text.rich(TextSpan(children: [
+                          TextSpan(text: '${t.kcal.round()}', style: AppText.number(15)),
+                          TextSpan(text: ' kcal', style: AppText.caption(11, color: AppColors.textMuted)),
+                        ])),
+                        Text(
+                          'P ${t.proteina.round()} · C ${t.carboidrato.round()} · G ${t.gordura.round()}',
+                          style: AppText.caption(10.5, color: AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                    PopupMenuButton<String>(
+                      color: AppColors.surfaceHigh,
+                      surfaceTintColor: Colors.transparent,
+                      tooltip: 'Opções de ${r.nome}',
+                      shape: RoundedRectangleBorder(borderRadius: AppRadius.rMd),
+                      icon: Icon(Icons.more_vert_rounded, color: AppColors.textMuted, size: 19),
+                      onSelected: (v) {
+                        if (v == 'subir') return _moverRefeicao(p, indice, indice - 1);
+                        if (v == 'descer') return _moverRefeicao(p, indice, indice + 1);
+                        _menuRefeicao(v, r);
+                      },
+                      itemBuilder: (_) => [
+                        PopupMenuItem(value: 'editar', child: Text('Nome e horário', style: AppText.body(14))),
+                        if (r.itens.length > 1)
+                          PopupMenuItem(
+                            value: 'agrupar',
+                            child: Text(agrupando ? 'Sair da seleção' : 'Marcar substitutos', style: AppText.body(14)),
+                          ),
+                        if (indice > 0)
+                          PopupMenuItem(value: 'subir', child: Text('Mover para antes', style: AppText.body(14))),
+                        if (indice < p.refeicoes.length - 1)
+                          PopupMenuItem(value: 'descer', child: Text('Mover para depois', style: AppText.body(14))),
+                        PopupMenuItem(
+                          value: 'remover',
+                          child: Text('Excluir refeição', style: AppText.body(14, color: AppColors.dangerText)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (agrupando)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+                child: PhdAviso(
+                  texto: 'Marque os alimentos que podem ser trocados entre si. O aluno escolhe um '
+                      'deles, e o total da refeição conta só uma vez.',
+                  icone: Icons.swap_horiz_rounded,
+                  cor: AppColors.accent,
+                  corTexto: AppColors.accent,
+                ),
+              ),
+            for (final item in r.itens) _itemDesktop(item, r, agrupando),
+            if (r.receitas.isNotEmpty && !agrupando)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, 0),
+                child: Column(children: [for (final rr in r.receitas) _linhaReceita(rr)]),
+              ),
+            Container(
+              decoration: BoxDecoration(border: Border(top: BorderSide(color: AppColors.line))),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+              child: agrupando
+                  ? Row(
+                      children: [
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () => setState(() {
+                            _agrupandoEm = null;
+                            _selecionados.clear();
+                          }),
+                          child: Text('Cancelar', style: AppText.bodyStrong(12.5, color: AppColors.textSecondary)),
+                        ),
+                        TextButton(
+                          onPressed: _selecionados.length < 2 ? null : _confirmarGrupo,
+                          child: Text('Agrupar',
+                              style: AppText.bodyStrong(12.5,
+                                  color: _selecionados.length < 2 ? AppColors.textMuted : AppColors.accent)),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() => _destino = r.id);
+                            _focoBusca.requestFocus();
+                          },
+                          icon: Icon(Icons.add_rounded, size: 16, color: AppColors.textSecondary),
+                          label: Text('Alimento', style: AppText.bodyStrong(12.5, color: AppColors.textSecondary)),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => _adicionarReceita(r),
+                          icon: Icon(Icons.menu_book_outlined, size: 15, color: AppColors.textSecondary),
+                          label: Text('Receita', style: AppText.bodyStrong(12.5, color: AppColors.textSecondary)),
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _itemDesktop(ItemRefeicao item, Refeicao r, bool agrupando) {
+    final n = item.nutrientes;
+    final marcado = _selecionados.contains(item.id);
+
+    return InkWell(
+      onTap: agrupando
+          ? () => setState(() {
+                if (!_selecionados.remove(item.id)) _selecionados.add(item.id);
+              })
+          : () => _editarItem(item, r),
+      child: Container(
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: AppColors.line))),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            if (agrupando)
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.sm),
+                child: Icon(
+                  marcado ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                  size: 18,
+                  color: marcado ? AppColors.accent : AppColors.textMuted,
+                ),
+              ),
+            if (item.temSubstitutos)
+              Padding(
+                padding: const EdgeInsets.only(right: 5),
+                child: Icon(Icons.swap_horiz_rounded, size: 15, color: AppColors.accent),
+              ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.alimento.rotulo,
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStrong(12.5)),
+                  Text(
+                    'P ${n.proteina.toStringAsFixed(1)}   C ${n.carboidrato.toStringAsFixed(1)}   '
+                    'G ${n.gordura.toStringAsFixed(1)}',
+                    style: AppText.caption(10.5, color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Container(
+              constraints: const BoxConstraints(minWidth: 84, maxWidth: 150),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+              decoration: BoxDecoration(color: AppColors.surfaceHigh, borderRadius: AppRadius.rSm),
+              child: Text(
+                item.quantidadeTexto,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.caption(11.5, color: AppColors.textSecondary),
+              ),
+            ),
+            SizedBox(
+              width: 48,
+              child: Text('${n.kcal.round()}', textAlign: TextAlign.right, style: AppText.number(12.5)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _moverRefeicao(PlanoAlimentar p, int de, int para) {
+    final lista = [...p.refeicoes];
+    final r = lista.removeAt(de);
+    lista.insert(para, r);
+    setState(() => _plano = _comRefeicoes(p, lista));
+    _gravar(() => DietaService.reordenarRefeicoes(lista));
+  }
+
+  static IconData _iconeRefeicao(String nome) {
+    final n = nome.toLowerCase();
+    if (n.contains('café') || n.contains('cafe') || n.contains('desjejum')) return Icons.free_breakfast_outlined;
+    if (n.contains('almoço') || n.contains('almoco')) return Icons.restaurant_rounded;
+    if (n.contains('jantar')) return Icons.dinner_dining_outlined;
+    if (n.contains('ceia')) return Icons.nightlight_outlined;
+    if (n.contains('treino')) return Icons.bolt_rounded;
+    return Icons.bakery_dining_outlined;
+  }
+
+  /// "1.850" — milhar com ponto, como o personal escreve.
+  static String _milhar(double v) {
+    final s = v.round().toString();
+    final b = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0 && s[i - 1] != '-') b.write('.');
+      b.write(s[i]);
+    }
+    return b.toString();
   }
 
   // ── Resumo: meta contra prescrito ───────────────────────────

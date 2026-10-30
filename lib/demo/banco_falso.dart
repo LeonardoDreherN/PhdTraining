@@ -8,7 +8,7 @@ import 'package:http/testing.dart';
 /// Entra no lugar do servidor pelo `httpClient` do `Supabase.initialize`:
 /// as telas e os serviços continuam os mesmos, sem saber que não há banco
 /// de verdade. Cobre só o pedaço do PostgREST e do Storage que a avaliação
-/// física e a home do aluno usam — filtros `eq`, `lt`, `gte`, `in`, `not.is.null`, `order`, `limit`,
+/// física e a home do aluno usam — filtros `eq`, `lt`, `gte`, `in`, `ilike`, `not.is.null`, `order`, `limit`,
 /// upsert, update e delete.
 ///
 /// Não vai para produção: só as demos de `lib/demo/` usam isto.
@@ -136,6 +136,10 @@ class BancoFalso {
       } else if (f.startsWith('in.(')) {
         final valores = f.substring(4, f.length - 1).split(',').map((x) => x.replaceAll('"', ''));
         if (!valores.contains('$v')) return false;
+      } else if (f.startsWith('ilike.')) {
+        // `%` vira "qualquer coisa"; a busca de alimentos só usa `%termo%`.
+        final padrao = f.substring(6).toLowerCase().split('%').map(RegExp.escape).join('.*');
+        if (v == null || !RegExp('^$padrao\$').hasMatch('$v'.toLowerCase())) return false;
       } else if (f == 'not.is.null') {
         if (v == null) return false;
       } else if (f == 'is.null') {

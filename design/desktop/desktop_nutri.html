@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0A0B;--surface:#141417;--high:#1D1D21;--line:#27272B;--lineS:#3A3A40;
+  --t1:#F4F4F5;--t2:#9A9AA2;--t3:#7A7A83;--accent:#DC2626;--accentL:#EF4444;
+  --tint:rgba(220,38,38,.14);--ok:#4ADE80;--okT:#7DEBA8;--warn:#FBBF24;--warnT:#FCD34D;
+  --p:#60A5FA;--c:#FBBF24;--g:#F472B6;--shadow:none;
+}
+body.claro{
+  --bg:#F3F4F7;--surface:#FFFFFF;--high:#EDEFF3;--line:#E2E5EB;--lineS:#CBD0D9;
+  --t1:#0D0F14;--t2:#545B6B;--t3:#6B7282;--tint:rgba(220,38,38,.09);--ok:#16A34A;--okT:#15803D;
+  --warn:#F59E0B;--warnT:#B45309;--p:#2563EB;--c:#D97706;--g:#DB2777;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 4px 14px rgba(16,24,40,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:var(--bg);color:var(--t1);font-family:Manrope,sans-serif;font-size:13px;display:flex}
+.h{font-family:Archivo,sans-serif}
+.num{font-family:Archivo,sans-serif;font-variant-numeric:tabular-nums}
+.muted{color:var(--t3)} .sec{color:var(--t2)}
+.label{font-family:Archivo;font-size:10.5px;font-weight:700;letter-spacing:.12em;color:var(--t3);text-transform:uppercase}
+.ico{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ── Menu lateral ── */
+.side{width:232px;flex:none;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px}
+.logo{display:flex;align-items:center;gap:10px;padding:2px 8px 22px}
+.logo b{width:34px;height:34px;border-radius:10px;background:var(--accent);color:#fff;display:grid;place-items:center;font-family:Archivo;font-weight:800;font-size:13px}
+.logo span{font-family:Archivo;font-weight:800;font-size:16px}
+.logo small{display:block;font-size:11px;color:var(--t3);font-weight:600}
+.nav a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;color:var(--t2);font-weight:600;font-size:13.5px;text-decoration:none;margin-bottom:2px}
+.nav a.on{background:var(--tint);color:var(--accent)}
+.nav a .badge{margin-left:auto;background:var(--accent);color:#fff;font-size:10.5px;font-weight:800;border-radius:99px;padding:1px 7px}
+.side .grow{flex:1}
+.me{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px}
+.av{border-radius:50%;display:grid;place-items:center;font-family:Archivo;font-weight:700;flex:none;background:var(--high);color:var(--t1)}
+
+/* ── Área principal ── */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.top{padding:18px 28px 0;border-bottom:1px solid var(--line);background:var(--bg)}
+.crumbs{font-size:12px;color:var(--t3);font-weight:600;margin-bottom:12px}
+.crumbs b{color:var(--t2)}
+.who{display:flex;align-items:center;gap:14px}
+.who .av{width:46px;height:46px;font-size:15px;background:linear-gradient(135deg,#7c2d12,#dc2626);color:#fff;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
+.who h1{font-size:21px;font-weight:800}
+.chips{display:flex;gap:6px;margin-top:4px}
+.chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;background:var(--high);color:var(--t2)}
+.chip.a{background:var(--tint);color:var(--accent)}
+.chip.ok{background:rgba(74,222,128,.12);color:var(--okT)}
+.btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:11px;font-weight:700;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--t1)}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff}
+.tabs{display:flex;gap:26px;margin-top:16px}
+.tabs div{padding:10px 0 12px;font-weight:700;font-size:13.5px;color:var(--t3);border-bottom:2px solid transparent}
+.tabs div.on{color:var(--t1);border-color:var(--accent)}
+
+.work{flex:1;display:flex;min-height:0}
+.center{flex:1;padding:18px 24px 24px 28px;overflow:hidden;min-width:0}
+.right{width:392px;flex:none;border-left:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column}
+
+/* Totais fixos */
+.totals{display:flex;gap:14px;align-items:stretch;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 18px;box-shadow:var(--shadow)}
+.kcal{display:flex;align-items:center;gap:14px;padding-right:18px;border-right:1px solid var(--line)}
+.ring{width:58px;height:58px}
+.macro{flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.macro .row{display:flex;flex-direction:column;gap:1px;white-space:nowrap}.macro .row>span:first-child{font-size:11px;color:var(--t2)}.macro .row .num{font-size:17px}
+.bar{height:6px;border-radius:9px;background:var(--high);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:9px}
+.dist{display:flex;flex-direction:column;justify-content:center;gap:6px;padding-left:18px;border-left:1px solid var(--line);width:170px}
+.stack{display:flex;height:10px;border-radius:9px;overflow:hidden;gap:2px}
+
+/* Refeições */
+.meals{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.meal{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+.meal.drop{border:1.5px dashed var(--accent);background:linear-gradient(var(--tint),var(--tint)),var(--surface)}
+.mh{display:flex;align-items:center;gap:10px;padding:13px 14px 10px}
+.mh .t{font-family:Archivo;font-weight:800;font-size:14.5px}
+.mh .hr{font-size:11.5px;color:var(--t3);font-weight:600}
+.mh .k{margin-left:auto;text-align:right}
+.mh .k b{font-family:Archivo;font-size:15px}
+.dot{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--high);font-size:15px}
+.item{display:grid;grid-template-columns:1fr 92px 58px;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--line)}
+.item .n{font-weight:700;font-size:12.5px}
+.item .q{font-size:11.5px;color:var(--t2);background:var(--high);border-radius:8px;padding:4px 8px;text-align:center;font-weight:600}
+.item .kc{text-align:right;font-family:Archivo;font-weight:700;font-size:12.5px}
+.item .m{font-size:10.5px;color:var(--t3);font-weight:600;margin-top:2px}
+.item .m span{margin-right:7px}
+.add{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--line);color:var(--t3);font-weight:700;font-size:12px}
+.collapsed .mh{padding-bottom:13px}
+.hint{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px dashed var(--accent);color:var(--accent);font-weight:800;font-size:12px}
+
+/* Painel de alimentos */
+.rp{padding:18px 18px 12px}
+.search{display:flex;align-items:center;gap:10px;height:42px;border:1.5px solid var(--accent);border-radius:12px;padding:0 12px;background:var(--bg)}
+.search span{font-weight:600;font-size:13.5px}
+.seg{display:flex;background:var(--high);border-radius:10px;padding:3px;margin-top:12px}
+.seg div{flex:1;text-align:center;padding:7px 0;border-radius:8px;font-weight:700;font-size:12px;color:var(--t2)}
+.seg div.on{background:var(--surface);color:var(--t1);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.fchips{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.fchips div{font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:99px;border:1px solid var(--line);color:var(--t2)}
+.fchips div.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.res{flex:1;overflow:hidden;padding:0 10px}
+.fr{display:flex;align-items:center;gap:11px;padding:9px 8px;border-radius:11px}
+.fr.sel{background:var(--tint);outline:1px solid rgba(220,38,38,.45)}
+.fr .ic{width:34px;height:34px;border-radius:10px;background:var(--high);display:grid;place-items:center;font-size:16px;flex:none}
+.fr .n{font-weight:700;font-size:12.5px}
+.fr .s{font-size:10.5px;color:var(--t3);font-weight:600;margin-top:1px}
+.fr .plus{margin-left:auto;width:28px;height:28px;border-radius:9px;border:1px solid var(--line);display:grid;place-items:center;color:var(--t2);flex:none}
+.fr.sel .plus{background:var(--accent);border-color:var(--accent);color:#fff}
+.det{border-top:1px solid var(--line);padding:16px 18px 18px;background:var(--surface)}
+.qty{display:flex;align-items:center;gap:8px;margin-top:12px}
+.step{width:36px;height:36px;border-radius:50%;background:var(--high);display:grid;place-items:center;font-weight:800;font-size:16px}
+.sel2{flex:1;height:36px;border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-weight:700;font-size:12.5px}
+.mini{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
+.mini div{background:var(--high);border-radius:10px;padding:7px 8px}
+.mini b{display:block;font-family:Archivo;font-size:14px}
+.mini span{font-size:10px;color:var(--t3);font-weight:700}
+.kbd{font-family:Archivo;font-size:10px;font-weight:700;border:1px solid var(--lineS);border-radius:5px;padding:1px 5px;color:var(--t3)}
+.ann{position:absolute;background:#FDE047;color:#111;font-family:Archivo;font-weight:800;font-size:11.5px;padding:5px 9px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.35);display:none}
+body.notas .ann{display:block}
+</style>
+</head>
+<body>
+<script>
+  if (location.hash.includes('claro')) document.body.classList.add('claro');
+</script>
+
+<!-- Menu lateral: substitui a barra de baixo do celular -->
+<aside class="side">
+  <div class="logo"><b>PHD</b><div><span>PHD Training</span><small>Prado Performance</small></div></div>
+  <nav class="nav">
+    <a><svg class="ico" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21H3z"/></svg>Início</a>
+    <a><svg class="ico" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M17 11a3 3 0 1 0 0-6M22 21c0-3-2-5-4.5-5.5"/></svg>Alunos</a>
+    <a><svg class="ico" viewBox="0 0 24 24"><path d="m6.5 6.5 11 11M3 10l7-7M14 21l7-7M5 12l7-7M12 19l7-7"/></svg>Treinos</a>
+    <a class="on"><svg class="ico" viewBox="0 0 24 24"><path d="M12 21c-5 0-8-4-8-9 0-4 3-6 5.5-6 1.2 0 1.9.5 2.5.5s1.3-.5 2.5-.5C17 6 20 8 20 12c0 5-3 9-8 9zM12 6c0-2 1-3 3-4"/></svg>Nutrição</a>
+    <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Agenda</a>
+    <a><svg class="ico" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12z"/></svg>Mensagens<span class="badge">3</span></a>
+    <a><svg class="ico" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Relatórios</a>
+  </nav>
+  <div class="grow"></div>
+  <div class="me"><div class="av" style="width:34px;height:34px;font-size:12px">RP</div><div><div style="font-weight:800">Rafael Prado</div><div class="muted" style="font-size:11px;font-weight:600">CREF 012345-G/SP</div></div></div>
+</aside>
+
+<main class="main">
+  <header class="top">
+    <div class="crumbs">Alunos &nbsp;/&nbsp; <b>Marina Costa</b> &nbsp;/&nbsp; Plano alimentar</div>
+    <div class="who">
+      <div class="av">MC</div>
+      <div>
+        <h1 class="h">Marina Costa</h1>
+        <div class="chips"><span class="chip a">Recomposição corporal</span><span class="chip">62,4 kg · 1,66 m</span><span class="chip">32 anos</span><span class="chip ok">adesão 86% na semana</span></div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <span class="btn"><svg class="ico" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Ver como a aluna</span>
+        <span class="btn"><svg class="ico" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>PDF</span>
+        <span class="btn p"><svg class="ico" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>Salvar e enviar</span>
+      </div>
+    </div>
+    <div class="tabs"><div>Resumo</div><div class="on">Plano alimentar</div><div>Adesão</div><div>Avaliações</div><div>Treinos</div><div>Anamnese</div></div>
+  </header>
+
+  <div class="work">
+    <section class="center">
+      <!-- Totais: ficam presos no topo enquanto monta -->
+      <div class="totals">
+        <div class="kcal">
+          <svg class="ring" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--high)" stroke-width="4"/><circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" stroke-dasharray="83.2 97.4" transform="rotate(-90 18 18)"/></svg>
+          <div>
+            <div class="label">Energia</div>
+            <div class="num" style="font-size:24px;font-weight:800;line-height:1.1">1.571 <span class="muted" style="font-size:13px;font-weight:600">/ 1.850 kcal</span></div>
+            <div style="font-size:11.5px;font-weight:700;color:var(--warnT)">faltam 279 kcal</div>
+          </div>
+        </div>
+        <div class="macro">
+          <div class="row"><span style="font-weight:800">Proteína</span><span class="num" style="font-weight:700">128 <span class="muted">/ 130 g</span></span></div>
+          <div class="bar"><i style="width:98%;background:var(--p)"></i></div>
+          <div class="muted" style="font-size:10.5px;font-weight:700">2,1 g/kg · ok</div>
+        </div>
+        <div class="macro">
+          <div class="row"><span style="font-weight:800">Carboidrato</span><span class="num" style="font-weight:700">148 <span class="muted">/ 190 g</span></span></div>
+          <div class="bar"><i style="width:78%;background:var(--c)"></i></div>
+          <div class="muted" style="font-size:10.5px;font-weight:700">faltam 42 g</div>
+        </div>
+        <div class="macro">
+          <div class="row"><span style="font-weight:800">Gordura</span><span class="num" style="font-weight:700">41 <span class="muted">/ 55 g</span></span></div>
+          <div class="bar"><i style="width:74%;background:var(--g)"></i></div>
+          <div class="muted" style="font-size:10.5px;font-weight:700">faltam 14 g</div>
+        </div>
+        <div class="dist">
+          <div class="label">Distribuição</div>
+          <div class="stack"><i style="flex:33;background:var(--p)"></i><i style="flex:38;background:var(--c)"></i><i style="flex:24;background:var(--g)"></i></div>
+          <div style="font-size:10.5px;font-weight:700" class="sec">P 33% · C 38% · G 24%</div>
+        </div>
+      </div>
+
+      <div class="meals">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="meal">
+            <div class="mh"><div class="dot">☕</div><div><div class="t">Café da manhã</div><div class="hr">07:00</div></div><div class="k"><b>351</b> <span class="muted" style="font-size:11px;font-weight:700">kcal</span><div class="muted" style="font-size:10.5px;font-weight:700">P 20 · C 51 · G 12</div></div></div>
+            <div class="item"><div><div class="n">Ovo cozido</div><div class="m"><span>P 13,3</span><span>C 0,6</span><span>G 9,5</span></div></div><div class="q">2 unidades</div><div class="kc">146</div></div>
+            <div class="item"><div><div class="n">Pão integral</div><div class="m"><span>P 4,7</span><span>C 25</span><span>G 1,9</span></div></div><div class="q">2 fatias</div><div class="kc">127</div></div>
+            <div class="item"><div><div class="n">Banana prata</div><div class="m"><span>P 1</span><span>C 20,8</span><span>G 0,1</span></div></div><div class="q">1 un. média</div><div class="kc">78</div></div>
+            <div class="add">＋ Adicionar alimento <span style="margin-left:auto" class="muted">ou arraste da direita</span></div>
+          </div>
+
+          <div class="meal">
+            <div class="mh"><div class="dot">🍽️</div><div><div class="t">Almoço</div><div class="hr">12:30</div></div><div class="k"><b>484</b> <span class="muted" style="font-size:11px;font-weight:700">kcal</span><div class="muted" style="font-size:10.5px;font-weight:700">P 57 · C 49 · G 6</div></div></div>
+            <div class="item"><div><div class="n">Peito de frango grelhado</div><div class="m"><span>P 48</span><span>C 0</span><span>G 3,8</span></div></div><div class="q">150 g</div><div class="kc">239</div></div>
+            <div class="item"><div><div class="n">Arroz integral cozido</div><div class="m"><span>P 3,1</span><span>C 31</span><span>G 1,2</span></div></div><div class="q">4 col. sopa</div><div class="kc">149</div></div>
+            <div class="item"><div><div class="n">Feijão carioca cozido</div><div class="m"><span>P 4,8</span><span>C 13,6</span><span>G 0,5</span></div></div><div class="q">1 concha</div><div class="kc">76</div></div>
+            <div class="item"><div><div class="n">Brócolis cozido</div><div class="m"><span>P 1,7</span><span>C 3,5</span><span>G 0,4</span></div></div><div class="q">80 g</div><div class="kc">20</div></div>
+            <div class="add">＋ Adicionar alimento</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="meal collapsed">
+            <div class="mh"><div class="dot">🥣</div><div><div class="t">Lanche da manhã</div><div class="hr">10:00 · 2 itens</div></div><div class="k"><b>205</b> <span class="muted" style="font-size:11px;font-weight:700">kcal</span><div class="muted" style="font-size:10.5px;font-weight:700">P 11 · C 23 · G 8</div></div></div>
+          </div>
+          <div class="meal collapsed">
+            <div class="mh"><div class="dot">🍌</div><div><div class="t">Lanche da tarde</div><div class="hr">16:00 · 2 itens</div></div><div class="k"><b>198</b> <span class="muted" style="font-size:11px;font-weight:700">kcal</span><div class="muted" style="font-size:10.5px;font-weight:700">P 25 · C 23 · G 2</div></div></div>
+          </div>
+
+          <div class="meal drop">
+            <div class="mh"><div class="dot" style="background:var(--accent);color:#fff">🌙</div><div><div class="t">Jantar</div><div class="hr" style="color:var(--accent);font-weight:800">recebendo alimentos</div></div><div class="k"><b>333</b> <span class="muted" style="font-size:11px;font-weight:700">kcal</span><div class="muted" style="font-size:10.5px;font-weight:700">P 41 · C 32 · G 4</div></div></div>
+            <div class="item"><div><div class="n">Tilápia grelhada</div><div class="m"><span>P 39</span><span>C 0</span><span>G 4</span></div></div><div class="q">150 g</div><div class="kc">192</div></div>
+            <div class="item"><div><div class="n">Batata-doce cozida</div><div class="m"><span>P 0,9</span><span>C 27,6</span><span>G 0,2</span></div></div><div class="q">150 g</div><div class="kc">116</div></div>
+            <div class="item"><div><div class="n">Brócolis cozido</div><div class="m"><span>P 2,1</span><span>C 4,4</span><span>G 0,5</span></div></div><div class="q">100 g</div><div class="kc">25</div></div>
+            <div class="hint"><svg class="ico" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M12 5v14M5 12h14"/></svg>Azeite de oliva · 1 col. sopa entra aqui</div>
+          </div>
+
+          <div style="border:1.5px dashed var(--lineS);border-radius:16px;padding:14px;text-align:center;color:var(--t3);font-weight:800;font-size:12.5px">＋ Nova refeição &nbsp;·&nbsp; ou copiar de outro plano</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Busca de alimentos: sempre aberta do lado, sem folha por cima -->
+    <aside class="right">
+      <div class="rp">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="h" style="font-weight:800;font-size:15px">Adicionar ao <span style="color:var(--accent)">Jantar</span> ▾</div>
+          <span class="kbd">Ctrl K</span>
+        </div>
+        <div class="search"><svg class="ico" viewBox="0 0 24 24" style="color:var(--t3)"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>azeite</span><span style="width:1.5px;height:18px;background:var(--accent);margin-left:-8px"></span></div>
+        <div class="seg"><div class="on">Alimentos</div><div>Receitas</div><div>Favoritos</div><div>Recentes</div></div>
+        <div class="fchips"><div class="on">Todos</div><div>TACO</div><div>Óleos e gorduras</div><div>Meus alimentos</div></div>
+      </div>
+      <div class="res">
+        <div class="label" style="padding:4px 8px 6px">5 resultados</div>
+        <div class="fr sel"><div class="ic">🫒</div><div><div class="n">Azeite de oliva extravirgem</div><div class="s">884 kcal · 100 g &nbsp;·&nbsp; TACO</div></div><div class="plus">＋</div></div>
+        <div class="fr"><div class="ic">🫒</div><div><div class="n">Azeitona verde em conserva</div><div class="s">137 kcal · 100 g &nbsp;·&nbsp; TACO</div></div><div class="plus">＋</div></div>
+        <div class="fr"><div class="ic">🥗</div><div><div class="n">Salada verde com azeite</div><div class="s">receita sua · 96 kcal / porção</div></div><div class="plus">＋</div></div>
+        <div class="fr"><div class="ic">🍳</div><div><div class="n">Ovo frito no azeite</div><div class="s">240 kcal · 100 g &nbsp;·&nbsp; TACO</div></div><div class="plus">＋</div></div>
+        <div class="fr"><div class="ic">🥑</div><div><div class="n">Pasta de abacate com azeite</div><div class="s">favorito · 180 kcal / porção</div></div><div class="plus">＋</div></div>
+      </div>
+      <div class="det">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="fr" style="padding:0"><div class="ic">🫒</div></div>
+          <div><div style="font-weight:800;font-size:14px">Azeite de oliva extravirgem</div><div class="muted" style="font-size:11px;font-weight:600">Óleos e gorduras · TACO</div></div>
+        </div>
+        <div class="qty">
+          <div class="step">−</div>
+          <div class="num" style="width:44px;text-align:center;font-size:22px;font-weight:800">1</div>
+          <div class="step">+</div>
+          <div class="sel2">colher de sopa (8 g) <span class="muted">▾</span></div>
+        </div>
+        <div class="mini">
+          <div><b>71</b><span>KCAL</span></div>
+          <div><b style="color:var(--p)">0</b><span>PROT</span></div>
+          <div><b style="color:var(--c)">0</b><span>CARB</span></div>
+          <div><b style="color:var(--g)">8</b><span>GORD</span></div>
+        </div>
+        <div style="font-size:11px;font-weight:700;margin-top:10px" class="sec">Depois de adicionar: <span style="color:var(--okT)">1.642 kcal · gordura 49/55 g</span></div>
+        <div class="btn p" style="width:100%;justify-content:center;margin-top:12px;height:42px">Adicionar ao Jantar &nbsp;<span class="kbd" style="color:#fff;border-color:rgba(255,255,255,.5)">Enter</span></div>
+      </div>
+    </aside>
+  </div>
+</main>
+</body>
+</html>

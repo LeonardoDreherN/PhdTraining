@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../core/theme/app_colors.dart';
+import '../core/layout/desktop.dart';
 import '../core/theme/app_text.dart';
 import '../core/theme/tema.dart';
 import '../core/utils/datas.dart';
@@ -167,6 +167,10 @@ Map<String, List<Map<String, dynamic>>> _dados() {
       {'id': 'ficha-3', 'personal_id': _personal, 'nome': 'Mobilidade — dia leve'},
     ],
     ..._treinos(linhasAlunos),
+    'alimentos': [
+      for (final MapEntry(:key, :value) in alimentosDemo.entries)
+        {'id': key, 'oficial': true, 'fonte': 'taco', ...value},
+    ],
     'cobrancas': cobrancas,
     'treino_execucoes': execucoes,
     ..._nutricao(hoje),
@@ -619,15 +623,7 @@ class _Demo extends StatelessWidget {
     return PhdMaterialApp(
       title: 'PHD — Home do personal (demo)',
       routerConfig: _router,
-      builder: (context, child) => ColoredBox(
-        color: AppColors.bg,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: child,
-          ),
-        ),
-      ),
+      builder: (context, child) => LarguraDeLeitura(router: _router, child: child),
     );
   }
 }
