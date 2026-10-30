@@ -259,7 +259,15 @@ class _Painel extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(padding: AppSpacing.screen, child: _receita()),
+        // O cartão de receita é a porta do financeiro: quem olha o número
+        // do mês é quem quer ver quem pagou e quem não pagou.
+        Padding(
+          padding: AppSpacing.screen,
+          child: GestureDetector(
+            onTap: () => _abrir(context, ref, '/financeiro'),
+            child: _receita(),
+          ),
+        ),
         const SizedBox(height: AppSpacing.xl),
         _acoes(context, ref),
         const SizedBox(height: AppSpacing.lg),
