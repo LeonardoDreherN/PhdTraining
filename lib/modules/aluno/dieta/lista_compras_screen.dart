@@ -134,7 +134,7 @@ class _ListaComprasScreenState extends State<ListaComprasScreen> {
               for (final n in const [1, 2, 3, 4]) ...[
                 Expanded(
                   child: PhdFilterChip(
-                    label: n == 1 ? '1 semana' : '$n sem.',
+                    label: '$n sem.',
                     selected: _semanas == n,
                     onTap: () {
                       setState(() => _semanas = n);

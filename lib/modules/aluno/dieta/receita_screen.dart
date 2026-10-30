@@ -75,9 +75,9 @@ class _ReceitaScreenState extends State<ReceitaScreen> {
               child: Row(
                 children: [
                   Expanded(child: _macro('kcal', p.kcal, destaque: true)),
-                  Expanded(child: _macro('Proteína', p.proteina, unidade: 'g')),
-                  Expanded(child: _macro('Carbo', p.carboidrato, unidade: 'g')),
-                  Expanded(child: _macro('Gordura', p.gordura, unidade: 'g')),
+                  Expanded(child: _macro('Prot.', p.proteina, unidade: 'g')),
+                  Expanded(child: _macro('Carb.', p.carboidrato, unidade: 'g')),
+                  Expanded(child: _macro('Gord.', p.gordura, unidade: 'g')),
                 ],
               ),
             ),

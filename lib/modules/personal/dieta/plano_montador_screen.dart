@@ -169,6 +169,10 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
     }
 
     return ReorderableListView.builder(
+      // A alça é o ícone à esquerda do nome (ReorderableDragStartListener).
+      // No navegador e no desktop o Flutter ainda desenharia uma segunda
+      // alça à direita, por cima das calorias de cada item.
+      buildDefaultDragHandles: false,
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.huge * 2,
       ),
