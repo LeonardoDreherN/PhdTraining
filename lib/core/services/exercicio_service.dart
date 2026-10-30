@@ -171,6 +171,7 @@ class ExercicioService {
     String? descricao,
     String? midiaUrl,
     String? videoUrl,
+    String? equipamento,
   }) async {
     return await _db.from('exercicios').insert({
       'personal_id': _personalId,
@@ -179,6 +180,7 @@ class ExercicioService {
       'descricao': descricao,
       'midia_url': midiaUrl,
       'video_url': videoUrl,
+      'equipamento': equipamento,
     }).select().single();
   }
 

@@ -92,22 +92,29 @@ class FichasScreen extends ConsumerWidget {
       padding: AppSpacing.screen,
       child: PhdCard(
         onTap: () => context.push('/exercicios'),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg, vertical: AppSpacing.md + 2,
-        ),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Row(
           children: [
-            Icon(Icons.menu_book_rounded,
-                size: 19, color: AppColors.textSecondary),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.tint(AppColors.accent),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(Icons.video_library_rounded, color: AppColors.accent, size: 24),
+            ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
-              child: Text(
-                'Biblioteca de exercícios',
-                style: AppText.bodyStrong(13.5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Biblioteca de exercícios', style: AppText.bodyStrong(14.5)),
+                  Text('Vídeos, execução e grupos musculares', style: AppText.caption(12)),
+                ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded,
-                size: 19, color: AppColors.textMuted),
+            Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
           ],
         ),
       ),
@@ -135,72 +142,93 @@ class FichasScreen extends ConsumerWidget {
 
   Widget _cartao(BuildContext context, WidgetRef ref, Ficha f) {
     return PhdCard(
-      // Só a ficha vazia ganha faixa: é a única que exige ação antes de
-      // servir para alguma coisa.
-      accentBar: f.vazia ? AppColors.accent : null,
       onTap: () async {
         await context.push('/fichas/detalhe', extra: f.mapa);
         recarregarTudo(ref);
       },
-      child: Column(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      f.nome,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.title(16),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      f.resumo,
-                      style: AppText.caption(12,
-                          color: f.vazia ? AppColors.accent : null),
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuButton<String>(
-                color: AppColors.surfaceHigh,
-                surfaceTintColor: Colors.transparent,
-                tooltip: 'Opções da ficha ${f.nome}',
-                shape: RoundedRectangleBorder(borderRadius: AppRadius.rMd),
-                icon: Icon(Icons.more_vert_rounded,
-                    color: AppColors.textMuted, size: 20),
-                onSelected: (v) => _menu(context, ref, v, f),
-                itemBuilder: (_) => [
-                  PopupMenuItem(value: 'renomear', child: Text('Renomear', style: AppText.body(14))),
-                  PopupMenuItem(value: 'duplicar', child: Text('Duplicar', style: AppText.body(14))),
-                  PopupMenuItem(
-                    value: 'deletar',
-                    child: Text('Excluir',
-                        style: AppText.body(14, color: AppColors.dangerText)),
+          // O selo com a letra é como o aluno chama a ficha ("hoje é o B").
+          Container(
+            width: 52,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: f.vazia ? AppColors.surfaceHigh : AppColors.accent,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              f.sigla,
+              style: AppText.display(24, color: f.vazia ? AppColors.textMuted : AppColors.onAccent),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(f.nome, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppText.title(15.5)),
+                const SizedBox(height: 4),
+                if (f.vazia)
+                  Text('Sem exercícios — toque para montar',
+                      style: AppText.caption(12, color: AppColors.warningText))
+                else
+                  Wrap(
+                    spacing: AppSpacing.md,
+                    runSpacing: 2,
+                    children: [
+                      _meta(Icons.format_list_bulleted_rounded, '${f.qtdExercicios} exercícios'),
+                      if (f.minutos > 0) _meta(Icons.schedule_rounded, '~${f.minutos} min'),
+                      _meta(
+                        Icons.people_alt_outlined,
+                        f.qtdAlunos == 0
+                            ? 'não atribuída'
+                            : '${f.qtdAlunos} ${f.qtdAlunos == 1 ? 'aluno' : 'alunos'}',
+                      ),
+                    ],
+                  ),
+                if (f.grupos.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [for (final g in f.grupos) PhdStatusChip(label: g)],
                   ),
                 ],
+              ],
+            ),
+          ),
+          PopupMenuButton<String>(
+            color: AppColors.surfaceHigh,
+            surfaceTintColor: Colors.transparent,
+            tooltip: 'Opções da ficha ${f.nome}',
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.rMd),
+            icon: Icon(Icons.more_vert_rounded, color: AppColors.textMuted, size: 20),
+            onSelected: (v) => _menu(context, ref, v, f),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'renomear', child: Text('Renomear', style: AppText.body(14))),
+              PopupMenuItem(value: 'duplicar', child: Text('Duplicar', style: AppText.body(14))),
+              PopupMenuItem(
+                value: 'deletar',
+                child: Text('Excluir', style: AppText.body(14, color: AppColors.dangerText)),
               ),
             ],
           ),
-          if (f.grupos.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final g in f.grupos) PhdStatusChip(label: g),
-              ],
-            ),
-          ],
         ],
       ),
     );
   }
+
+  Widget _meta(IconData icone, String texto) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icone, size: 14, color: AppColors.textMuted),
+          const SizedBox(width: 4),
+          Text(texto, style: AppText.caption(12)),
+        ],
+      );
 
   // ── Ações ───────────────────────────────────────────────────
 
@@ -231,15 +259,15 @@ class FichasScreen extends ConsumerWidget {
         if (context.mounted) recarregarTudo(ref);
 
       case 'duplicar':
-        final copia = await FichaService.criar(
+        // A cópia leva os exercícios: é o caso de "Treino A" virar
+        // "Treino A — iniciante" com dois ajustes, não de montar do zero.
+        final copia = await FichaService.duplicar(
+          fichaId: f.id,
           nome: '${f.nome} (cópia)',
           descricao: f.descricao,
         );
         if (!context.mounted) return;
         recarregarTudo(ref);
-        // A cópia nasce sem exercícios: copiar `ficha_exercicios` junto
-        // exige uma função no banco, e fica para quando o montador for
-        // reescrito. Por isso vai direto para a tela de montagem.
         await context.push('/fichas/detalhe', extra: copia);
         if (context.mounted) recarregarTudo(ref);
 

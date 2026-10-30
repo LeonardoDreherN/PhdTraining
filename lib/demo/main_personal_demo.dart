@@ -8,11 +8,16 @@ import '../core/theme/app_text.dart';
 import '../core/theme/tema.dart';
 import '../core/utils/datas.dart';
 import '../modules/personal/alunos/aluno_perfil_screen.dart';
+import '../modules/personal/alunos/alunos_screen.dart';
 import '../modules/personal/agenda/agenda_screen.dart';
 import '../modules/personal/dieta/adesao_screen.dart';
 import '../modules/personal/dieta/dieta_screen.dart';
 import '../modules/personal/dieta/plano_montador_screen.dart';
 import '../modules/personal/dieta/receitas_screen.dart';
+import '../modules/personal/exercicios/add_exercicio_screen.dart';
+import '../modules/personal/exercicios/exercicios_screen.dart';
+import '../modules/personal/fichas/ficha_detalhe_screen.dart';
+import '../modules/personal/fichas/fichas_screen.dart';
 import '../modules/personal/mensagens/caixa_screen.dart';
 import '../modules/personal/home/home_screen.dart';
 import '../modules/personal/shell/personal_shell.dart';
@@ -159,11 +164,106 @@ Map<String, List<Map<String, dynamic>>> _dados() {
     'fichas': [
       for (final (i, f) in fichas.indexed)
         {'id': 'ficha-$i', 'personal_id': _personal, 'nome': f},
+      {'id': 'ficha-3', 'personal_id': _personal, 'nome': 'Mobilidade — dia leve'},
     ],
+    ..._treinos(linhasAlunos),
     'cobrancas': cobrancas,
     'treino_execucoes': execucoes,
     ..._nutricao(hoje),
     ..._agendaEChat(hoje, linhasAlunos),
+  };
+}
+
+/// Biblioteca, exercícios das fichas e quem treina cada uma.
+Map<String, List<Map<String, dynamic>>> _treinos(List<Map<String, dynamic>> alunos) {
+  const video = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4';
+  // (nome, grupo, equipamento, tem vídeo)
+  const biblioteca = [
+    ('Supino reto com barra', 'Peito', 'Barra, banco reto', true),
+    ('Crucifixo com halteres', 'Peito', 'Halteres', false),
+    ('Puxada frontal', 'Costas', 'Polia alta', true),
+    ('Remada curvada', 'Costas', 'Barra', true),
+    ('Desenvolvimento militar', 'Ombros', 'Halteres', false),
+    ('Rosca direta', 'Bíceps', 'Barra W', true),
+    ('Tríceps corda', 'Tríceps', 'Polia', false),
+    ('Agachamento livre', 'Pernas', 'Barra', true),
+    ('Leg press 45°', 'Pernas', 'Máquina', false),
+    ('Cadeira extensora', 'Pernas', 'Máquina', true),
+    ('Elevação pélvica', 'Glúteos', 'Barra, banco', true),
+    ('Prancha', 'Abdômen', 'Peso corporal', false),
+  ];
+  final exercicios = [
+    for (final (i, e) in biblioteca.indexed)
+      {
+        'id': 'exe-$i',
+        'personal_id': _personal,
+        'nome': e.$1,
+        'grupo_muscular': e.$2,
+        'equipamento': e.$3,
+        'video_url': e.$4 ? video : null,
+        'descricao': 'Mantenha o core firme e controle a descida em 2 segundos.',
+      },
+  ];
+  // ficha → (exercício, séries, reps, carga, descanso, observação)
+  const montagem = {
+    0: [
+      (0, 4, '8-10', '60', 90, 'Pegada um pouco mais aberta que os ombros'),
+      (1, 3, '12', '14', 60, null),
+      (2, 4, '10', '55', 90, null),
+      (3, 3, '10', '40', 90, null),
+      (4, 3, '12', '12', 60, null),
+      (5, 3, '12', '20', 60, null),
+      (6, 3, '15', '25', 45, 'Cotovelos colados no corpo'),
+    ],
+    1: [
+      (7, 4, '8', '80', 120, 'Descer até a paralela'),
+      (8, 4, '12', '180', 90, null),
+      (9, 3, '15', '45', 60, null),
+    ],
+    2: [
+      (10, 4, '12', '70', 90, null),
+      (7, 3, '10', '50', 90, null),
+      (11, 3, '45s', 'corporal', 30, null),
+    ],
+  };
+  return {
+    'exercicios': exercicios,
+    'ficha_exercicios': [
+      for (final MapEntry(key: f, value: itens) in montagem.entries)
+        for (final (ordem, it) in itens.indexed)
+          {
+            'id': 'fe-$f-$ordem',
+            'ficha_id': 'ficha-$f',
+            'exercicio_id': 'exe-${it.$1}',
+            'series': it.$2,
+            'repeticoes': it.$3,
+            'carga': it.$4,
+            'descanso_segundos': it.$5,
+            'observacoes': it.$6,
+            'ordem': ordem,
+            'metodo': 'normal',
+            'exercicios': exercicios[it.$1],
+          },
+    ],
+    'aluno_fichas': [
+      // (aluno, ficha, dias)
+      for (final (a, f, dias) in const [
+        (0, 0, [1, 4]),
+        (0, 1, [2, 5]),
+        (1, 0, [1, 3, 5]),
+        (2, 1, [2, 4]),
+        (3, 2, [1, 3]),
+        (4, 0, <int>[]),
+      ])
+        {
+          'id': 'af-$a-$f',
+          'aluno_id': alunos[a]['id'],
+          'ficha_id': 'ficha-$f',
+          'dias_semana': dias,
+          'ativa': true,
+          'alunos': alunos[a],
+        },
+    ],
   };
 }
 
@@ -460,10 +560,10 @@ final _router = GoRouter(
       builder: (_, __, child) => PersonalShell(child: child),
       routes: [
         GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+        GoRoute(path: '/alunos', builder: (_, __) => const AlunosScreen()),
+        GoRoute(path: '/fichas', builder: (_, __) => const FichasScreen()),
+        GoRoute(path: '/exercicios', builder: (_, __) => const ExerciciosScreen()),
         for (final (p, t) in const [
-          ('/alunos', 'Alunos'),
-          ('/fichas', 'Treinos'),
-          ('/exercicios', 'Exercícios'),
           ('/relatorios', 'Relatórios'),
           ('/perfil', 'Perfil'),
         ])
@@ -489,6 +589,16 @@ final _router = GoRouter(
     ),
     GoRoute(path: '/agenda', builder: (_, __) => const AgendaScreen()),
     GoRoute(
+      path: '/fichas/detalhe',
+      builder: (_, s) => FichaDetalheScreen(
+          ficha: s.extra as Map<String, dynamic>? ??
+              const {'id': 'ficha-0', 'personal_id': _personal, 'nome': 'Treino A — Superiores'}),
+    ),
+    GoRoute(
+      path: '/exercicios/adicionar',
+      builder: (_, s) => AddExercicioScreen(exercicio: s.extra as Map<String, dynamic>?),
+    ),
+    GoRoute(
         path: '/mensagens', builder: (_, __) => const CaixaMensagensScreen()),
     GoRoute(
         path: '/alunos/adicionar',
@@ -496,7 +606,7 @@ final _router = GoRouter(
     GoRoute(
       path: '/alunos/perfil',
       builder: (_, s) =>
-          AlunoPerfilScreen(aluno: s.extra as Map<String, dynamic>),
+          AlunoPerfilScreen(aluno: s.extra as Map<String, dynamic>? ?? _marina),
     ),
   ],
 );

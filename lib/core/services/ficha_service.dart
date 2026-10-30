@@ -14,7 +14,7 @@ class FichaService {
   static Future<List<Ficha>> listarComResumo() async {
     final resultados = await Future.wait([
       _db.from('fichas').select().eq('personal_id', _personalId).order('nome', ascending: true),
-      _db.from('ficha_exercicios').select('ficha_id, exercicios(grupo_muscular)'),
+      _db.from('ficha_exercicios').select('ficha_id, series, descanso_segundos, exercicios(grupo_muscular)'),
       _db.from('aluno_fichas').select('ficha_id').eq('ativa', true),
     ]);
 
@@ -23,12 +23,17 @@ class FichaService {
     final atribuicoes = List<Map<String, dynamic>>.from(resultados[2]);
 
     final contagemEx = <String, int>{};
+    final segundos = <String, int>{};
     final gruposPorFicha = <String, Map<String, int>>{};
 
     for (final e in exercicios) {
       final fid = e['ficha_id'] as String?;
       if (fid == null) continue;
       contagemEx[fid] = (contagemEx[fid] ?? 0) + 1;
+      // Mesma estimativa do cartão do aluno: ~40 s por série + descanso.
+      final series = (e['series'] as num?)?.toInt() ?? 3;
+      final descanso = (e['descanso_segundos'] as num?)?.toInt() ?? 90;
+      segundos[fid] = (segundos[fid] ?? 0) + series * (40 + descanso);
 
       final grupo = (e['exercicios'] as Map?)?['grupo_muscular'] as String?;
       if (grupo == null || grupo.trim().isEmpty) continue;
@@ -53,6 +58,7 @@ class FichaService {
         qtdExercicios: contagemEx[id] ?? 0,
         qtdAlunos: contagemAlunos[id] ?? 0,
         grupos: grupos.take(3).map((e) => e.key).toList(),
+        minutos: ((segundos[id] ?? 0) / 60 / 5).round() * 5,
       );
     }).toList();
   }
@@ -76,6 +82,39 @@ class FichaService {
       'nome': nome,
       'descricao': descricao,
     }).select().single();
+  }
+
+  /// Cópia completa: a ficha e todos os exercícios, na mesma ordem e com a
+  /// mesma prescrição. Antes "Duplicar" criava uma ficha vazia com o nome.
+  static Future<Map<String, dynamic>> duplicar({
+    required String fichaId,
+    required String nome,
+    String? descricao,
+  }) async {
+    final nova = await criar(nome: nome, descricao: descricao);
+    final itens = List<Map<String, dynamic>>.from(
+      await _db
+          .from('ficha_exercicios')
+          .select('exercicio_id, series, repeticoes, carga, descanso_segundos, ordem, observacoes, metodo, grupo_id')
+          .eq('ficha_id', fichaId)
+          .order('ordem', ascending: true),
+    );
+    if (itens.isNotEmpty) {
+      await _db.from('ficha_exercicios').insert([
+        for (final i in itens) {...i, 'ficha_id': nova['id']},
+      ]);
+    }
+    return nova;
+  }
+
+  /// Quem está com esta ficha agora, com nome e foto para o cartão.
+  static Future<List<Map<String, dynamic>>> alunosDaFicha(String fichaId) async {
+    final linhas = await _db
+        .from('aluno_fichas')
+        .select('dias_semana, alunos(id, nome, foto_url, whatsapp, personal_id, user_id, ativo)')
+        .eq('ficha_id', fichaId)
+        .eq('ativa', true);
+    return List<Map<String, dynamic>>.from(linhas);
   }
 
   static Future<void> atualizar(String id, String nome, String? descricao) async {
@@ -191,6 +230,19 @@ class FichaService {
       'dias_semana': diasSemana,
       'data_inicio': DateTime.now().toIso8601String().split('T').first,
     }, onConflict: 'aluno_id,ficha_id');
+  }
+
+  /// Tira a ficha do aluno sem apagar o vínculo: `ativa = false` guarda
+  /// o histórico (os treinos já feitos continuam apontando para ela).
+  static Future<void> desatribuirAluno({
+    required String alunoId,
+    required String fichaId,
+  }) async {
+    await _db
+        .from('aluno_fichas')
+        .update({'ativa': false})
+        .eq('aluno_id', alunoId)
+        .eq('ficha_id', fichaId);
   }
 
   /// Fichas ativas do aluno, já com quantos exercícios cada uma tem.

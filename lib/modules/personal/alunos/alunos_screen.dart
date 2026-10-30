@@ -45,6 +45,10 @@ class _AlunosScreenState extends ConsumerState<AlunosScreen> {
         child: Column(
           children: [
             _cabecalho(total),
+            if (estado.valueOrNull?.isNotEmpty ?? false) ...[
+              _resumo(estado.valueOrNull!),
+              const SizedBox(height: AppSpacing.md),
+            ],
             _campoBusca(),
             const SizedBox(height: AppSpacing.md),
             _filtros(filtro, emAtencao),
@@ -163,84 +167,172 @@ class _AlunosScreenState extends ConsumerState<AlunosScreen> {
     );
   }
 
-  Widget _linha(Aluno a) {
-    final atencao = a.precisaAtencao;
-    final corBarra = !a.ativo
-        ? null
-        : !a.temFicha
-            ? AppColors.accent
-            : atencao
-                ? AppColors.warning
-                : null;
+  /// Três números no topo, que também são atalhos: tocar filtra a lista.
+  Widget _resumo(List<Aluno> todos) {
+    final ativos = todos.where((a) => a.ativo).length;
+    final hoje = todos.where((a) => a.ativo && a.diasSemTreinar == 0).length;
+    final atencao = todos.where((a) => a.precisaAtencao).length;
 
-    return PhdListRow(
-      title: a.nome,
-      subtitle: a.situacao,
-      subtitleColor: !a.ativo
-          ? AppColors.textMuted
-          : atencao
-              ? AppColors.warningText
-              : null,
-      accentBar: corBarra,
-      leading: PhdAvatar(
-        name: a.nome,
-        imageUrl: a.fotoUrl,
-        size: 42,
-        ringColor: a.diasSemTreinar == 0 ? AppColors.accent : null,
+    Widget item(String valor, String rotulo, Color cor, FiltroAluno? filtro) => Expanded(
+          child: PhdCard(
+            onTap: filtro == null ? null : () => ref.read(filtroAlunoProvider.notifier).state = filtro,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(width: 8, height: 8, decoration: BoxDecoration(color: cor, shape: BoxShape.circle)),
+                    const SizedBox(width: 6),
+                    Text(valor, style: AppText.number(20, weight: FontWeight.w800)),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(rotulo, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.caption(11.5)),
+              ],
+            ),
+          ),
+        );
+
+    return Padding(
+      padding: AppSpacing.screen,
+      child: Row(
+        children: [
+          item('$ativos', 'ativos', AppColors.success, FiltroAluno.ativos),
+          const SizedBox(width: AppSpacing.sm),
+          item('$hoje', 'treinaram hoje', AppColors.accent, null),
+          const SizedBox(width: AppSpacing.sm),
+          item('$atencao', 'atenção', AppColors.warning, FiltroAluno.atencao),
+        ],
       ),
-      progress: a.adesao,
-      progressColor: (a.adesao ?? 0) >= 0.8 ? AppColors.accent : AppColors.lineStrong,
-      trailing: _acoes(a),
-      onTap: () async {
-        await context.push('/alunos/perfil', extra: a.mapa);
-        recarregarTudo(ref);
-      },
     );
   }
 
-  Widget _acoes(Aluno a) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (a.adesao != null) ...[
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${(a.adesao! * 100).round()}%',
-                style: AppText.number(14,
-                    color: a.adesao! >= 0.8 ? AppColors.accent : null),
+  /// A linha do aluno: rosto, situação e adesão. O que antes ia numa faixa
+  /// vermelha na borda agora é o ícone e a cor da linha de situação — a
+  /// faixa competia com a cor da marca e fazia a lista inteira parecer alerta.
+  Widget _linha(Aluno a) {
+    final d = a.diasSemTreinar;
+    final (icone, cor) = !a.ativo
+        ? (Icons.pause_circle_outline_rounded, AppColors.textMuted)
+        : !a.temFicha
+            ? (Icons.assignment_late_outlined, AppColors.warningText)
+            : d == 0
+                ? (Icons.check_circle_rounded, AppColors.successText)
+                : a.precisaAtencao
+                    ? (Icons.schedule_rounded, AppColors.warningText)
+                    : (Icons.history_rounded, AppColors.textSecondary);
+    final etiquetas = [
+      if ((a.grupo ?? '').isNotEmpty) a.grupo!,
+      if (a.semAcesso) 'sem app',
+    ];
+
+    return GestureDetector(
+      onLongPress: () => _opcoes(a),
+      child: PhdCard(
+        onTap: () async {
+          await context.push('/alunos/perfil', extra: a.mapa);
+          recarregarTudo(ref);
+        },
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            Opacity(
+              opacity: a.ativo ? 1 : 0.5,
+              child: PhdAvatar(
+                name: a.nome,
+                imageUrl: a.fotoUrl,
+                size: 52,
+                ringColor: d == 0 && a.ativo ? AppColors.accent : null,
               ),
-              const SizedBox(height: 2),
-              Text('adesão', style: AppText.caption(10)),
-            ],
-          ),
-          const SizedBox(width: AppSpacing.xs),
-        ],
-        PopupMenuButton<String>(
-          color: AppColors.surfaceHigh,
-          surfaceTintColor: Colors.transparent,
-          tooltip: 'Opções de ${a.nome}',
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.rMd),
-          icon: Icon(Icons.more_vert_rounded,
-              color: AppColors.textMuted, size: 20),
-          onSelected: (v) => _acao(v, a),
-          itemBuilder: (_) => [
-            PopupMenuItem(
-              value: 'toggle',
-              child: Text(a.ativo ? 'Inativar' : 'Reativar',
-                  style: AppText.body(14)),
             ),
-            PopupMenuItem(
-              value: 'deletar',
-              child: Text('Excluir',
-                  style: AppText.body(14, color: AppColors.dangerText)),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    a.nome,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.bodyStrong(15,
+                        color: a.ativo ? AppColors.textPrimary : AppColors.textMuted),
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Icon(icone, size: 14, color: cor),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(a.situacao,
+                            maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.caption(12.5, color: cor)),
+                      ),
+                    ],
+                  ),
+                  if (etiquetas.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 4,
+                      children: [
+                        for (final e in etiquetas)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(color: AppColors.surfaceHigh, borderRadius: AppRadius.rPill),
+                            child: Text(e, style: AppText.caption(10.5)),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
+            const SizedBox(width: AppSpacing.sm),
+            if (a.adesao != null)
+              PhdRing(
+                valor: a.adesao!,
+                tamanho: 44,
+                espessura: 4.5,
+                cor: a.adesao! >= 0.6
+                    ? AppColors.success
+                    : a.adesao! >= 0.3
+                        ? AppColors.warning
+                        : AppColors.danger,
+                child: Text('${(a.adesao! * 100).round()}%', style: AppText.number(10.5, weight: FontWeight.w800)),
+              ),
+            Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
           ],
         ),
-      ],
+      ),
     );
+  }
+
+  /// Segurar a linha abre as ações rápidas — as mesmas do menu do perfil.
+  Future<void> _opcoes(Aluno a) async {
+    final acao = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(a.ativo ? Icons.pause_circle_outline_rounded : Icons.play_circle_outline_rounded,
+                  color: AppColors.textSecondary),
+              title: Text(a.ativo ? 'Inativar ${a.nome.split(' ').first}' : 'Reativar ${a.nome.split(' ').first}',
+                  style: AppText.body(14.5)),
+              onTap: () => Navigator.pop(ctx, 'toggle'),
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline_rounded, color: AppColors.dangerText),
+              title: Text('Excluir', style: AppText.body(14.5, color: AppColors.dangerText)),
+              onTap: () => Navigator.pop(ctx, 'deletar'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      ),
+    );
+    if (acao != null) await _acao(acao, a);
   }
 
   Future<void> _acao(String acao, Aluno a) async {

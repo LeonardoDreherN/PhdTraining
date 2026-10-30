@@ -9,8 +9,14 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/widgets.dart';
+import '../exercicios/exercicio_detalhe.dart';
 
 /// Montador de ficha: onde o treino é de fato construído.
+///
+/// Tudo numa rolagem só: o resumo do treino (duração, séries, músculos),
+/// quem está treinando com ela e, embaixo, os exercícios na ordem em que o
+/// aluno vai fazer. Cada exercício mostra a miniatura com o selo de vídeo —
+/// e ao abrir, o vídeo toca ali mesmo, para o personal conferir.
 class FichaDetalheScreen extends ConsumerStatefulWidget {
   const FichaDetalheScreen({super.key, required this.ficha});
 
@@ -22,11 +28,16 @@ class FichaDetalheScreen extends ConsumerStatefulWidget {
 
 class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
   List<FichaExercicio> _itens = [];
+  List<Map<String, dynamic>> _alunos = [];
   bool _carregando = true;
   String? _erro;
 
+  late String _nome = widget.ficha['nome'] as String? ?? 'Ficha';
+  late String? _descricao = _limpo(widget.ficha['descricao'] as String?);
+
   String get _fichaId => widget.ficha['id'] as String;
-  String get _fichaNome => widget.ficha['nome'] as String? ?? 'Ficha';
+
+  static String? _limpo(String? t) => (t == null || t.trim().isEmpty) ? null : t.trim();
 
   @override
   void initState() {
@@ -35,13 +46,18 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
   }
 
   Future<void> _carregar() async {
-    setState(() {
-      _carregando = true;
-      _erro = null;
-    });
+    setState(() => _erro = null);
     try {
-      final lista = await FichaService.listarExercicios(_fichaId);
-      if (mounted) setState(() => _itens = lista);
+      final (lista, alunos) = await (
+        FichaService.listarExercicios(_fichaId),
+        FichaService.alunosDaFicha(_fichaId),
+      ).wait;
+      if (mounted) {
+        setState(() {
+          _itens = lista;
+          _alunos = alunos;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => _erro = '$e');
     } finally {
@@ -52,17 +68,32 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
   /// Quem estiver olhando a lista de fichas precisa ver a contagem nova.
   void _avisarMudanca() => ref.invalidate(fichasProvider);
 
-  /// Soma, série a série, o trabalho e o descanso prescrito.
-  ///
-  /// Os 40s por série são média — o personal não cronometra a execução. O
-  /// número responde "esse treino cabe em uma hora?", não é cronômetro. Por
-  /// isso a tela mostra "~".
-  int get _minutosEstimados {
+  /// Mesma conta da lista de fichas: ~40 s por série + o descanso prescrito,
+  /// arredondado a 5 min. Responde "cabe em uma hora?", não é cronômetro.
+  int get _minutos {
     var seg = 0;
     for (final i in _itens) {
-      seg += i.series * (40 + (i.descansoSegundos ?? 60));
+      seg += i.series * (40 + (i.descansoSegundos ?? 90));
     }
-    return (seg / 60).round();
+    return (seg / 60 / 5).round() * 5;
+  }
+
+  int get _series => _itens.fold(0, (s, i) => s + i.series);
+
+  List<String> get _grupos {
+    final c = <String, int>{};
+    for (final i in _itens) {
+      final g = i.grupoMuscular;
+      if (g != null && g.trim().isNotEmpty) c[g] = (c[g] ?? 0) + 1;
+    }
+    final l = c.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    return [for (final e in l) e.key];
+  }
+
+  String get _sigla {
+    final m = RegExp(r'^treino\s+([a-z0-9])(?![a-z0-9])', caseSensitive: false).firstMatch(_nome.trim());
+    if (m != null) return m.group(1)!.toUpperCase();
+    return _nome.trim().isEmpty ? '?' : _nome.trim()[0].toUpperCase();
   }
 
   @override
@@ -72,18 +103,12 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.bg,
         surfaceTintColor: Colors.transparent,
-        title: Text(_fichaNome, style: AppText.title(17)),
+        title: Text('Ficha', style: AppText.title(17)),
         actions: [
-          TextButton.icon(
-            // Atribuir ficha vazia manda o aluno abrir o app e não achar
-            // nada. Enquanto não houver exercício, a ação fica apagada.
-            onPressed: _itens.isEmpty ? null : _atribuirAluno,
-            icon: const Icon(Icons.person_add_alt_rounded, size: 17),
-            label: const Text('Atribuir'),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.accent,
-              disabledForegroundColor: AppColors.textMuted,
-            ),
+          IconButton(
+            tooltip: 'Renomear',
+            onPressed: _renomear,
+            icon: Icon(Icons.edit_outlined, color: AppColors.textSecondary, size: 20),
           ),
           const SizedBox(width: AppSpacing.sm),
         ],
@@ -94,9 +119,7 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
 
   Widget _corpo() {
     if (_carregando) {
-      return Center(
-        child: CircularProgressIndicator(color: AppColors.accent),
-      );
+      return Center(child: CircularProgressIndicator(color: AppColors.accent));
     }
     if (_erro != null) {
       return PhdEmptyState(
@@ -108,135 +131,292 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
       );
     }
 
-    return Column(
-      children: [
-        if (_itens.isNotEmpty) _resumo(),
-        Expanded(
-          child: _itens.isEmpty
-              ? PhdEmptyState(
-                  icon: Icons.playlist_add_rounded,
-                  title: 'Ficha vazia',
-                  message: 'Adicione exercícios da biblioteca. A ordem que '
-                      'você montar aqui é a ordem que o aluno vai seguir.',
-                  actionLabel: 'Adicionar exercício',
-                  onAction: _adicionarExercicio,
-                )
-              : _lista(),
+    return RefreshIndicator(
+      color: AppColors.accent,
+      onRefresh: _carregar,
+      child: ReorderableListView.builder(
+        buildDefaultDragHandles: false,
+        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.huge),
+        header: _cabecalho(),
+        footer: Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.xs),
+          child: PhdAddCard(label: 'Adicionar exercício', onTap: _adicionarExercicio),
         ),
-        if (_itens.isNotEmpty) _rodape(),
+        itemCount: _itens.length,
+        onReorderItem: _reordenar,
+        proxyDecorator: (child, _, __) => Material(color: Colors.transparent, child: child),
+        itemBuilder: (_, i) => Padding(
+          key: ValueKey(_itens[i].id),
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: _cartao(_itens[i], i),
+        ),
+      ),
+    );
+  }
+
+  // ── Cabeçalho ───────────────────────────────────────────────
+
+  Widget _cabecalho() {
+    final vazia = _itens.isEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: vazia ? AppColors.surfaceHigh : AppColors.accent,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Text(
+                _sigla,
+                style: AppText.display(28, color: vazia ? AppColors.textMuted : AppColors.onAccent),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_nome, style: AppText.display(22)),
+                  if (_descricao != null) ...[
+                    const SizedBox(height: 3),
+                    Text(_descricao!, style: AppText.caption(13)),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Row(
+          children: [
+            Expanded(child: _numero('${_itens.length}', _itens.length == 1 ? 'exercício' : 'exercícios')),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(child: _numero('$_series', 'séries')),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(child: _numero(vazia ? '—' : '~$_minutos', 'minutos')),
+          ],
+        ),
+        if (_grupos.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final (i, g) in _grupos.indexed)
+                PhdStatusChip(label: g, tone: i == 0 ? PhdTone.accent : PhdTone.neutral),
+            ],
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        Row(
+          children: [
+            Expanded(
+              child: PhdButton(
+                label: 'Exercício',
+                icon: Icons.add_rounded,
+                size: PhdButtonSize.medium,
+                onPressed: _adicionarExercicio,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: PhdButton(
+                label: 'Atribuir',
+                icon: Icons.person_add_alt_rounded,
+                variant: PhdButtonVariant.secondary,
+                size: PhdButtonSize.medium,
+                // Atribuir ficha vazia manda o aluno abrir o app e não achar
+                // nada. Enquanto não houver exercício, fica apagado.
+                onPressed: vazia ? null : _atribuirAluno,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        _secaoAlunos(),
+        const SizedBox(height: AppSpacing.xl),
+        Row(
+          children: [
+            Text('EXERCÍCIOS', style: AppText.label()),
+            const Spacer(),
+            if (_itens.length > 1)
+              Text('segure ⠿ para reordenar', style: AppText.caption(11.5, color: AppColors.textMuted)),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (vazia)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: PhdCard(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Row(
+                children: [
+                  Icon(Icons.playlist_add_rounded, color: AppColors.textMuted, size: 26),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      'Ficha vazia. A ordem em que você adicionar é a ordem que o aluno vai seguir.',
+                      style: AppText.body(13.5, color: AppColors.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
 
-  Widget _resumo() {
-    final n = _itens.length;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl,
-        AppSpacing.sm,
-        AppSpacing.xl,
-        AppSpacing.lg,
-      ),
-      child: Row(
-        children: [
+  Widget _numero(String valor, String rotulo) => Container(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: AppRadius.rLg,
+          border: Border.all(color: AppColors.line),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(valor, style: AppText.number(22)),
+            Text(rotulo, style: AppText.caption(11.5)),
+          ],
+        ),
+      );
+
+  Widget _secaoAlunos() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text('QUEM TREINA COM ELA', style: AppText.label()),
+            const Spacer(),
+            if (_alunos.isNotEmpty) Text('${_alunos.length}', style: AppText.number(13, color: AppColors.textMuted)),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (_alunos.isEmpty)
           Text(
-            '$n ${n == 1 ? "exercício" : "exercícios"}  ·  ~$_minutosEstimados min',
+            _itens.isEmpty ? 'Monte os exercícios e depois atribua aos alunos.' : 'Ninguém ainda. Toque em Atribuir.',
             style: AppText.caption(12.5),
+          )
+        else
+          SizedBox(
+            height: 92,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _alunos.length,
+              separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
+              itemBuilder: (_, i) => _alunoChip(_alunos[i]),
+            ),
           ),
-          const Spacer(),
-          Text(
-            'arraste para reordenar',
-            style: AppText.caption(11.5, color: AppColors.textMuted),
-          ),
-        ],
+      ],
+    );
+  }
+
+  Widget _alunoChip(Map<String, dynamic> linha) {
+    final aluno = (linha['alunos'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final nome = aluno['nome'] as String? ?? '—';
+    final dias = ((linha['dias_semana'] as List?) ?? const []).map((d) => (d as num).toInt()).toList()..sort();
+    const nomesDias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    final textoDias = dias.isEmpty ? 'livre' : dias.map((d) => nomesDias[d % 7]).join(' · ');
+
+    return SizedBox(
+      width: 112,
+      child: PhdCard(
+        onTap: () => _opcoesAluno(aluno),
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Column(
+          children: [
+            PhdAvatar(name: nome, imageUrl: aluno['foto_url'] as String?, size: 36),
+            const SizedBox(height: 4),
+            Text(nome.split(' ').first, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStrong(12.5)),
+            Text(textoDias,
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.caption(10.5, color: AppColors.textMuted)),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _lista() {
-    return ReorderableListView.builder(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl,
-        0,
-        AppSpacing.xl,
-        AppSpacing.lg,
-      ),
-      itemCount: _itens.length,
-      onReorderItem: _reordenar,
-      proxyDecorator: (child, _, __) =>
-          Material(color: Colors.transparent, child: child),
-      itemBuilder: (_, i) => Padding(
-        key: ValueKey(_itens[i].id),
-        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-        child: _cartao(_itens[i], i),
-      ),
-    );
-  }
+  // ── Cartão do exercício ─────────────────────────────────────
 
   Widget _cartao(FichaExercicio item, int index) {
-    final detalhes = <String>[
-      item.prescricao,
-      if (item.cargaFormatada != null) item.cargaFormatada!,
-      if (item.descansoFormatado != null) 'descanso ${item.descansoFormatado}',
-    ];
     final obs = item.observacoes?.trim();
+    final temVideo = (item.videoUrl ?? '').trim().isNotEmpty;
 
     return PhdCard(
       onTap: () => _editarExercicio(item),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.sm,
-        AppSpacing.md,
-      ),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.xs, AppSpacing.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // A posição importa: é a ordem em que o aluno vai executar.
-          SizedBox(
-            width: 20,
-            child: Text(
-              '${index + 1}',
-              style: AppText.number(13, color: AppColors.textMuted),
-            ),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              PhdMiniaturaExercicio(
+                imagemUrl: item.midiaUrl,
+                temVideo: temVideo,
+                tamanho: 64,
+                raio: AppRadius.rMd,
+              ),
+              // A posição importa: é a ordem em que o aluno vai executar.
+              Positioned(
+                left: -4,
+                top: -4,
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.surface, width: 2),
+                  ),
+                  child: Text('${index + 1}', style: AppText.number(10.5, color: AppColors.onAccent)),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.xs),
-          _miniatura(item),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  item.nome,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.bodyStrong(14),
+                const SizedBox(height: 2),
+                Text(item.nome, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppText.bodyStrong(14)),
+                if (item.grupoMuscular != null)
+                  Text(item.grupoMuscular!, style: AppText.caption(11.5, color: AppColors.textMuted)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [
+                    _pilula(Icons.repeat_rounded, item.prescricao, destaque: true),
+                    if (item.cargaFormatada != null) _pilula(Icons.fitness_center_rounded, item.cargaFormatada!),
+                    if (item.descansoFormatado != null) _pilula(Icons.timer_outlined, item.descansoFormatado!),
+                  ],
                 ),
-                const SizedBox(height: 3),
-                Text(detalhes.join('  ·  '), style: AppText.caption(12)),
                 if (obs != null && obs.isNotEmpty) ...[
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 6),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.sticky_note_2_outlined,
-                        size: 12,
-                        color: AppColors.textMuted,
-                      ),
+                      Icon(Icons.sticky_note_2_outlined, size: 12, color: AppColors.textMuted),
                       const SizedBox(width: 4),
                       Expanded(
-                        child: Text(
-                          obs,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.caption(
-                            11.5,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
+                        child: Text(obs,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.caption(11.5, color: AppColors.textMuted)),
                       ),
                     ],
                   ),
@@ -247,15 +427,8 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
           ReorderableDragStartListener(
             index: index,
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
-              ),
-              child: Icon(
-                Icons.drag_handle_rounded,
-                size: 20,
-                color: AppColors.textMuted,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.lg),
+              child: Icon(Icons.drag_indicator_rounded, size: 20, color: AppColors.textMuted),
             ),
           ),
         ],
@@ -263,49 +436,22 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
     );
   }
 
-  Widget _miniatura(FichaExercicio item) {
-    return Container(
-      width: 40,
-      height: 40,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceHigh,
-        borderRadius: AppRadius.rSm,
-      ),
-      child: item.midiaUrl == null
-          ? Icon(
-              Icons.fitness_center_rounded,
-              size: 18,
-              color: AppColors.textMuted,
-            )
-          : Image.network(
-              item.midiaUrl!,
-              fit: BoxFit.cover,
-              // Mídia quebrada não pode virar um X vermelho no meio da
-              // ficha: cai no ícone padrão, igual a quem não tem imagem.
-              errorBuilder: (_, __, ___) => Icon(
-                Icons.fitness_center_rounded,
-                size: 18,
-                color: AppColors.textMuted,
-              ),
-            ),
-    );
-  }
-
-  Widget _rodape() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl,
-        0,
-        AppSpacing.xl,
-        AppSpacing.lg,
-      ),
-      child: PhdAddCard(
-        label: 'Adicionar exercício',
-        onTap: _adicionarExercicio,
-      ),
-    );
-  }
+  Widget _pilula(IconData icone, String texto, {bool destaque = false}) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: destaque ? AppColors.tint(AppColors.accent) : AppColors.surfaceHigh,
+          borderRadius: AppRadius.rPill,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icone, size: 11, color: destaque ? AppColors.accent : AppColors.textSecondary),
+            const SizedBox(width: 3),
+            Text(texto,
+                style: AppText.bodyStrong(11, color: destaque ? AppColors.accent : AppColors.textSecondary)),
+          ],
+        ),
+      );
 
   // ── Ações ───────────────────────────────────────────────────
 
@@ -326,6 +472,24 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
       if (!mounted) return;
       setState(() => _itens = anterior);
       _avisar('Não consegui salvar a ordem: $e', erro: true);
+    }
+  }
+
+  Future<void> _renomear() async {
+    final r = await showDialog<(String, String?)>(
+      context: context,
+      builder: (_) => _DialogoNome(nome: _nome, descricao: _descricao),
+    );
+    if (r == null || !mounted) return;
+    try {
+      await FichaService.atualizar(_fichaId, r.$1, r.$2);
+      setState(() {
+        _nome = r.$1;
+        _descricao = r.$2;
+      });
+      _avisarMudanca();
+    } catch (e) {
+      if (mounted) _avisar('Não consegui renomear: $e', erro: true);
     }
   }
 
@@ -352,13 +516,21 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       builder: (_) => FractionallySizedBox(
-        heightFactor: 0.85,
-        child: _SeletorExercicio(exercicios: biblioteca),
+        heightFactor: 0.9,
+        child: _SeletorExercicio(
+          exercicios: biblioteca,
+          naFicha: {for (final i in _itens) i.exercicioId},
+        ),
       ),
     );
     if (escolhido == null || !mounted) return;
 
-    final dados = await _abrirConfig(titulo: escolhido['nome'] as String);
+    final dados = await _abrirConfig(
+      titulo: escolhido['nome'] as String,
+      grupo: escolhido['grupo_muscular'] as String?,
+      video: escolhido['video_url'] as String?,
+      imagem: escolhido['midia_url'] as String?,
+    );
     if (dados == null || !mounted) return;
 
     try {
@@ -379,13 +551,16 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
     }
   }
 
-  /// Toque no cartão reabre a folha de configuração, agora preenchida.
-  ///
-  /// Antes não havia caminho nenhum para isto: corrigir uma carga digitada
-  /// errada exigia remover o exercício e adicioná-lo de novo, o que também
-  /// perdia a posição dele na ficha.
+  /// Toque no cartão reabre a folha de configuração, agora preenchida —
+  /// com o vídeo do exercício no topo.
   Future<void> _editarExercicio(FichaExercicio item) async {
-    final dados = await _abrirConfig(titulo: item.nome, atual: item);
+    final dados = await _abrirConfig(
+      titulo: item.nome,
+      grupo: item.grupoMuscular,
+      video: item.videoUrl,
+      imagem: item.midiaUrl,
+      atual: item,
+    );
     if (dados == null || !mounted) return;
 
     if (dados.remover) {
@@ -409,35 +584,12 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
   }
 
   Future<void> _removerExercicio(FichaExercicio item) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surfaceHigh,
-        title: Text('Remover da ficha?', style: AppText.title(17)),
-        content: Text(
-          '"${item.nome}" sai desta ficha. Ele continua na biblioteca e pode '
-          'ser adicionado de novo.',
-          style: AppText.body(13.5, color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Cancelar',
-              style: AppText.bodyStrong(13.5, color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              'Remover',
-              style: AppText.bodyStrong(13.5, color: AppColors.dangerText),
-            ),
-          ),
-        ],
-      ),
+    final ok = await _confirmar(
+      titulo: 'Remover da ficha?',
+      texto: '"${item.nome}" sai desta ficha. Ele continua na biblioteca e pode ser adicionado de novo.',
+      acao: 'Remover',
     );
-    if (ok != true) return;
+    if (!ok) return;
 
     try {
       await FichaService.removerExercicio(item.id);
@@ -450,6 +602,9 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
 
   Future<_ConfigExercicio?> _abrirConfig({
     required String titulo,
+    String? grupo,
+    String? video,
+    String? imagem,
     FichaExercicio? atual,
   }) {
     return showModalBottomSheet<_ConfigExercicio>(
@@ -462,7 +617,16 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
       builder: (ctx) => Padding(
         // Sem isto o teclado cobre os campos de baixo na hora de digitar.
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: _FolhaConfig(titulo: titulo, atual: atual),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.92),
+          child: _FolhaConfig(
+            titulo: titulo,
+            grupo: grupo,
+            video: _limpo(video),
+            imagem: _limpo(imagem),
+            atual: atual,
+          ),
+        ),
       ),
     );
   }
@@ -477,8 +641,16 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
     }
     if (!mounted) return;
 
-    if (alunos.isEmpty) {
-      _avisar('Você ainda não tem alunos ativos para atribuir.');
+    // Quem já está com a ficha sai da lista: mudar os dias é pelo cartão
+    // do aluno, lá em cima.
+    final jaTem = {
+      for (final l in _alunos) ((l['alunos'] as Map?)?['id']),
+    };
+    final livres = alunos.where((a) => !jaTem.contains(a['id'])).toList();
+    if (livres.isEmpty) {
+      _avisar(alunos.isEmpty
+          ? 'Você ainda não tem alunos ativos para atribuir.'
+          : 'Todos os seus alunos ativos já estão com esta ficha.');
       return;
     }
 
@@ -491,19 +663,12 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
       ),
       builder: (_) => FractionallySizedBox(
         heightFactor: 0.7,
-        child: _SeletorAluno(alunos: alunos),
+        child: _SeletorAluno(alunos: livres),
       ),
     );
     if (aluno == null || !mounted) return;
 
-    final dias = await showModalBottomSheet<List<int>>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      builder: (_) => const _SeletorDias(),
-    );
+    final dias = await _escolherDias(aluno['nome'] as String? ?? 'o aluno');
     // Fechar a folha arrastando devolve null: aí a atribuição não acontece,
     // em vez de gravar "nenhum dia" sem o personal ter decidido isso.
     if (dias == null || !mounted) return;
@@ -515,29 +680,191 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
         diasSemana: dias,
       );
       _avisarMudanca();
+      await _carregar();
       if (mounted) _avisar('Ficha atribuída a ${aluno['nome']}.', ok: true);
     } catch (e) {
       if (mounted) _avisar('Não consegui atribuir: $e', erro: true);
     }
   }
 
+  Future<List<int>?> _escolherDias(String nome, [List<int> atuais = const []]) {
+    return showModalBottomSheet<List<int>>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (_) => _SeletorDias(nome: nome, iniciais: atuais),
+    );
+  }
+
+  Future<void> _opcoesAluno(Map<String, dynamic> aluno) async {
+    final nome = aluno['nome'] as String? ?? 'aluno';
+    final linha = _alunos.firstWhere((l) => (l['alunos'] as Map?)?['id'] == aluno['id']);
+    final atuais = ((linha['dias_semana'] as List?) ?? const []).map((d) => (d as num).toInt()).toList();
+
+    final acao = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _Puxador(),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                PhdAvatar(name: nome, imageUrl: aluno['foto_url'] as String?, size: 44),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(child: Text(nome, style: AppText.title(17))),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            PhdListRow(
+              title: 'Mudar os dias',
+              leading: Icon(Icons.calendar_month_outlined, color: AppColors.textSecondary),
+              onTap: () => Navigator.pop(ctx, 'dias'),
+            ),
+            PhdListRow(
+              title: 'Tirar a ficha deste aluno',
+              leading: Icon(Icons.person_remove_outlined, color: AppColors.dangerText),
+              onTap: () => Navigator.pop(ctx, 'tirar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (acao == null || !mounted) return;
+
+    try {
+      if (acao == 'dias') {
+        final dias = await _escolherDias(nome, atuais);
+        if (dias == null || !mounted) return;
+        await FichaService.atribuirAluno(alunoId: aluno['id'] as String, fichaId: _fichaId, diasSemana: dias);
+      } else {
+        final ok = await _confirmar(
+          titulo: 'Tirar a ficha de $nome?',
+          texto: 'O histórico de treinos continua salvo. Você pode atribuir de novo depois.',
+          acao: 'Tirar',
+        );
+        if (!ok) return;
+        await FichaService.desatribuirAluno(alunoId: aluno['id'] as String, fichaId: _fichaId);
+      }
+      _avisarMudanca();
+      await _carregar();
+    } catch (e) {
+      if (mounted) _avisar('Não consegui salvar: $e', erro: true);
+    }
+  }
+
+  Future<bool> _confirmar({required String titulo, required String texto, required String acao}) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceHigh,
+        title: Text(titulo, style: AppText.title(17)),
+        content: Text(texto, style: AppText.body(13.5, color: AppColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancelar', style: AppText.bodyStrong(13.5, color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(acao, style: AppText.bodyStrong(13.5, color: AppColors.dangerText)),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
   void _avisar(String texto, {bool erro = false, bool ok = false}) {
     final fundo = erro
         ? AppColors.danger
         : ok
-        ? AppColors.success
-        : AppColors.surfaceHigh;
+            ? AppColors.success
+            : AppColors.surfaceHigh;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: fundo,
         content: Text(
           texto,
-          style: AppText.body(
-            13.5,
-            color: (erro || ok) ? AppColors.onAccent : AppColors.textPrimary,
-          ),
+          style: AppText.body(13.5, color: (erro || ok) ? AppColors.onAccent : AppColors.textPrimary),
         ),
       ),
+    );
+  }
+}
+
+/// Nome e descrição da ficha.
+class _DialogoNome extends StatefulWidget {
+  const _DialogoNome({required this.nome, this.descricao});
+
+  final String nome;
+  final String? descricao;
+
+  @override
+  State<_DialogoNome> createState() => _DialogoNomeState();
+}
+
+class _DialogoNomeState extends State<_DialogoNome> {
+  late final _nome = TextEditingController(text: widget.nome);
+  late final _desc = TextEditingController(text: widget.descricao ?? '');
+
+  @override
+  void dispose() {
+    _nome.dispose();
+    _desc.dispose();
+    super.dispose();
+  }
+
+  void _salvar() {
+    final n = _nome.text.trim();
+    if (n.isEmpty) return;
+    final d = _desc.text.trim();
+    Navigator.pop(context, (n, d.isEmpty ? null : d));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.surfaceHigh,
+      title: Text('Renomear ficha', style: AppText.title(17)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PhdField(
+            label: 'Nome',
+            controller: _nome,
+            hint: 'Treino A — Superiores',
+            textCapitalization: TextCapitalization.sentences,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          PhdField(
+            label: 'Descrição (opcional)',
+            controller: _desc,
+            hint: 'Foco em força, 3x por semana',
+            textCapitalization: TextCapitalization.sentences,
+            onSubmitted: _salvar,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancelar', style: AppText.bodyStrong(13.5, color: AppColors.textSecondary)),
+        ),
+        TextButton(
+          onPressed: _salvar,
+          child: Text('Salvar', style: AppText.bodyStrong(13.5, color: AppColors.accent)),
+        ),
+      ],
     );
   }
 }
@@ -553,12 +880,12 @@ class _ConfigExercicio {
   }) : remover = false;
 
   const _ConfigExercicio.remover()
-    : series = 0,
-      repeticoes = '',
-      carga = null,
-      descanso = null,
-      observacoes = null,
-      remover = true;
+      : series = 0,
+        repeticoes = '',
+        carga = null,
+        descanso = null,
+        observacoes = null,
+        remover = true;
 
   final int series;
   final String repeticoes;
@@ -568,15 +895,18 @@ class _ConfigExercicio {
   final bool remover;
 }
 
-/// Séries, repetições, carga, descanso e observação.
+/// Séries, repetições, carga, descanso e observação — com o vídeo do
+/// exercício no topo, para o personal conferir o movimento enquanto prescreve.
 ///
 /// É um widget próprio — e não um `showDialog` com controllers soltos — para
-/// que o `dispose` deles seja garantido pelo ciclo de vida do Flutter. Na
-/// versão anterior, quatro controllers vazavam a cada exercício adicionado.
+/// que o `dispose` deles seja garantido pelo ciclo de vida do Flutter.
 class _FolhaConfig extends StatefulWidget {
-  const _FolhaConfig({required this.titulo, this.atual});
+  const _FolhaConfig({required this.titulo, this.grupo, this.video, this.imagem, this.atual});
 
   final String titulo;
+  final String? grupo;
+  final String? video;
+  final String? imagem;
   final FichaExercicio? atual;
 
   @override
@@ -584,31 +914,21 @@ class _FolhaConfig extends StatefulWidget {
 }
 
 class _FolhaConfigState extends State<_FolhaConfig> {
-  late final TextEditingController _series;
-  late final TextEditingController _reps;
-  late final TextEditingController _carga;
-  late final TextEditingController _descanso;
-  late final TextEditingController _obs;
+  late int _series = widget.atual?.series ?? 3;
+  late int _descanso = widget.atual?.descansoSegundos ?? 60;
+  late final _reps = TextEditingController(text: widget.atual?.repeticoes ?? '12');
+  late final _carga = TextEditingController(text: widget.atual?.carga ?? '');
+  late final _obs = TextEditingController(text: widget.atual?.observacoes ?? '');
+  bool _verVideo = false;
+
+  static const _descansos = [30, 45, 60, 90, 120, 180];
 
   bool get _editando => widget.atual != null;
 
   @override
-  void initState() {
-    super.initState();
-    final a = widget.atual;
-    _series = TextEditingController(text: '${a?.series ?? 3}');
-    _reps = TextEditingController(text: a?.repeticoes ?? '12');
-    _carga = TextEditingController(text: a?.carga ?? '');
-    _descanso = TextEditingController(text: '${a?.descansoSegundos ?? 60}');
-    _obs = TextEditingController(text: a?.observacoes ?? '');
-  }
-
-  @override
   void dispose() {
-    _series.dispose();
     _reps.dispose();
     _carga.dispose();
-    _descanso.dispose();
     _obs.dispose();
     super.dispose();
   }
@@ -620,44 +940,46 @@ class _FolhaConfigState extends State<_FolhaConfig> {
     Navigator.pop(
       context,
       _ConfigExercicio(
-        series: int.tryParse(_series.text.trim()) ?? 3,
+        series: _series,
         repeticoes: reps.isEmpty ? '12' : reps,
         carga: carga.isEmpty ? null : carga,
-        descanso: int.tryParse(_descanso.text.trim()),
+        descanso: _descanso,
         observacoes: obs.isEmpty ? null : obs,
       ),
     );
   }
 
+  String _rotuloDescanso(int s) => s < 60 ? '${s}s' : (s % 60 == 0 ? '${s ~/ 60} min' : '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}');
+
   @override
   Widget build(BuildContext context) {
+    final descansos = {..._descansos, _descanso}.toList()..sort();
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl,
-        AppSpacing.md,
-        AppSpacing.xl,
-        AppSpacing.xl,
-      ),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _Puxador(),
           const SizedBox(height: AppSpacing.lg),
-          Text(widget.titulo, style: AppText.title(17)),
+          _midia(),
+          const SizedBox(height: AppSpacing.lg),
+          Text('SÉRIES', style: AppText.label()),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              _botaoPasso(Icons.remove_rounded, _series > 1 ? () => setState(() => _series--) : null),
+              Expanded(
+                child: Text('$_series', textAlign: TextAlign.center, style: AppText.number(28)),
+              ),
+              _botaoPasso(Icons.add_rounded, _series < 10 ? () => setState(() => _series++) : null),
+            ],
+          ),
           const SizedBox(height: AppSpacing.lg),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: PhdField(
-                  label: 'Séries',
-                  controller: _series,
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.next,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: PhdField(
                   label: 'Repetições',
@@ -666,12 +988,7 @@ class _FolhaConfigState extends State<_FolhaConfig> {
                   textInputAction: TextInputAction.next,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: PhdField(
                   label: 'Carga',
@@ -681,15 +998,21 @@ class _FolhaConfigState extends State<_FolhaConfig> {
                   textInputAction: TextInputAction.next,
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: PhdField(
-                  label: 'Descanso (s)',
-                  controller: _descanso,
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.next,
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text('DESCANSO', style: AppText.label()),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              for (final s in descansos)
+                PhdFilterChip(
+                  label: _rotuloDescanso(s),
+                  selected: s == _descanso,
+                  onTap: () => setState(() => _descanso = s),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -703,6 +1026,7 @@ class _FolhaConfigState extends State<_FolhaConfig> {
           const SizedBox(height: AppSpacing.xl),
           PhdButton(
             label: _editando ? 'Salvar' : 'Adicionar à ficha',
+            icon: Icons.check_rounded,
             onPressed: _salvar,
           ),
           if (_editando) ...[
@@ -710,21 +1034,92 @@ class _FolhaConfigState extends State<_FolhaConfig> {
             PhdButton(
               label: 'Remover da ficha',
               variant: PhdButtonVariant.ghost,
-              onPressed: () =>
-                  Navigator.pop(context, const _ConfigExercicio.remover()),
+              onPressed: () => Navigator.pop(context, const _ConfigExercicio.remover()),
             ),
           ],
         ],
       ),
     );
   }
+
+  /// O vídeo só começa a tocar quando o personal pede: abrir a folha para
+  /// trocar uma carga não precisa baixar o vídeo inteiro.
+  Widget _midia() {
+    final video = widget.video;
+    if (_verVideo && video != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PhdVideo(url: video, altura: 210),
+          const SizedBox(height: AppSpacing.sm),
+          Text(widget.titulo, style: AppText.title(17)),
+          if (widget.grupo != null) Text(widget.grupo!, style: AppText.caption(12.5)),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: video == null ? null : () => setState(() => _verVideo = true),
+          child: PhdMiniaturaExercicio(
+            imagemUrl: widget.imagem,
+            temVideo: video != null,
+            tamanho: 72,
+            raio: AppRadius.rLg,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.titulo, style: AppText.title(17)),
+              if (widget.grupo != null) Text(widget.grupo!, style: AppText.caption(12.5)),
+              const SizedBox(height: 4),
+              if (video != null)
+                GestureDetector(
+                  onTap: () => setState(() => _verVideo = true),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.play_circle_fill_rounded, size: 16, color: AppColors.accent),
+                      const SizedBox(width: 4),
+                      Text('Ver vídeo da execução', style: AppText.bodyStrong(12.5, color: AppColors.accent)),
+                    ],
+                  ),
+                )
+              else
+                Text('Sem vídeo — dá para enviar na biblioteca.',
+                    style: AppText.caption(11.5, color: AppColors.textMuted)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _botaoPasso(IconData icone, VoidCallback? onTap) => Material(
+        color: AppColors.surfaceHigh,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(
+            width: kMinTouch,
+            height: kMinTouch,
+            child: Icon(icone, color: onTap == null ? AppColors.textMuted : AppColors.textPrimary),
+          ),
+        ),
+      );
 }
 
-/// Busca na biblioteca, com filtro por grupo muscular.
+/// A biblioteca em grade, igual à tela de exercícios: o personal reconhece
+/// pela imagem, vê quem tem vídeo e pode assistir antes de escolher.
 class _SeletorExercicio extends StatefulWidget {
-  const _SeletorExercicio({required this.exercicios});
+  const _SeletorExercicio({required this.exercicios, required this.naFicha});
 
   final List<Map<String, dynamic>> exercicios;
+  final Set<String> naFicha;
 
   @override
   State<_SeletorExercicio> createState() => _SeletorExercicioState();
@@ -732,8 +1127,8 @@ class _SeletorExercicio extends StatefulWidget {
 
 class _SeletorExercicioState extends State<_SeletorExercicio> {
   final _busca = TextEditingController();
-  String _termo = '';
   String _grupo = 'Todos';
+  bool _soComVideo = false;
 
   @override
   void dispose() {
@@ -741,23 +1136,23 @@ class _SeletorExercicioState extends State<_SeletorExercicio> {
     super.dispose();
   }
 
+  static bool _temVideo(Map<String, dynamic> e) => ((e['video_url'] as String?) ?? '').trim().isNotEmpty;
+
   List<String> get _grupos {
     final s = <String>{};
     for (final e in widget.exercicios) {
       final g = e['grupo_muscular'] as String?;
       if (g != null && g.trim().isNotEmpty) s.add(g);
     }
-    final ordenados = s.toList()..sort();
-    return ['Todos', ...ordenados];
+    return ['Todos', ...s.toList()..sort()];
   }
 
   List<Map<String, dynamic>> get _filtrados {
-    final termo = _termo.trim().toLowerCase();
+    final termo = _busca.text.trim().toLowerCase();
     return widget.exercicios.where((e) {
-      final nome = (e['nome'] as String? ?? '').toLowerCase();
-      final okNome = termo.isEmpty || nome.contains(termo);
-      final okGrupo = _grupo == 'Todos' || e['grupo_muscular'] == _grupo;
-      return okNome && okGrupo;
+      if (_grupo != 'Todos' && e['grupo_muscular'] != _grupo) return false;
+      if (_soComVideo && !_temVideo(e)) return false;
+      return termo.isEmpty || (e['nome'] as String? ?? '').toLowerCase().contains(termo);
     }).toList();
   }
 
@@ -771,76 +1166,119 @@ class _SeletorExercicioState extends State<_SeletorExercicio> {
         const SizedBox(height: AppSpacing.md),
         const _Puxador(),
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xl,
-            AppSpacing.lg,
-            AppSpacing.xl,
-            AppSpacing.md,
-          ),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.md),
           child: Row(
             children: [
-              Text('Biblioteca', style: AppText.title(17)),
+              Text('Escolha o exercício', style: AppText.title(17)),
               const Spacer(),
-              Text(
-                '${lista.length}',
-                style: AppText.number(13, color: AppColors.textMuted),
-              ),
+              Text('${lista.length}', style: AppText.number(13, color: AppColors.textMuted)),
             ],
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          child: PhdField(
-            label: 'Buscar',
+          padding: AppSpacing.screen,
+          child: TextField(
             controller: _busca,
-            hint: 'Nome do exercício',
-            icon: Icons.search_rounded,
-            onChanged: (v) => setState(() => _termo = v),
+            onChanged: (_) => setState(() {}),
+            style: AppText.body(14.5),
+            decoration: InputDecoration(
+              hintText: 'Buscar exercício',
+              prefixIcon: Icon(Icons.search_rounded, color: AppColors.textMuted, size: 19),
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
         SizedBox(
-          height: 32,
-          child: ListView.separated(
+          height: 36,
+          child: ListView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-            itemCount: grupos.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
-            itemBuilder: (_, i) => PhdFilterChip(
-              label: grupos[i],
-              selected: grupos[i] == _grupo,
-              onTap: () => setState(() => _grupo = grupos[i]),
-            ),
+            padding: AppSpacing.screen,
+            children: [
+              PhdFilterChip(
+                label: 'Com vídeo',
+                selected: _soComVideo,
+                tone: PhdTone.success,
+                onTap: () => setState(() => _soComVideo = !_soComVideo),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              for (final g in grupos) ...[
+                PhdFilterChip(label: g, selected: g == _grupo, onTap: () => setState(() => _grupo = g)),
+                const SizedBox(width: AppSpacing.sm),
+              ],
+            ],
           ),
         ),
         const SizedBox(height: AppSpacing.md),
         Expanded(
           child: lista.isEmpty
-              ? Center(
-                  child: Text(
-                    'Nenhum exercício encontrado',
-                    style: AppText.caption(13),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.xl,
-                    0,
-                    AppSpacing.xl,
-                    AppSpacing.xl,
+              ? Center(child: Text('Nenhum exercício encontrado', style: AppText.caption(13)))
+              : GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xl),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: AppSpacing.sm,
+                    mainAxisSpacing: AppSpacing.sm,
+                    childAspectRatio: 0.9,
                   ),
                   itemCount: lista.length,
-                  itemBuilder: (_, i) {
-                    final e = lista[i];
-                    return PhdListRow(
-                      title: e['nome'] as String? ?? '—',
-                      subtitle: e['grupo_muscular'] as String?,
-                      onTap: () => Navigator.pop(context, e),
-                    );
-                  },
+                  itemBuilder: (_, i) => _cartao(lista[i]),
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _cartao(Map<String, dynamic> e) {
+    final jaTem = widget.naFicha.contains(e['id']);
+    return PhdCard(
+      onTap: () => Navigator.pop(context, e),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              PhdMiniaturaExercicio(
+                imagemUrl: e['midia_url'] as String?,
+                temVideo: _temVideo(e),
+                tamanho: null,
+                raio: AppRadius.rLg,
+              ),
+              // Ver antes de escolher: abre o vídeo sem tirar da seleção.
+              Positioned(
+                right: 4,
+                top: 4,
+                child: Material(
+                  color: Colors.black54,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => abrirExercicio(context, e, acoes: false),
+                    child: const Padding(
+                      padding: EdgeInsets.all(6),
+                      child: Icon(Icons.visibility_outlined, size: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+              if (jaTem)
+                const Positioned(left: 4, top: 4, child: PhdStatusChip(label: 'na ficha', tone: PhdTone.accent)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(e['nome'] as String? ?? '',
+                maxLines: 2, overflow: TextOverflow.ellipsis, style: AppText.bodyStrong(13.5)),
+          ),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(e['grupo_muscular'] as String? ?? '',
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.caption(11.5)),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -857,12 +1295,7 @@ class _SeletorAluno extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         const _Puxador(),
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xl,
-            AppSpacing.lg,
-            AppSpacing.xl,
-            AppSpacing.md,
-          ),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.md),
           child: Align(
             alignment: Alignment.centerLeft,
             child: Text('Atribuir para', style: AppText.title(17)),
@@ -870,12 +1303,7 @@ class _SeletorAluno extends StatelessWidget {
         ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl,
-              0,
-              AppSpacing.xl,
-              AppSpacing.xl,
-            ),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xl),
             itemCount: alunos.length,
             itemBuilder: (_, i) {
               final a = alunos[i];
@@ -883,7 +1311,7 @@ class _SeletorAluno extends StatelessWidget {
               return PhdListRow(
                 title: nome,
                 subtitle: a['grupo'] as String?,
-                leading: PhdAvatar(name: nome, size: 36),
+                leading: PhdAvatar(name: nome, imageUrl: a['foto_url'] as String?, size: 36),
                 onTap: () => Navigator.pop(context, a),
               );
             },
@@ -895,14 +1323,17 @@ class _SeletorAluno extends StatelessWidget {
 }
 
 class _SeletorDias extends StatefulWidget {
-  const _SeletorDias();
+  const _SeletorDias({required this.nome, this.iniciais = const []});
+
+  final String nome;
+  final List<int> iniciais;
 
   @override
   State<_SeletorDias> createState() => _SeletorDiasState();
 }
 
 class _SeletorDiasState extends State<_SeletorDias> {
-  final Set<int> _sel = {};
+  late final Set<int> _sel = {...widget.iniciais};
 
   // (inicial, rótulo, valor) — o valor segue o padrão do banco, domingo = 0.
   static const _dias = [
@@ -918,24 +1349,16 @@ class _SeletorDiasState extends State<_SeletorDias> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl,
-        AppSpacing.md,
-        AppSpacing.xl,
-        AppSpacing.xl,
-      ),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _Puxador(),
           const SizedBox(height: AppSpacing.lg),
-          Text('Em quais dias?', style: AppText.title(17)),
+          Text('Em quais dias ${widget.nome.split(' ').first} treina esta ficha?', style: AppText.title(17)),
           const SizedBox(height: 4),
-          Text(
-            'Serve para o aluno saber quando treinar. Pode deixar em branco.',
-            style: AppText.caption(12.5),
-          ),
+          Text('Serve para o aluno saber quando treinar. Pode deixar em branco.', style: AppText.caption(12.5)),
           const SizedBox(height: AppSpacing.xl),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -944,43 +1367,25 @@ class _SeletorDiasState extends State<_SeletorDias> {
               return Column(
                 children: [
                   GestureDetector(
-                    onTap: () => setState(() {
-                      if (marcado) {
-                        _sel.remove(d.$3);
-                      } else {
-                        _sel.add(d.$3);
-                      }
-                    }),
+                    onTap: () => setState(() => marcado ? _sel.remove(d.$3) : _sel.add(d.$3)),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 140),
+                      duration: AppDuration.fast,
                       width: 40,
                       height: 40,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: marcado
-                            ? AppColors.accent
-                            : AppColors.surfaceHigh,
+                        color: marcado ? AppColors.accent : AppColors.surfaceHigh,
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: marcado ? AppColors.accent : AppColors.line,
-                        ),
+                        border: Border.all(color: marcado ? AppColors.accent : AppColors.line),
                       ),
                       child: Text(
                         d.$1,
-                        style: AppText.bodyStrong(
-                          13.5,
-                          color: marcado
-                              ? AppColors.onAccent
-                              : AppColors.textSecondary,
-                        ),
+                        style: AppText.bodyStrong(13.5, color: marcado ? AppColors.onAccent : AppColors.textSecondary),
                       ),
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    d.$2,
-                    style: AppText.caption(10.5, color: AppColors.textMuted),
-                  ),
+                  Text(d.$2, style: AppText.caption(10.5, color: AppColors.textMuted)),
                 ],
               );
             }).toList(),
