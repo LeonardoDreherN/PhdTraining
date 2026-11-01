@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/avaliacao_calculos.dart';
+import '../../../core/utils/circunferencias.dart';
 import '../../../core/utils/datas.dart';
 import '../../../core/widgets/widgets.dart';
 import 'avaliacao_pdf.dart';
@@ -35,6 +36,10 @@ class _AvaliacaoSessaoScreenState extends ConsumerState<AvaliacaoSessaoScreen> {
   String? _erro;
   final _obsCtrl = TextEditingController();
   bool _obsAlterada = false;
+
+  /// Escolhidas em "Adicionar" e ainda sem valor: sem isto a linha some
+  /// se o personal cancelar o número.
+  final _adicionadas = <String>{};
 
   late final DateTime _data = dataDaSessao(widget.aluno);
   String get _alunoId => widget.aluno['id'] as String;
@@ -228,6 +233,9 @@ class _AvaliacaoSessaoScreenState extends ConsumerState<AvaliacaoSessaoScreen> {
                       _secao('Medidas'),
                       _medidas(av),
                       const SizedBox(height: AppSpacing.xxl),
+                      _secao('Circunferências'),
+                      _circunferencias(av),
+                      const SizedBox(height: AppSpacing.xxl),
                       _secao('Sinais vitais'),
                       _vitais(av),
                       const SizedBox(height: AppSpacing.xxl),
@@ -309,21 +317,95 @@ class _AvaliacaoSessaoScreenState extends ConsumerState<AvaliacaoSessaoScreen> {
             anterior: av.estatura != null),
         onTap: () => _editar('estatura', 'Estatura', 'cm', av.estatura, ajuda: 'Em centímetros. Ex.: 172'),
       ),
-      LinhaMedida(
-        rotulo: 'Cintura',
-        valor: v(av.cintura, 'cm'),
-        origem: _origem(s.cintura, av.dobras?['cintura'], av.bioimpedancia?['cintura']),
-        onTap: () => _editar('cintura', 'Cintura', 'cm', av.cintura,
-            ajuda: 'No ponto médio entre a última costela e a crista ilíaca.'),
-      ),
-      LinhaMedida(
-        rotulo: 'Quadril',
-        valor: v(av.quadril, 'cm'),
-        origem: _origem(s.quadril, av.dobras?['quadril'], av.bioimpedancia?['quadril']),
-        onTap: () => _editar('quadril', 'Quadril', 'cm', av.quadril,
-            ajuda: 'Na maior circunferência dos glúteos.'),
-      ),
     ]);
+  }
+
+  /// Cintura e quadril sempre (os índices dependem delas), mais as que
+  /// foram medidas hoje ou na avaliação anterior. Repetir a lista da
+  /// anterior é o que faz o personal medir as mesmas e a evolução fechar.
+  List<String> _circunferenciasVisiveis(AvaliacaoCompleta av) => Circunferencia.ordenar([
+        'cintura',
+        'quadril',
+        ...av.circunferencias.keys,
+        ...?av.anterior?.circunferencias.keys,
+        ..._adicionadas,
+      ]);
+
+  Widget _circunferencias(AvaliacaoCompleta av) {
+    final s = av.sessao;
+    final hoje = av.circunferencias;
+    final antes = av.anterior?.circunferencias ?? const <String, double>{};
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _cartaoDeLinhas([
+          for (final c in _circunferenciasVisiveis(av))
+            LinhaMedida(
+              rotulo: Circunferencia.nomeDe(c),
+              valor: hoje[c] == null ? 'Medir' : '${numBr(hoje[c])} cm',
+              origem: hoje[c] == null
+                  ? (antes[c] == null ? null : 'antes: ${numBr(antes[c])} cm')
+                  : _origem(
+                      c == 'cintura' ? s.cintura : c == 'quadril' ? s.quadril : s.circunferencias[c],
+                      av.dobras?[c],
+                      av.bioimpedancia?[c],
+                    ),
+              onTap: () => _editarCircunferencia(c, hoje[c]),
+            ),
+        ]),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: PhdButton(
+                label: 'Adicionar',
+                icon: Icons.add_rounded,
+                variant: PhdButtonVariant.ghost,
+                size: PhdButtonSize.medium,
+                onPressed: () => _adicionarCircunferencia(av),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: PhdButton(
+                label: 'Ver evolução',
+                icon: Icons.show_chart_rounded,
+                variant: PhdButtonVariant.ghost,
+                size: PhdButtonSize.medium,
+                onPressed: () => context.push('/alunos/avaliacao/circunferencias', extra: widget.aluno),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _editarCircunferencia(String chave, double? atual) async {
+    final circ = Circunferencia.porChave(chave);
+    if (circ?.temColuna ?? false) {
+      await _editar(chave, circ!.nome, 'cm', atual, ajuda: circ.ajuda);
+      return;
+    }
+    final r = await editarNumero(context,
+        titulo: Circunferencia.nomeDe(chave), unidade: 'cm', atual: atual, ajuda: circ?.ajuda);
+    if (r == null) return;
+    // O jsonb vai inteiro: o PostgREST não muda uma chave só. Parte do que
+    // está na sessão (não do mesclado), para não copiar a medida da dobra.
+    final novo = {..._av!.sessao.circunferencias};
+    if (r.valor == null || r.valor! <= 0) {
+      novo.remove(chave);
+    } else {
+      novo[chave] = r.valor!;
+    }
+    await _salvarCampos({'circunferencias': novo});
+  }
+
+  Future<void> _adicionarCircunferencia(AvaliacaoCompleta av) async {
+    final chave = await escolherCircunferencia(context, jaNaLista: _circunferenciasVisiveis(av));
+    if (chave == null || !mounted) return;
+    setState(() => _adicionadas.add(chave));
+    await _editarCircunferencia(chave, av.circunferencias[chave]);
   }
 
   Widget _vitais(AvaliacaoCompleta av) {

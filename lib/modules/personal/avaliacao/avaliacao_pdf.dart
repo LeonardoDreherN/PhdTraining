@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 import '../../../core/models/avaliacao.dart';
 import '../../../core/models/perfil.dart';
 import '../../../core/utils/avaliacao_calculos.dart';
+import '../../../core/utils/circunferencias.dart';
 import '../../../core/utils/datas.dart';
 import 'avaliacao_resumo.dart';
 import 'avaliacao_widgets.dart';
@@ -328,8 +329,8 @@ abstract class AvaliacaoPdf {
     final linhas = <(String, String)>[
       if (av.peso != null) ('Peso', '${numBr(av.peso)} kg'),
       if (av.estatura != null) ('Estatura', '${numBr(av.estatura)} cm'),
-      if (av.cintura != null) ('Cintura', '${numBr(av.cintura)} cm'),
-      if (av.quadril != null) ('Quadril', '${numBr(av.quadril)} cm'),
+      for (final c in Circunferencia.ordenar(av.circunferencias.keys))
+        (Circunferencia.nomeDe(c), '${numBr(av.circunferencias[c])} cm'),
       if (av.massaMagra != null) ('Massa magra', '${numBr(av.massaMagra)} kg'),
       if (av.massaGorda != null) ('Massa gorda', '${numBr(av.massaGorda)} kg'),
       if (s.paSistolica != null && s.paDiastolica != null)

@@ -1,4 +1,5 @@
 import '../utils/avaliacao_calculos.dart';
+import '../utils/circunferencias.dart';
 import '../utils/datas.dart';
 
 /// Chave que leva a data da sessão pelo mapa do aluno.
@@ -33,6 +34,7 @@ class AvaliacaoSessao {
     this.estatura,
     this.cintura,
     this.quadril,
+    this.circunferencias = const {},
     this.paSistolica,
     this.paDiastolica,
     this.fcRepouso,
@@ -47,6 +49,10 @@ class AvaliacaoSessao {
   final double? estatura;
   final double? cintura;
   final double? quadril;
+
+  /// As outras circunferências, por chave de [Circunferencia]. Cintura e
+  /// quadril ficam nas colunas acima e nunca aqui.
+  final Map<String, double> circunferencias;
   final int? paSistolica;
   final int? paDiastolica;
   final int? fcRepouso;
@@ -61,6 +67,7 @@ class AvaliacaoSessao {
         estatura: _d(m['estatura']),
         cintura: _d(m['cintura']),
         quadril: _d(m['quadril']),
+        circunferencias: Circunferencia.lerJson(m['circunferencias']),
         paSistolica: _i(m['pa_sistolica']),
         paDiastolica: _i(m['pa_diastolica']),
         fcRepouso: _i(m['fc_repouso']),
@@ -75,6 +82,7 @@ class AvaliacaoSessao {
         'estatura': estatura,
         'cintura': cintura,
         'quadril': quadril,
+        'circunferencias': circunferencias,
         'pa_sistolica': paSistolica,
         'pa_diastolica': paDiastolica,
         'fc_repouso': fcRepouso,
@@ -99,6 +107,74 @@ class ResumoSessao {
 
   /// Quantos testes foram feitos naquele dia, de todos os tipos.
   final int testes;
+}
+
+/// Um valor medido e o dia em que foi medido.
+class MedidaDatada {
+  const MedidaDatada(this.valor, this.data, [this.origem]);
+  final double valor;
+  final DateTime data;
+
+  /// "Dobras cutâneas", "Bioimpedância"; `null` quando veio da sessão.
+  final String? origem;
+}
+
+/// O valor mais recente de cada medida, cada um da avaliação em que foi
+/// feito. O peso de ontem e o % de gordura do mês passado são, cada um, o
+/// melhor que o app sabe — pegar os dois da mesma avaliação deixava o
+/// % de gordura em branco sempre que a última avaliação não tinha dobra.
+class UltimasMedidas {
+  const UltimasMedidas({this.peso, this.estatura, this.percGordura, this.massaMagra});
+
+  final MedidaDatada? peso;
+  final MedidaDatada? estatura;
+  final MedidaDatada? percGordura;
+  final MedidaDatada? massaMagra;
+
+  bool get vazia => peso == null && estatura == null && percGordura == null && massaMagra == null;
+
+  /// [sessoes], [dobras] e [bioimpedancia] são as linhas cruas das tabelas,
+  /// cada lista do teste mais novo para o mais antigo. No mesmo dia vale a
+  /// ordem de `AvaliacaoCompleta`: sessão, depois dobra, depois bioimpedância.
+  factory UltimasMedidas.de({
+    List<Map<String, dynamic>> sessoes = const [],
+    List<Map<String, dynamic>> dobras = const [],
+    List<Map<String, dynamic>> bioimpedancia = const [],
+  }) {
+    final fontes = [
+      (sessoes, null),
+      (dobras, 'Dobras cutâneas'),
+      (bioimpedancia, 'Bioimpedância'),
+    ];
+    MedidaDatada? ultima(String coluna) {
+      MedidaDatada? melhor;
+      for (final (linhas, origem) in fontes) {
+        for (final l in linhas) {
+          final v = _d(l[coluna]);
+          final data = Datas.ler(l['data_avaliacao']);
+          if (v == null || v <= 0 || data == null) continue;
+          // Só troca por uma data estritamente mais nova: no empate fica
+          // a fonte que veio antes, que é a de maior prioridade.
+          if (melhor == null || data.isAfter(melhor.data)) melhor = MedidaDatada(v, data, origem);
+        }
+      }
+      return melhor;
+    }
+
+    return UltimasMedidas(
+      peso: ultima('peso'),
+      estatura: ultima('estatura'),
+      percGordura: ultima('perc_gordura'),
+      massaMagra: ultima('massa_magra'),
+    );
+  }
+}
+
+/// As circunferências de uma avaliação, para a evolução.
+class CircunferenciasDoDia {
+  const CircunferenciasDoDia(this.data, this.medidas);
+  final DateTime data;
+  final Map<String, double> medidas;
 }
 
 /// Tudo o que foi medido num dia, já com as medidas resolvidas.
@@ -163,6 +239,15 @@ class AvaliacaoCompleta {
 
   double? get quadril =>
       sessao.quadril ?? _d(dobras?['quadril']) ?? _d(bioimpedancia?['quadril']);
+
+  /// Todas as circunferências do dia, cintura e quadril inclusive.
+  Map<String, double> get circunferencias => Circunferencia.mesclar(
+        bioimpedancia: bioimpedancia,
+        dobras: dobras,
+        daSessao: sessao.circunferencias,
+        cintura: cintura,
+        quadril: quadril,
+      );
 
   /// % de gordura medido. Dobra tem prioridade sobre bioimpedância: é a
   /// medida que o personal fez com a mão, e a bioimpedância de balança

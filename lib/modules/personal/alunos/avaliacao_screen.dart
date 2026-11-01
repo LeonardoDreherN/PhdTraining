@@ -129,6 +129,18 @@ class _AvaliacaoScreenState extends State<AvaliacaoScreen> {
                           _linhaSessao(s, i),
                           const SizedBox(height: AppSpacing.sm),
                         ],
+                      if (_sessoes.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.xxl),
+                        const PhdSectionHeader(label: 'Evolução'),
+                        const SizedBox(height: AppSpacing.md),
+                        PhdListRow(
+                          title: 'Circunferências',
+                          subtitle: 'Gráfico e comparativo entre avaliações',
+                          leading: const _Icone(Icons.straighten_rounded),
+                          trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                          onTap: () => context.push('/alunos/avaliacao/circunferencias', extra: widget.aluno),
+                        ),
+                      ],
                       const SizedBox(height: AppSpacing.xxl),
                       const PhdSectionHeader(label: 'Histórico de saúde'),
                       const SizedBox(height: AppSpacing.md),

@@ -2,6 +2,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/avaliacao.dart';
 import '../utils/avaliacao_calculos.dart';
+import '../utils/circunferencias.dart';
 import '../utils/datas.dart';
 import '../utils/midia.dart';
 
@@ -247,6 +248,67 @@ class AvaliacaoService {
         .order('data_avaliacao', ascending: false)
         .limit(1);
     return linhas.isEmpty ? null : (linhas.first['estatura'] as num?)?.toDouble();
+  }
+
+  /// Peso, estatura, % de gordura e massa magra mais recentes do aluno,
+  /// cada um com a data em que foi medido. É o que o plano alimentar usa.
+  static Future<UltimasMedidas> ultimasMedidas(String alunoId) async {
+    const colunas = 'data_avaliacao, criado_em, peso, estatura, perc_gordura, massa_magra';
+    final r = await Future.wait([
+      _db
+          .from('avaliacoes')
+          .select('data_avaliacao, peso, estatura')
+          .eq('aluno_id', alunoId)
+          .order('data_avaliacao', ascending: false),
+      for (final t in _tabelasDeTeste.take(2))
+        _db.from(t).select(colunas).eq('aluno_id', alunoId).order('criado_em', ascending: false),
+    ]);
+    return UltimasMedidas.de(sessoes: r[0], dobras: r[1], bioimpedancia: r[2]);
+  }
+
+  // ── Circunferências ────────────────────────────────────────
+
+  /// As circunferências de todas as avaliações do aluno, da mais antiga
+  /// para a mais nova. Só entram os dias com pelo menos uma medida.
+  static Future<List<CircunferenciasDoDia>> historicoCircunferencias(String alunoId) async {
+    final colunas = 'data_avaliacao, criado_em, ${Circunferencia.colunasDosTestes.join(', ')}';
+    final r = await Future.wait([
+      _db
+          .from('avaliacoes')
+          .select('data_avaliacao, cintura, quadril, circunferencias')
+          .eq('aluno_id', alunoId)
+          .order('data_avaliacao', ascending: true),
+      for (final t in _tabelasDeTeste.take(2))
+        _db.from(t).select(colunas).eq('aluno_id', alunoId).order('criado_em', ascending: false),
+    ]);
+
+    // O teste mais recente de cada dia, como em `_carregarDia`.
+    Map<String, Map<String, dynamic>> porData(List<Map<String, dynamic>> linhas) {
+      final m = <String, Map<String, dynamic>>{};
+      for (final l in linhas) {
+        m.putIfAbsent(l['data_avaliacao'] as String, () => l);
+      }
+      return m;
+    }
+
+    final dobras = porData(r[1]);
+    final bio = porData(r[2]);
+
+    final dias = <CircunferenciasDoDia>[];
+    for (final s in r[0]) {
+      final iso = s['data_avaliacao'] as String?;
+      final data = Datas.ler(iso);
+      if (iso == null || data == null) continue;
+      final medidas = Circunferencia.mesclar(
+        bioimpedancia: bio[iso],
+        dobras: dobras[iso],
+        daSessao: Circunferencia.lerJson(s['circunferencias']),
+        cintura: (s['cintura'] as num?)?.toDouble(),
+        quadril: (s['quadril'] as num?)?.toDouble(),
+      );
+      if (medidas.isNotEmpty) dias.add(CircunferenciasDoDia(data, medidas));
+    }
+    return dias;
   }
 
   // ── Cardio ─────────────────────────────────────────────────

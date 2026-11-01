@@ -1,5 +1,6 @@
 import '../../../core/models/avaliacao.dart';
 import '../../../core/utils/avaliacao_calculos.dart';
+import '../../../core/utils/circunferencias.dart';
 import '../alunos/avaliacao_dobras_screen.dart';
 import 'avaliacao_widgets.dart';
 
@@ -101,11 +102,13 @@ List<LinhaComparacao> comparacao(AvaliacaoCompleta av) {
     ('Gordura', ant.percGordura, av.percGordura, '%', true),
     ('Massa magra', ant.massaMagra, av.massaMagra, 'kg', false),
     ('Massa gorda', ant.massaGorda, av.massaGorda, 'kg', true),
-    ('Cintura', ant.cintura, av.cintura, 'cm', true),
-    ('Quadril', ant.quadril, av.quadril, 'cm', null),
     ('IMC', ant.imc?.valor, av.imc?.valor, '', null),
     ('VO₂máx', ant.vo2max, av.vo2max, 'ml/kg/min', false),
   ];
+  final antes = ant.circunferencias, agora = av.circunferencias;
+  for (final c in Circunferencia.ordenar(agora.keys.where(antes.containsKey))) {
+    pares.add((Circunferencia.nomeDe(c), antes[c], agora[c], 'cm', Circunferencia.menorEhMelhorDe(c)));
+  }
   return [
     for (final (rotulo, a, b, u, menor) in pares)
       if (a != null && b != null) LinhaComparacao(rotulo, a, b, u, menorEhMelhor: menor),

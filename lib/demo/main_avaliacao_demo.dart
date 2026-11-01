@@ -16,6 +16,7 @@ import '../modules/personal/alunos/avaliacao_neuromotores_resistencia_screen.dar
 import '../modules/personal/alunos/avaliacao_neuromotores_screen.dart';
 import '../modules/personal/alunos/avaliacao_screen.dart';
 import '../modules/personal/avaliacao/avaliacao_cardio_screen.dart';
+import '../modules/personal/avaliacao/avaliacao_circunferencias_screen.dart';
 import '../modules/personal/avaliacao/avaliacao_postural_screen.dart';
 import '../modules/personal/avaliacao/avaliacao_sessao_screen.dart';
 import 'banco_falso.dart';
@@ -67,6 +68,7 @@ final _router = GoRouter(
   routes: [
     _rota('/alunos/avaliacao', (a) => AvaliacaoScreen(aluno: a)),
     _rota('/alunos/avaliacao/sessao', (a) => AvaliacaoSessaoScreen(aluno: a)),
+    _rota('/alunos/avaliacao/circunferencias', (a) => AvaliacaoCircunferenciasScreen(aluno: a)),
     _rota('/alunos/avaliacao/cardio', (a) => AvaliacaoCardioScreen(aluno: a)),
     _rota('/alunos/avaliacao/postural', (a) => AvaliacaoPosturalScreen(aluno: a)),
     _rota('/alunos/avaliacao/morfologica', (a) => AvaliacaoMorfologicaScreen(aluno: a)),

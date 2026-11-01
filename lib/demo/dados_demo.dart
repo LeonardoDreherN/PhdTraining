@@ -62,16 +62,19 @@ Map<String, List<Map<String, dynamic>>> dadosDemo() {
       {
         'id': id(), 'aluno_id': a, 'data_avaliacao': d1,
         'pa_sistolica': 126, 'pa_diastolica': 84, 'fc_repouso': 76,
+        'circunferencias': {'braco_contraido_dir': 29.5, 'coxa_proximal_dir': 61, 'perna_dir': 36},
         'proxima_avaliacao': d2, 'criado_em': criado(d1),
       },
       {
         'id': id(), 'aluno_id': a, 'data_avaliacao': d2,
         'pa_sistolica': 122, 'pa_diastolica': 80, 'fc_repouso': 70,
+        'circunferencias': {'braco_contraido_dir': 30, 'coxa_proximal_dir': 59.5, 'perna_dir': 36.2},
         'proxima_avaliacao': d3, 'criado_em': criado(d2),
       },
       {
         'id': id(), 'aluno_id': a, 'data_avaliacao': d3,
         'pa_sistolica': 118, 'pa_diastolica': 76, 'fc_repouso': 64,
+        'circunferencias': {'braco_contraido_dir': 30.8, 'coxa_proximal_dir': 58, 'perna_dir': 36.5},
         'observacoes': 'Ótima evolução: -6 pontos de gordura em seis meses sem perder massa magra. '
             'Próximo ciclo: manter 3 treinos de força, subir o cardio para 3x 35 min na Z2 '
             'e incluir mobilidade de quadril para a anteversão pélvica.',

@@ -38,6 +38,7 @@ import '../../modules/personal/dieta/plano_metas_screen.dart';
 import '../../modules/personal/dieta/plano_montador_screen.dart';
 import '../../modules/personal/avaliacao/avaliacao_cardio_screen.dart';
 import '../../modules/personal/avaliacao/avaliacao_postural_screen.dart';
+import '../../modules/personal/avaliacao/avaliacao_circunferencias_screen.dart';
 import '../../modules/personal/avaliacao/avaliacao_sessao_screen.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
@@ -191,6 +192,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => _exigeExtra(
           state,
           (e) => AvaliacaoSessaoScreen(aluno: e),
+          voltarPara: '/alunos',
+        ),
+      ),
+      GoRoute(
+        path: '/alunos/avaliacao/circunferencias',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => AvaliacaoCircunferenciasScreen(aluno: e),
           voltarPara: '/alunos',
         ),
       ),

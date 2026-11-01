@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/avaliacao_calculos.dart';
+import '../../../core/utils/circunferencias.dart';
 import '../../../core/widgets/widgets.dart';
 
 /// Peças que só a avaliação física usa. O que servir a outra área do app
@@ -265,6 +266,88 @@ Future<ValorEditado?> editarNumero(
               ],
             ),
           ],
+        ),
+      );
+    },
+  );
+}
+
+/// Pede qual circunferência adicionar: uma do catálogo que ainda não está
+/// na lista, ou uma com nome livre. Devolve a chave, ou `null` se cancelou.
+Future<String?> escolherCircunferencia(BuildContext context, {Iterable<String> jaNaLista = const []}) {
+  final usadas = jaNaLista.toSet();
+  final livres = [for (final c in Circunferencia.catalogo) if (!usadas.contains(c.chave)) c];
+  final ctrl = TextEditingController();
+  return showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: AppColors.surface,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl))),
+    builder: (ctx) {
+      void outra() {
+        final chave = Circunferencia.chaveDoNome(ctrl.text);
+        if (chave != null) Navigator.pop(ctx, chave);
+      }
+
+      return Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.md),
+                child: Text('Adicionar circunferência', style: AppText.title(18)),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: ctrl,
+                        textCapitalization: TextCapitalization.sentences,
+                        onSubmitted: (_) => outra(),
+                        style: AppText.body(14),
+                        decoration: InputDecoration(
+                          hintText: 'Outra — ex.: punho, coxa distal',
+                          hintStyle: AppText.body(14, color: AppColors.textMuted),
+                          filled: true,
+                          fillColor: AppColors.surfaceHigh,
+                          isDense: true,
+                          border: OutlineInputBorder(borderRadius: AppRadius.rMd, borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    PhdButton(label: 'Usar', expand: false, size: PhdButtonSize.medium, onPressed: outra),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+                  children: [
+                    for (final c in livres)
+                      ListTile(
+                        title: Text(c.nome, style: AppText.body(14.5)),
+                        subtitle: c.ajuda == null
+                            ? null
+                            : Text(c.ajuda!, style: AppText.caption(11.5, color: AppColors.textMuted)),
+                        trailing: Icon(Icons.add_rounded, color: AppColors.textMuted),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                        onTap: () => Navigator.pop(ctx, c.chave),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       );
     },

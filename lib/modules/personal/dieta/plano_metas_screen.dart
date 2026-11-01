@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../core/models/avaliacao.dart';
 import '../../../core/models/dieta.dart';
 import '../../../core/services/avaliacao_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/datas.dart';
 import '../../../core/utils/dieta_calculos.dart';
 import '../../../core/widgets/widgets.dart';
 
@@ -38,6 +40,9 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
   final _proteinaPorKg = TextEditingController(text: '1.8');
   final _gorduraPorKg = TextEditingController(text: '0.9');
 
+  /// Meta em kcal digitada pelo nutricionista. Vazio = usa a sugerida.
+  final _metaManual = TextEditingController();
+
   late Sexo _sexo;
   FormulaTmb _formula = FormulaTmb.mifflin;
   NivelAtividade _nivel = NivelAtividade.moderado;
@@ -45,6 +50,11 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
 
   bool _salvando = false;
   bool _buscandoAvaliacao = true;
+  UltimasMedidas? _avaliacao;
+
+  /// Campos preenchidos pela avaliação e ainda não mexidos: eles mostram
+  /// de quando é o número. Ao digitar, o campo sai daqui.
+  final _veioDaAvaliacao = <TextEditingController>{};
 
   @override
   void initState() {
@@ -60,6 +70,15 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
     if (p != null) {
       _nome.text = p.nome;
       _objetivo = p.objetivoEnum;
+      // O plano não guarda se a meta foi digitada; guarda o gasto total.
+      // Se a meta não é a que o objetivo daria sobre esse gasto, alguém a
+      // escreveu à mão — e ela tem de voltar ao campo, senão salvar as
+      // metas de novo a trocaria pela sugerida sem ninguém perceber.
+      final sugerida = metaCalorica(p.get, p.objetivoEnum);
+      if (p.metaKcal != null &&
+          (sugerida == null || (p.metaKcal! - sugerida).abs() > 1)) {
+        _metaManual.text = p.metaKcal!.round().toString();
+      }
       if (p.fatorAtividade != null) {
         _nivel = NivelAtividade.values.firstWhere(
           (n) => (n.fator - p.fatorAtividade!).abs() < 0.001,
@@ -86,6 +105,7 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
     _idade.dispose();
     _proteinaPorKg.dispose();
     _gorduraPorKg.dispose();
+    _metaManual.dispose();
     super.dispose();
   }
 
@@ -100,26 +120,31 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
     return DateTime.tryParse(v.toString());
   }
 
-  /// Puxa peso e percentual de gordura da avaliação mais recente.
+  /// Puxa peso, altura e percentual de gordura da avaliação física — cada
+  /// um da avaliação mais recente que o tenha.
   ///
   /// Digitar o peso de novo aqui seria pedir um dado que o app já tem — e
   /// abriria espaço para a dieta ser calculada sobre um peso diferente do
   /// que está na avaliação.
   Future<void> _preencherDaAvaliacao() async {
     try {
-      final sessoes = await AvaliacaoService.listar(
+      final m = await AvaliacaoService.ultimasMedidas(
         widget.aluno['id'].toString(),
       );
-      final comPeso = sessoes.where((s) => s.peso != null);
-      if (comPeso.isNotEmpty && mounted) {
-        final ultima = comPeso.first;
-        setState(() {
-          if (_peso.text.isEmpty) _peso.text = _texto(ultima.peso);
-          if (_gordura.text.isEmpty && ultima.percGordura != null) {
-            _gordura.text = _texto(ultima.percGordura);
+      if (!mounted) return;
+      setState(() {
+        _avaliacao = m;
+        for (final (ctrl, medida) in [
+          (_peso, m.peso),
+          (_altura, m.estatura),
+          (_gordura, m.percGordura),
+        ]) {
+          if (medida != null && ctrl.text.isEmpty) {
+            ctrl.text = _texto(medida.valor);
+            _veioDaAvaliacao.add(ctrl);
           }
-        });
-      }
+        }
+      });
     } catch (_) {
       // Sem avaliação a tela segue: os campos ficam em branco para digitar.
     } finally {
@@ -144,7 +169,13 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
       );
 
   double? get _getTotal => get(_tmb, _nivel);
-  double? get _metaKcal => metaCalorica(_getTotal, _objetivo);
+  double? get _metaSugerida => metaCalorica(_getTotal, _objetivo);
+  bool get _metaEditada => _lerNumero(_metaManual) != null;
+  double? get _metaKcal => _lerNumero(_metaManual) ?? _metaSugerida;
+
+  /// Com a meta digitada, ela existe mesmo sem peso — mas sem peso não há
+  /// macros por quilo, e o plano sairia só com calorias.
+  bool get _podeSalvar => _metaKcal != null && _pesoKg != null;
 
   ({double proteina, double carboidrato, double gordura})? get _macros => macros(
         metaKcal: _metaKcal,
@@ -190,8 +221,13 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
                 'Buscando a última avaliação...',
                 style: AppText.caption(11.5, color: AppColors.textMuted),
               ),
-            ),
+            )
+          else if (_avaliacao case final m?) ...[
+            _cartaoAvaliacao(m),
+            const SizedBox(height: AppSpacing.lg),
+          ],
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: PhdField(
@@ -199,7 +235,8 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
                   controller: _peso,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (_) => setState(() {}),
+                  ajuda: _origem(_peso, _avaliacao?.peso),
+                  onChanged: (_) => _digitou(_peso),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -209,13 +246,15 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
                   controller: _altura,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (_) => setState(() {}),
+                  ajuda: _origem(_altura, _avaliacao?.estatura),
+                  onChanged: (_) => _digitou(_altura),
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: PhdField(
@@ -233,10 +272,11 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
                   hint: 'opcional',
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  ajuda: _formula == FormulaTmb.cunningham
-                      ? 'Cunningham exige este dado'
-                      : null,
-                  onChanged: (_) => setState(() {}),
+                  ajuda: _origem(_gordura, _avaliacao?.percGordura) ??
+                      (_formula == FormulaTmb.cunningham
+                          ? 'Cunningham exige este dado'
+                          : null),
+                  onChanged: (_) => _digitou(_gordura),
                 ),
               ),
             ],
@@ -280,6 +320,27 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
           ),
 
           const SizedBox(height: AppSpacing.xl),
+          PhdSectionHeader(
+            label: 'Meta calórica',
+            trailing: _metaEditada ? 'Usar a sugerida' : null,
+            onTrailingTap: _metaEditada
+                ? () => setState(() => _metaManual.clear())
+                : null,
+            trailingColor: AppColors.accent,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          PhdField(
+            label: 'Meta (kcal por dia)',
+            controller: _metaManual,
+            hint: _metaSugerida == null
+                ? 'calculada pelos dados acima'
+                : '${_metaSugerida!.round()} (sugerida)',
+            keyboardType: TextInputType.number,
+            ajuda: _ajudaMeta(),
+            onChanged: (_) => setState(() {}),
+          ),
+
+          const SizedBox(height: AppSpacing.xl),
           const PhdSectionHeader(label: 'Macros por quilo'),
           const SizedBox(height: AppSpacing.md),
           Row(
@@ -320,14 +381,157 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
             label: editando ? 'Salvar metas' : 'Criar plano',
             icon: editando ? Icons.check_rounded : Icons.arrow_forward_rounded,
             loading: _salvando,
-            onPressed: _metaKcal == null ? null : _salvar,
+            onPressed: _podeSalvar ? _salvar : null,
           ),
-          if (_metaKcal == null) ...[
+          if (!_podeSalvar) ...[
             const SizedBox(height: AppSpacing.md),
             Text(
               _faltando(),
               textAlign: TextAlign.center,
               style: AppText.caption(11.5, color: AppColors.warningText),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Explica de onde sai a sugestão, ou quanto a meta digitada se afasta
+  /// do gasto total.
+  String? _ajudaMeta() {
+    final g = _getTotal;
+    if (!_metaEditada) {
+      if (_metaSugerida == null) return null;
+      final pct = (_objetivo.ajuste * 100).round();
+      return pct == 0
+          ? 'Deixe em branco para usar a sugerida: igual ao gasto total.'
+          : 'Deixe em branco para usar a sugerida: gasto total '
+              '${pct > 0 ? '+' : '−'}${pct.abs()}% (${_objetivo.nome.toLowerCase()}).';
+    }
+    if (g == null) return 'Meta definida à mão.';
+    final diff = _metaKcal! - g;
+    final pct = (diff / g * 100).round();
+    final sinal = diff >= 0 ? '+' : '−';
+    return 'Meta definida à mão: $sinal${diff.abs().round()} kcal '
+        '($sinal${pct.abs()}%) em relação ao gasto total.';
+  }
+
+  void _digitou(TextEditingController c) =>
+      setState(() => _veioDaAvaliacao.remove(c));
+
+  String? _origem(TextEditingController c, MedidaDatada? m) =>
+      m != null && _veioDaAvaliacao.contains(c)
+          ? 'Avaliação de ${Datas.curta(m.data)}'
+          : null;
+
+  /// O que veio da avaliação física, numa olhada só. A massa magra não tem
+  /// campo — a fórmula a tira do peso e do % de gordura —, mas é o número
+  /// que o nutricionista quer ver antes de escolher a proteína por quilo.
+  Widget _cartaoAvaliacao(UltimasMedidas m) {
+    if (m.vazia) {
+      return Text(
+        'Este aluno ainda não tem avaliação física. Preencha os dados abaixo.',
+        style: AppText.caption(11.5, color: AppColors.textMuted),
+      );
+    }
+
+    final itens = <(String, MedidaDatada, String)>[
+      if (m.peso case final v?) ('Peso', v, 'kg'),
+      if (m.estatura case final v?) ('Altura', v, 'cm'),
+      if (m.percGordura case final v?) ('Gordura', v, '%'),
+      if (m.massaMagra case final v?) ('Massa magra', v, 'kg'),
+    ];
+    final datas = itens.map((i) => Datas.dia(i.$2.data)).toSet();
+    final maisRecente = datas.reduce((a, b) => a.isAfter(b) ? a : b);
+
+    // Gordura de muito antes do peso descreve outro corpo: avisa.
+    final g = m.percGordura, p = m.peso;
+    final defasagem =
+        g != null && p != null ? p.data.difference(g.data).inDays : 0;
+
+    return PhdCard(
+      color: AppColors.surfaceHigh,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.assignment_turned_in_outlined,
+                  size: 16, color: AppColors.textSecondary),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  datas.length == 1
+                      ? 'Da avaliação física de ${Datas.curta(maisRecente)}'
+                      : 'Da avaliação física (o mais recente de cada)',
+                  style: AppText.bodyStrong(12.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.xl,
+            runSpacing: AppSpacing.md,
+            children: [
+              for (final (rotulo, v, unidade) in itens)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(rotulo.toUpperCase(), style: AppText.label()),
+                    const SizedBox(height: 2),
+                    Text(
+                      unidade == '%'
+                          ? '${_texto(v.valor)}%'
+                          : '${_texto(v.valor)} $unidade',
+                      style: AppText.number(16),
+                    ),
+                    if (datas.length > 1)
+                      Text(Datas.curta(v.data),
+                          style: AppText.caption(10.5,
+                              color: AppColors.textMuted)),
+                  ],
+                ),
+            ],
+          ),
+          if (g?.origem != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Gordura por ${g!.origem!.toLowerCase()}.',
+              style: AppText.caption(11, color: AppColors.textMuted),
+            ),
+          ],
+          if (defasagem > 60) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'O % de gordura é de ${defasagem ~/ 30} meses antes do peso. '
+              'Se o corpo mudou, refaça a composição corporal.',
+              style: AppText.caption(11.5, color: AppColors.warningText),
+            ),
+          ],
+          if (g != null && _formula != FormulaTmb.cunningham) ...[
+            const SizedBox(height: AppSpacing.md),
+            InkWell(
+              onTap: () => setState(() => _formula = FormulaTmb.cunningham),
+              borderRadius: AppRadius.rSm,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text.rich(
+                  TextSpan(children: [
+                    TextSpan(
+                      text: 'Com o % de gordura dá para usar Cunningham, que '
+                          'calcula pela massa magra — melhor para quem treina. ',
+                      style: AppText.caption(11.5,
+                          color: AppColors.textSecondary),
+                    ),
+                    TextSpan(
+                      text: 'Usar Cunningham',
+                      style: AppText.bodyStrong(11.5, color: AppColors.accent),
+                    ),
+                  ]),
+                ),
+              ),
             ),
           ],
         ],
@@ -459,7 +663,7 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
               ),
               Expanded(
                 child: PhdStat(
-                  label: 'Meta',
+                  label: _metaEditada ? 'Meta ajustada' : 'Meta',
                   value: meta == null ? '—' : '${meta.round()}',
                   valueSize: 26,
                 ),
@@ -475,6 +679,14 @@ class _PlanoMetasScreenState extends State<PlanoMetasScreen> {
             _linhaMacro('Carboidrato', m.carboidrato, dist.carboidrato),
             const SizedBox(height: AppSpacing.sm),
             _linhaMacro('Gordura', m.gordura, dist.gordura),
+          ],
+          if (meta != null && t != null && meta < t) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              'A meta está abaixo da TMB (${t.round()} kcal), o gasto só para '
+              'manter o corpo em repouso. Confira se é isso mesmo.',
+              style: AppText.caption(11.5, color: AppColors.warningText),
+            ),
           ],
           if (agua != null) ...[
             const SizedBox(height: AppSpacing.lg),
