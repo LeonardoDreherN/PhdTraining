@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/dieta.dart';
+import '../utils/busca.dart';
 
 /// Acesso aos dados de dieta.
 ///
@@ -32,15 +33,17 @@ class DietaService {
   static Future<List<Alimento>> buscarAlimentos({
     String termo = '',
     String? grupo,
-    int limite = 60,
+    // Cabe o maior grupo da TACO inteiro (Carnes, 123): navegar por grupo
+    // sem buscar não pode esconder metade da lista.
+    int limite = 200,
   }) async {
     var q = _db.from('alimentos').select();
 
-    final t = termo.trim();
-    if (t.isNotEmpty) {
-      // `ilike` com % dos dois lados: o nutricionista digita "frang" e
-      // espera achar "Frango, peito, grelhado".
-      q = q.ilike('nome', '%$t%');
+    // Cada palavra em qualquer ponto do nome, sem acento: "pao frances"
+    // acha "Pão, trigo, francês", e "frang" acha "Frango, peito, grelhado".
+    // Filtros repetidos na mesma coluna o PostgREST junta com E.
+    for (final p in palavrasDaBusca(termo)) {
+      q = q.ilike('nome_busca', '%$p%');
     }
     if (grupo != null && grupo != 'Todos') {
       q = q.eq('grupo', grupo);
@@ -328,6 +331,45 @@ class DietaService {
 
   static Future<void> removerItem(String id) async {
     await _db.from('refeicao_itens').delete().eq('id', id);
+  }
+
+  /// Adiciona um alimento que o aluno pode comer no lugar de [principal].
+  ///
+  /// Se o principal ainda não tem grupo, ganha um agora — com o próprio id,
+  /// a mesma convenção de [agruparSubstitutos].
+  static Future<void> adicionarSubstituto({
+    required ItemRefeicao principal,
+    required String alimentoId,
+    required double quantidadeG,
+    String? medidaExibicao,
+    required int ordem,
+  }) async {
+    final grupo = principal.grupoSubstituicao ?? principal.id;
+    if (principal.grupoSubstituicao == null) {
+      await _db
+          .from('refeicao_itens')
+          .update({'grupo_substituicao': grupo})
+          .eq('id', principal.id);
+    }
+    await adicionarItem(
+      refeicaoId: principal.refeicaoId,
+      alimentoId: alimentoId,
+      quantidadeG: quantidadeG,
+      medidaExibicao: medidaExibicao,
+      grupoSubstituicao: grupo,
+      ordem: ordem,
+    );
+  }
+
+  /// Faz de [item] o principal do grupo, trocando a ordem com o atual.
+  /// O principal é o primeiro do grupo: é ele que conta no total.
+  static Future<void> tornarPrincipal(ItemRefeicao item, ItemRefeicao atual) async {
+    final novaOrdem = item.ordem == atual.ordem ? atual.ordem - 1 : atual.ordem;
+    await Future.wait([
+      _db.from('refeicao_itens').update({'ordem': novaOrdem}).eq('id', item.id),
+      if (item.ordem != atual.ordem)
+        _db.from('refeicao_itens').update({'ordem': item.ordem}).eq('id', atual.id),
+    ]);
   }
 
   /// Marca um conjunto de itens como intercambiáveis entre si.

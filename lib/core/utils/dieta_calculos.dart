@@ -230,6 +230,58 @@ class ValoresPor100g {
   final double? sodio;
 }
 
+/// Pelo que um substituto é equivalente ao alimento principal.
+enum BaseEquivalencia {
+  energia('Calorias', 'kcal'),
+  carboidrato('Carboidrato', 'g'),
+  proteina('Proteína', 'g'),
+  gordura('Gordura', 'g');
+
+  const BaseEquivalencia(this.nome, this.unidade);
+  final String nome;
+  final String unidade;
+
+  double de(ValoresPor100g v) => switch (this) {
+        BaseEquivalencia.energia => v.kcal,
+        BaseEquivalencia.carboidrato => v.carboidrato,
+        BaseEquivalencia.proteina => v.proteina,
+        BaseEquivalencia.gordura => v.gordura,
+      };
+
+  /// A base que faz sentido para o alimento: o macro que dá a maior parte
+  /// das calorias dele, quando dá mais da metade — pão troca por
+  /// carboidrato, azeite por gordura. Alimento misto troca por calorias.
+  ///
+  /// Proteína vence a partir de 30% das calorias: ovo e queijo têm mais
+  /// calorias de gordura, mas são trocados por frango, não por azeite.
+  static BaseEquivalencia padraoPara(ValoresPor100g v) {
+    if (v.kcal <= 0) return BaseEquivalencia.energia;
+    if (v.proteina * 4 / v.kcal >= 0.3) return BaseEquivalencia.proteina;
+    final fatias = {
+      BaseEquivalencia.carboidrato: v.carboidrato * 4 / v.kcal,
+      BaseEquivalencia.gordura: v.gordura * 9 / v.kcal,
+    };
+    final maior = fatias.entries.reduce((a, b) => a.value >= b.value ? a : b);
+    return maior.value > 0.5 ? maior.key : BaseEquivalencia.energia;
+  }
+}
+
+/// Gramas do substituto que dão o mesmo valor da [base] que o principal.
+///
+/// `null` quando o substituto não tem esse nutriente: não há quantidade de
+/// açúcar que iguale a proteína de um ovo.
+double? gramasEquivalentes({
+  required ValoresPor100g principal,
+  required double gramasPrincipal,
+  required ValoresPor100g substituto,
+  required BaseEquivalencia base,
+}) {
+  final alvo = base.de(principal) * gramasPrincipal;
+  final porGrama = base.de(substituto);
+  if (alvo <= 0 || porGrama <= 0) return null;
+  return alvo / porGrama;
+}
+
 /// Quanto da meta já foi atingido, limitado a 1 para a barra não estourar.
 double proporcao(double consumido, double? meta) {
   if (meta == null || meta <= 0) return 0;

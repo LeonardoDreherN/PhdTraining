@@ -868,7 +868,7 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(i.alimento.rotulo, style: AppText.body(14)),
+                Text(i.nome, style: AppText.body(14)),
                 const SizedBox(height: 1),
                 Text(
                   i.quantidadeTexto,
@@ -922,7 +922,7 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(i.alimento.rotulo, style: AppText.body(13.5)),
+                    child: Text(i.nome, style: AppText.body(13.5)),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(

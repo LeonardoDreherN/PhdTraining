@@ -117,6 +117,7 @@ class ItemRefeicao {
     required this.quantidadeG,
     this.medidaExibicao,
     this.grupoSubstituicao,
+    this.nomeExibicao,
     this.observacoes,
     this.ordem = 0,
   });
@@ -125,6 +126,19 @@ class ItemRefeicao {
   final String refeicaoId;
   final Alimento alimento;
   final double quantidadeG;
+
+  /// Nome que o aluno lê no lugar do da tabela: "Ovo cozido, grelhado ou
+  /// mexido" em vez de "Ovo, de galinha, inteiro, cozido/10minutos". Os
+  /// nutrientes continuam os do [alimento].
+  final String? nomeExibicao;
+
+  /// O que aparece para o aluno e no PDF.
+  String get nome {
+    final n = nomeExibicao?.trim();
+    return n == null || n.isEmpty ? alimento.rotulo : n;
+  }
+
+  bool get renomeado => nome != alimento.rotulo;
 
   /// O que o aluno lê: "2 colheres de sopa". Quando vazio, a tela mostra
   /// os gramas.
@@ -158,9 +172,21 @@ class ItemRefeicao {
         quantidadeG: _num(m['quantidade_g']) ?? 0,
         medidaExibicao: m['medida_exibicao'] as String?,
         grupoSubstituicao: m['grupo_substituicao'] as String?,
+        nomeExibicao: m['nome_exibicao'] as String?,
         observacoes: m['observacoes'] as String?,
         ordem: (m['ordem'] as num?)?.toInt() ?? 0,
       );
+}
+
+/// Um alimento da refeição com os substitutos dele. O [principal] é o que
+/// conta no total (ver `Refeicao.total`); um item sem substituto é um bloco
+/// de um só.
+class BlocoDeItens {
+  const BlocoDeItens(this.principal, [this.substitutos = const []]);
+  final ItemRefeicao principal;
+  final List<ItemRefeicao> substitutos;
+
+  bool get temSubstitutos => substitutos.isNotEmpty;
 }
 
 /// Uma refeição do plano, com seus itens.
@@ -192,6 +218,38 @@ class Refeicao {
   final List<ReceitaNaRefeicao> receitas;
 
   bool get vazia => itens.isEmpty && receitas.isEmpty;
+
+  /// Os itens juntos por grupo de substituição, na ordem do primeiro de
+  /// cada grupo. O primeiro do grupo é o principal, o mesmo que [total]
+  /// conta — a tela e a conta não podem discordar sobre qual é.
+  List<BlocoDeItens> get blocos {
+    final porGrupo = <String, List<ItemRefeicao>>{};
+    final ordem = <Object>[];
+    for (final i in itens) {
+      final g = i.grupoSubstituicao;
+      if (g == null) {
+        ordem.add(i);
+      } else {
+        if (!porGrupo.containsKey(g)) ordem.add(g);
+        porGrupo.putIfAbsent(g, () => []).add(i);
+      }
+    }
+    return [
+      for (final o in ordem)
+        if (o is ItemRefeicao)
+          BlocoDeItens(o)
+        else
+          BlocoDeItens(porGrupo[o]!.first, porGrupo[o]!.sublist(1)),
+    ];
+  }
+
+  /// O bloco em que o item está.
+  BlocoDeItens? blocoDe(ItemRefeicao item) {
+    for (final b in blocos) {
+      if (b.principal.id == item.id || b.substitutos.any((s) => s.id == item.id)) return b;
+    }
+    return null;
+  }
 
   /// Soma da refeição. Itens substituíveis contam **uma vez por grupo**: se
   /// a refeição oferece "arroz OU macarrão", o aluno come um dos dois, e

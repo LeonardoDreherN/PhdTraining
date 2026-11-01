@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/layout/desktop.dart';
 import '../core/theme/app_text.dart';
 import '../core/theme/tema.dart';
+import '../core/utils/busca.dart';
 import '../core/utils/datas.dart';
 import '../modules/personal/alunos/aluno_perfil_screen.dart';
 import '../modules/personal/alunos/alunos_screen.dart';
@@ -169,7 +170,8 @@ Map<String, List<Map<String, dynamic>>> _dados() {
     ..._treinos(linhasAlunos),
     'alimentos': [
       for (final MapEntry(:key, :value) in alimentosDemo.entries)
-        {'id': key, 'oficial': true, 'fonte': 'taco', ...value},
+        // `nome_busca` é o banco que preenche; aqui não há gatilho.
+        {'id': key, 'oficial': true, 'fonte': 'taco', ...value, 'nome_busca': normalizarBusca(value['nome'] as String)},
     ],
     'cobrancas': cobrancas,
     'treino_execucoes': execucoes,

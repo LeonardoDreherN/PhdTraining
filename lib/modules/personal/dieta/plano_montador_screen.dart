@@ -674,7 +674,13 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
                   corTexto: AppColors.accent,
                 ),
               ),
-            for (final item in r.itens) _itemDesktop(item, r, agrupando),
+            if (agrupando)
+              for (final item in r.itens) _itemDesktop(item, r, agrupando)
+            else
+              for (final b in r.blocos) ...[
+                _itemDesktop(b.principal, r, false, temSubstitutos: b.temSubstitutos),
+                for (final s in b.substitutos) _itemDesktop(s, r, false, substituto: true),
+              ],
             if (r.receitas.isNotEmpty && !agrupando)
               Padding(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, 0),
@@ -726,7 +732,8 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
     );
   }
 
-  Widget _itemDesktop(ItemRefeicao item, Refeicao r, bool agrupando) {
+  Widget _itemDesktop(ItemRefeicao item, Refeicao r, bool agrupando,
+      {bool substituto = false, bool temSubstitutos = false}) {
     final n = item.nutrientes;
     final marcado = _selecionados.contains(item.id);
 
@@ -737,10 +744,19 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
               })
           : () => _editarItem(item, r),
       child: Container(
-        decoration: BoxDecoration(border: Border(top: BorderSide(color: AppColors.line))),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(
+          // O substituto não leva fio em cima: fica colado ao principal.
+          border: substituto ? null : Border(top: BorderSide(color: AppColors.line)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+            substituto ? AppSpacing.xxl : AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
         child: Row(
           children: [
+            if (substituto)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Text('ou', style: AppText.bodyStrong(12, color: AppColors.accent)),
+              ),
             if (agrupando)
               Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.sm),
@@ -750,7 +766,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
                   color: marcado ? AppColors.accent : AppColors.textMuted,
                 ),
               ),
-            if (item.temSubstitutos)
+            if (!substituto && (temSubstitutos || (agrupando && item.temSubstitutos)))
               Padding(
                 padding: const EdgeInsets.only(right: 5),
                 child: Icon(Icons.swap_horiz_rounded, size: 15, color: AppColors.accent),
@@ -759,11 +775,14 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.alimento.rotulo,
+                  Text(item.nome,
                       maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStrong(12.5)),
                   Text(
+                    '${item.renomeado ? '${item.alimento.rotulo} · ' : ''}'
                     'P ${n.proteina.toStringAsFixed(1)}   C ${n.carboidrato.toStringAsFixed(1)}   '
                     'G ${n.gordura.toStringAsFixed(1)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: AppText.caption(10.5, color: AppColors.textMuted),
                   ),
                 ],
@@ -1058,7 +1077,13 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
           ],
           if (r.itens.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.md),
-            for (final item in r.itens) _linhaItem(item, r, agrupando),
+            if (agrupando)
+              for (final item in r.itens) _linhaItem(item, r, agrupando)
+            else
+              for (final b in r.blocos) ...[
+                _linhaItem(b.principal, r, false, temSubstitutos: b.temSubstitutos),
+                for (final s in b.substitutos) _linhaItem(s, r, false, substituto: true),
+              ],
           ],
           if (r.receitas.isNotEmpty && !agrupando) ...[
             if (r.itens.isEmpty) const SizedBox(height: AppSpacing.md),
@@ -1117,12 +1142,15 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
     );
   }
 
-  Widget _linhaItem(ItemRefeicao item, Refeicao r, bool agrupando) {
+  /// [substituto]: a linha vai recuada, com "ou" na frente — é uma opção
+  /// ao alimento de cima, não mais um alimento da refeição.
+  Widget _linhaItem(ItemRefeicao item, Refeicao r, bool agrupando,
+      {bool substituto = false, bool temSubstitutos = false}) {
     final n = item.nutrientes;
     final marcado = _selecionados.contains(item.id);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: EdgeInsets.only(bottom: AppSpacing.sm, left: substituto ? AppSpacing.xl : 0),
       child: InkWell(
         borderRadius: AppRadius.rMd,
         onTap: agrupando
@@ -1153,7 +1181,12 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
                   children: [
                     Row(
                       children: [
-                        if (item.temSubstitutos)
+                        if (substituto)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 5),
+                            child: Text('ou', style: AppText.bodyStrong(12, color: AppColors.accent)),
+                          )
+                        else if (temSubstitutos || (agrupando && item.temSubstitutos))
                           Padding(
                             padding: const EdgeInsets.only(right: 5),
                             child: Icon(Icons.swap_horiz_rounded,
@@ -1161,7 +1194,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
                           ),
                         Expanded(
                           child: Text(
-                            item.alimento.rotulo,
+                            item.nome,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppText.body(13.5),
@@ -1171,7 +1204,13 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      item.quantidadeTexto,
+                      // Renomeado: o nutricionista ainda precisa ver de qual
+                      // alimento da tabela saem os números.
+                      item.renomeado
+                          ? '${item.quantidadeTexto} · ${item.alimento.rotulo}'
+                          : item.quantidadeTexto,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: AppText.caption(11, color: AppColors.textMuted),
                     ),
                   ],
@@ -1519,14 +1558,56 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
   }
 
   Future<void> _editarItem(ItemRefeicao item, Refeicao r) async {
+    final bloco = r.blocoDe(item);
+    final principal = bloco?.principal ?? item;
     final acao = await showModalBottomSheet<String>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _FolhaAcoesItem(item: item),
+      builder: (ctx) => _FolhaAcoesItem(
+        item: item,
+        ehSubstituto: principal.id != item.id,
+        principal: principal,
+      ),
     );
     if (acao == null || !mounted) return;
 
     switch (acao) {
+      case 'substituto':
+        // Sempre do principal: substituto de substituto é a mesma escolha,
+        // e a equivalência tem de partir do que conta no total.
+        final escolha = await escolherAlimento(context, substitutoDe: principal);
+        if (escolha == null) return;
+        final ultima = r.itens.fold<int>(0, (m, i) => i.ordem > m ? i.ordem : m);
+        await _gravar(
+          () => DietaService.adicionarSubstituto(
+            principal: principal,
+            alimentoId: escolha.alimento.id,
+            quantidadeG: escolha.gramas,
+            medidaExibicao: escolha.medidaExibicao,
+            ordem: ultima + 1,
+          ),
+        );
+
+      case 'nome':
+        final texto = await _dialogoTexto(
+          titulo: 'Nome para o aluno',
+          rotulo: 'Como o aluno vai ler',
+          dica: item.alimento.rotulo,
+          inicial: item.nomeExibicao,
+          ajuda: 'Os nutrientes continuam os de "${item.alimento.rotulo}". '
+              'Deixe vazio para mostrar o nome da tabela.',
+        );
+        if (texto == null) return;
+        await _gravar(
+          () => DietaService.atualizarItem(item.id, {
+            'nome_exibicao': texto.isEmpty ? null : texto,
+          }),
+        );
+
+      case 'principal':
+        await _gravar(() => DietaService.tornarPrincipal(item, principal));
+
       case 'quantidade':
         final g = await _dialogoGramas(item);
         if (g == null) return;
@@ -1657,6 +1738,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
     required String rotulo,
     String? dica,
     String? inicial,
+    String? ajuda,
     int linhas = 1,
   }) async {
     final ctrl = TextEditingController(text: inicial);
@@ -1679,6 +1761,10 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
                 cursorColor: AppColors.accent,
                 decoration: InputDecoration(labelText: rotulo, hintText: dica),
               ),
+              if (ajuda != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(ajuda, style: AppText.caption(12, color: AppColors.textMuted)),
+              ],
             ],
           ),
         ),
@@ -1761,9 +1847,15 @@ PlanoAlimentar _comRefeicoes(PlanoAlimentar p, List<Refeicao> refeicoes) =>
 
 /// Ações de um item já prescrito.
 class _FolhaAcoesItem extends StatelessWidget {
-  const _FolhaAcoesItem({required this.item});
+  const _FolhaAcoesItem({
+    required this.item,
+    required this.ehSubstituto,
+    required this.principal,
+  });
 
   final ItemRefeicao item;
+  final bool ehSubstituto;
+  final ItemRefeicao principal;
 
   @override
   Widget build(BuildContext context) {
@@ -1781,17 +1873,45 @@ class _FolhaAcoesItem extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(item.alimento.rotulo, style: AppText.title(16)),
+            Text(item.nome, style: AppText.title(16)),
             const SizedBox(height: 3),
-            Text(item.quantidadeTexto,
-                style: AppText.caption(12, color: AppColors.textMuted)),
+            Text(
+              [
+                item.quantidadeTexto,
+                if (item.renomeado) item.alimento.rotulo,
+                if (ehSubstituto) 'substituto de ${principal.nome}',
+              ].join(' · '),
+              style: AppText.caption(12, color: AppColors.textMuted),
+            ),
             const SizedBox(height: AppSpacing.lg),
+            PhdListRow(
+              title: 'Adicionar substituto',
+              subtitle: 'Quantidade equivalente já calculada',
+              leading: Icon(Icons.swap_horiz_rounded,
+                  size: 19, color: AppColors.accent),
+              onTap: () => Navigator.pop(context, 'substituto'),
+            ),
+            PhdListRow(
+              title: 'Nome para o aluno',
+              subtitle: item.renomeado ? item.nome : 'Ex.: "Ovo cozido, grelhado ou mexido"',
+              leading: Icon(Icons.edit_outlined,
+                  size: 19, color: AppColors.textSecondary),
+              onTap: () => Navigator.pop(context, 'nome'),
+            ),
             PhdListRow(
               title: 'Mudar quantidade',
               leading: Icon(Icons.scale_rounded,
                   size: 19, color: AppColors.textSecondary),
               onTap: () => Navigator.pop(context, 'quantidade'),
             ),
+            if (ehSubstituto)
+              PhdListRow(
+                title: 'Tornar principal',
+                subtitle: 'Passa a ser o que conta no total da refeição',
+                leading: Icon(Icons.vertical_align_top_rounded,
+                    size: 19, color: AppColors.textSecondary),
+                onTap: () => Navigator.pop(context, 'principal'),
+              ),
             if (item.temSubstitutos)
               PhdListRow(
                 title: 'Tirar do grupo de substitutos',

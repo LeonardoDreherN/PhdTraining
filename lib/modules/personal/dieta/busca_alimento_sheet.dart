@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import '../../../core/models/dieta.dart';
@@ -6,6 +7,7 @@ import '../../../core/services/dieta_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/dieta_calculos.dart';
 import '../../../core/widgets/widgets.dart';
 
 /// O que a folha devolve: o alimento escolhido e quanto dele.
@@ -21,18 +23,26 @@ typedef AlimentoEscolhido = ({
 
 /// Busca um alimento e define a quantidade, em duas etapas na mesma folha.
 ///
+/// Com [substitutoDe], a quantidade já vem calculada para equivaler a esse
+/// item (mesmas calorias, ou mesmo carboidrato, proteína ou gordura).
+///
 /// Devolve `null` se a pessoa fechar sem escolher.
-Future<AlimentoEscolhido?> escolherAlimento(BuildContext context) {
+Future<AlimentoEscolhido?> escolherAlimento(
+  BuildContext context, {
+  ItemRefeicao? substitutoDe,
+}) {
   return showModalBottomSheet<AlimentoEscolhido>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => const _BuscaAlimentoSheet(),
+    builder: (_) => _BuscaAlimentoSheet(substitutoDe: substitutoDe),
   );
 }
 
 class _BuscaAlimentoSheet extends StatefulWidget {
-  const _BuscaAlimentoSheet();
+  const _BuscaAlimentoSheet({this.substitutoDe});
+
+  final ItemRefeicao? substitutoDe;
 
   @override
   State<_BuscaAlimentoSheet> createState() => _BuscaAlimentoSheetState();
@@ -150,7 +160,16 @@ class _BuscaAlimentoSheetState extends State<_BuscaAlimentoSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Adicionar alimento', style: AppText.title(18)),
+            if (widget.substitutoDe case final p?) ...[
+              Text('Substituto', style: AppText.title(18)),
+              const SizedBox(height: 2),
+              Text(
+                'O aluno pode comer no lugar de ${p.nome} (${p.quantidadeTexto}). '
+                'A quantidade vem calculada para equivaler.',
+                style: AppText.caption(12, color: AppColors.textMuted),
+              ),
+            ] else
+              Text('Adicionar alimento', style: AppText.title(18)),
             const SizedBox(height: AppSpacing.md),
             PhdField(
               label: 'Buscar',
@@ -280,7 +299,7 @@ class _BuscaAlimentoSheetState extends State<_BuscaAlimentoSheet> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _QuantidadeSheet(alimento: a),
+      builder: (_) => _QuantidadeSheet(alimento: a, principal: widget.substitutoDe),
     );
     if (escolha != null && mounted) Navigator.pop(context, escolha);
   }
@@ -292,9 +311,12 @@ class _BuscaAlimentoSheetState extends State<_BuscaAlimentoSheet> {
 /// montado dentro de um builder, o controlador criado na função vaza a cada
 /// abertura.
 class _QuantidadeSheet extends StatefulWidget {
-  const _QuantidadeSheet({required this.alimento});
+  const _QuantidadeSheet({required this.alimento, this.principal});
 
   final Alimento alimento;
+
+  /// Quando é substituto: o item que ele substitui.
+  final ItemRefeicao? principal;
 
   @override
   State<_QuantidadeSheet> createState() => _QuantidadeSheetState();
@@ -305,13 +327,59 @@ class _QuantidadeSheetState extends State<_QuantidadeSheet> {
 
   /// `true` = a pessoa digita medidas caseiras; `false` = gramas.
   /// Começa em medidas quando o alimento tem uma cadastrada, porque é assim
-  /// que o nutricionista prescreve na consulta.
-  late bool _porMedida = widget.alimento.medidaGramas != null;
+  /// que o nutricionista prescreve na consulta. O substituto começa em
+  /// gramas: a equivalência sai em gramas, não em colheres.
+  late bool _porMedida =
+      widget.principal == null && widget.alimento.medidaGramas != null;
+
+  late BaseEquivalencia _base;
+
+  /// As bases que dá para igualar: o substituto precisa ter o nutriente.
+  List<BaseEquivalencia> get _basesPossiveis => [
+        for (final b in BaseEquivalencia.values)
+          if (_equivalente(b) != null) b,
+      ];
 
   @override
   void initState() {
     super.initState();
-    _ctrl = TextEditingController(text: _porMedida ? '1' : '100');
+    final p = widget.principal;
+    if (p == null) {
+      _ctrl = TextEditingController(text: _porMedida ? '1' : '100');
+      return;
+    }
+    final padrao = BaseEquivalencia.padraoPara(p.alimento.valores);
+    final possiveis = _basesPossiveis;
+    _base = possiveis.contains(padrao)
+        ? padrao
+        : possiveis.firstOrNull ?? BaseEquivalencia.energia;
+    final g = _equivalente(_base);
+    _ctrl = TextEditingController(text: g == null ? '100' : _arredondar(g).toString());
+  }
+
+  double? _equivalente(BaseEquivalencia base) {
+    final p = widget.principal;
+    if (p == null) return null;
+    return gramasEquivalentes(
+      principal: p.alimento.valores,
+      gramasPrincipal: p.quantidadeG,
+      substituto: widget.alimento.valores,
+      base: base,
+    );
+  }
+
+  /// Número que dá para pesar: de 5 em 5 a partir de 30 g. A diferença
+  /// para a conta exata aparece na prévia, então nada fica escondido.
+  int _arredondar(double g) => g >= 30 ? (g / 5).round() * 5 : math.max(1, g.round());
+
+  void _usarBase(BaseEquivalencia b) {
+    final g = _equivalente(b);
+    if (g == null) return;
+    setState(() {
+      _base = b;
+      _porMedida = false;
+      _ctrl.text = _arredondar(g).toString();
+    });
   }
 
   @override
@@ -369,6 +437,10 @@ class _QuantidadeSheetState extends State<_QuantidadeSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(a.rotulo, style: AppText.title(17)),
+              if (widget.principal != null) ...[
+                const SizedBox(height: AppSpacing.lg),
+                _equivalencia(),
+              ],
               const SizedBox(height: AppSpacing.lg),
               if (a.medidaGramas != null) _alternador(a),
               const SizedBox(height: AppSpacing.lg),
@@ -380,15 +452,17 @@ class _QuantidadeSheetState extends State<_QuantidadeSheet> {
                 ),
                 ajuda: _porMedida && a.medidaCaseira != null
                     ? '1 × ${a.medidaCaseira} = ${a.medidaGramas!.round()} g'
-                    : null,
+                    : !_porMedida && a.medidaCaseira != null && (a.medidaGramas ?? 0) > 0 && _gramas > 0
+                        ? '≈ ${_numero(_gramas / a.medidaGramas!)} × ${a.medidaCaseira}'
+                        : null,
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: AppSpacing.lg),
               _previa(n),
               const SizedBox(height: AppSpacing.xl),
               PhdButton(
-                label: 'Adicionar',
-                icon: Icons.add_rounded,
+                label: widget.principal == null ? 'Adicionar' : 'Adicionar substituto',
+                icon: widget.principal == null ? Icons.add_rounded : Icons.swap_horiz_rounded,
                 // Quantidade zero não é prescrição. Desligar o botão explica
                 // melhor que aceitar e gravar uma linha de 0 g.
                 onPressed: _gramas <= 0
@@ -403,6 +477,47 @@ class _QuantidadeSheetState extends State<_QuantidadeSheet> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Base da equivalência e a conta lado a lado com o principal.
+  Widget _equivalencia() {
+    final p = widget.principal!;
+    final possiveis = _basesPossiveis;
+    if (possiveis.isEmpty) {
+      return Text(
+        'Este alimento não tem calorias para comparar. Defina a quantidade à mão.',
+        style: AppText.caption(12, color: AppColors.warningText),
+      );
+    }
+    final alvo = _base.de(p.alimento.valores) * p.quantidadeG / 100;
+    final aqui = _base.de(widget.alimento.valores) * _gramas / 100;
+    String v(double x) => _base == BaseEquivalencia.energia ? '${x.round()} kcal' : _g(x);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('EQUIVALENTE EM', style: AppText.label()),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: 7,
+          runSpacing: 7,
+          children: [
+            for (final b in possiveis)
+              PhdFilterChip(
+                label: b.nome,
+                selected: _base == b,
+                onTap: () => _usarBase(b),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          '${p.nome}, ${p.quantidadeTexto}: ${v(alvo)} de ${_base.nome.toLowerCase()}. '
+          'Este, ${_gramas.round()} g: ${v(aqui)}.',
+          style: AppText.caption(12, color: AppColors.textSecondary),
+        ),
+      ],
     );
   }
 
@@ -470,6 +585,13 @@ class _QuantidadeSheetState extends State<_QuantidadeSheet> {
       ),
     );
   }
+}
+
+/// "1,5", "2": quantidade de medidas caseiras, com vírgula.
+String _numero(double v) {
+  final r = (v * 2).round() / 2; // de meia em meia medida
+  final s = r == r.truncateToDouble() ? r.toStringAsFixed(0) : r.toStringAsFixed(1);
+  return s.replaceAll('.', ',');
 }
 
 /// Gramas sem decimal inútil: "28 g" em vez de "28.0 g".

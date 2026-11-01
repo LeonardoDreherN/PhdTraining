@@ -257,10 +257,10 @@ abstract class PlanoPdf {
             ],
           ),
           pw.SizedBox(height: 6),
-          for (final i in soltos) _linhaItem(i.alimento.rotulo, i.quantidadeTexto),
+          for (final i in soltos) _linhaItem(i.nome, i.quantidadeTexto),
           for (final g in grupos.values)
             if (g.length == 1)
-              _linhaItem(g.first.alimento.rotulo, g.first.quantidadeTexto)
+              _linhaItem(g.first.nome, g.first.quantidadeTexto)
             else
               pw.Container(
                 margin: const pw.EdgeInsets.only(top: 3, bottom: 3),
@@ -274,7 +274,7 @@ abstract class PlanoPdf {
                   children: [
                     _rotulo('Escolha uma opção'),
                     pw.SizedBox(height: 2),
-                    for (final i in g) _linhaItem(i.alimento.rotulo, i.quantidadeTexto),
+                    for (final i in g) _linhaItem(i.nome, i.quantidadeTexto),
                   ],
                 ),
               ),

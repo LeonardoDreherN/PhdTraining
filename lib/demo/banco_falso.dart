@@ -45,11 +45,13 @@ class BancoFalso {
     final tabela = req.url.pathSegments.last;
     final linhas = _tabelas.putIfAbsent(tabela, () => []);
     final params = req.url.queryParametersAll;
-    final filtros = <String, String>{
+    // Lista, e não mapa: o PostgREST aceita a mesma coluna filtrada mais de
+    // uma vez (a busca de alimentos manda um `ilike` por palavra).
+    final filtros = [
       for (final e in params.entries)
         if (!const {'select', 'order', 'limit', 'on_conflict', 'offset'}.contains(e.key))
-          e.key: e.value.first,
-    };
+          for (final valor in e.value) MapEntry(e.key, valor),
+    ];
     final prefer = req.headers['prefer'] ?? req.headers['Prefer'] ?? '';
     final objeto = (req.headers['accept'] ?? req.headers['Accept'] ?? '').contains('vnd.pgrst.object');
     final representar = prefer.contains('return=representation');
@@ -119,8 +121,8 @@ class BancoFalso {
     return http.Response(jsonEncode(resultado), 200, headers: _json, request: req);
   }
 
-  bool _passa(Map<String, dynamic> linha, Map<String, String> filtros) {
-    for (final e in filtros.entries) {
+  bool _passa(Map<String, dynamic> linha, List<MapEntry<String, String>> filtros) {
+    for (final e in filtros) {
       final v = linha[e.key];
       final f = e.value;
       if (f.startsWith('eq.')) {

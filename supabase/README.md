@@ -18,6 +18,10 @@ No painel do Supabase → **SQL Editor** → cola e roda, **nesta ordem**:
 | 7 | `migrations/0007_midia_formatos.sql` | HEIC/HEIF e outros formatos nos buckets |
 | 8 | `migrations/0008_profiles_recursao.sql` | Corrige a recursão infinita que impedia editar o perfil |
 | 9 | `migrations/0009_avaliacao_sessao.sql` | Sessão de avaliação, testes cardio e postural |
+| … | `migrations/0010` a `0018` | Dieta, diário, receitas, metas, mensagens, cor da marca |
+| 19 | `migrations/0019_circunferencias.sql` | Circunferências livres na sessão de avaliação |
+| 20 | `migrations/0020_alimentos_taco.sql` | Tabela TACO completa (591 alimentos) e busca sem acento |
+| 21 | `migrations/0021_item_nome_exibicao.sql` | Nome do alimento que o aluno lê no plano |
 
 A ordem importa: do 0002 em diante tudo usa funções criadas no 0001. Todos
 são seguros de rodar mais de uma vez.
