@@ -31,6 +31,7 @@ import '../../personal/mensagens/caixa_screen.dart' show BotaoMensagens;
 import 'cartao_consulta.dart';
 import '../../personal/dieta/metas_recursos.dart';
 import '../perfil/aluno_perfil_config_screen.dart';
+import '../perfil/perfil_profissional_screen.dart';
 
 /// A tela que o aluno abre na academia — e a que precisa dar vontade de
 /// abrir nos outros dias também.
@@ -89,6 +90,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   Map<int, Set<String>> _feitoPorDia = {};
   PlanoAlimentar? _plano;
   Set<String> _refeicoesFeitas = {};
+  Map<String, RegistroRefeicao> _registros = {};
   List<ResumoSessao> _avaliacoes = [];
   List<RegistroPeso> _pesos = [];
 
@@ -137,7 +139,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         _fichas = dados['fichas'] as List<Map<String, dynamic>>;
         _personal = dados['personal'] as Map<String, dynamic>?;
         _plano = dados['plano'] as PlanoAlimentar?;
-        _refeicoesFeitas = dados['feitas'] as Set<String>? ?? {};
+        _registros = dados['registros'] as Map<String, RegistroRefeicao>? ?? {};
+        _refeicoesFeitas = {for (final r in _registros.values) if (r.feita) r.refeicaoId};
         _avaliacoes = dados['avaliacoes'] as List<ResumoSessao>? ?? [];
         _pesos = dados['pesos'] as List<RegistroPeso>? ?? [];
         _versao++;
@@ -183,10 +186,10 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     }
     final id = linha['id'] as String;
 
-    final (fichas, plano, feitas, avaliacoes, personal, pesos) = await (
+    final (fichas, plano, registros, avaliacoes, personal, pesos) = await (
       FichaService.fichasDoAluno(id),
       _talvez(DietaService.planoAtivo(id)),
-      _talvez(DietaService.refeicoesFeitas(alunoId: id, dia: DateTime.now())),
+      _talvez(DietaService.registrosDoDia(alunoId: id, dia: DateTime.now())),
       _talvez(AvaliacaoService.listar(id)),
       _talvez(ProfileService.doPersonal(linha['personal_id'] as String)),
       _talvez(DiarioService.pesos(id)),
@@ -196,7 +199,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
       'aluno': linha,
       'fichas': fichas,
       'plano': plano,
-      'feitas': feitas,
+      'registros': registros,
       'avaliacoes': avaliacoes,
       'personal': personal,
       'pesos': pesos,
@@ -1134,7 +1137,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     var kcal = 0.0, pr = 0.0, c = 0.0, g = 0.0;
     for (final r in refeicoes) {
       if (!_refeicoesFeitas.contains(r.id)) continue;
-      final t = r.total;
+      final t = r.consumido(_registros[r.id]);
       kcal += t.kcal;
       pr += t.proteina;
       c += t.carboidrato;
@@ -1630,10 +1633,23 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     final cref = (p['cref'] as String?)?.trim();
     final zap = linkWhatsApp(p['whatsapp'] as String?);
 
+    final personalId = _aluno?['personal_id'] as String?;
+
     return Padding(
       padding: AppSpacing.screen,
       child: PhdCard(
         padding: const EdgeInsets.all(AppSpacing.md),
+        onTap: personalId == null
+            ? null
+            : () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PerfilProfissionalScreen(
+                      profissionalId: personalId,
+                      onChat: _recursos.chat ? _abrirChat : null,
+                    ),
+                  ),
+                ),
         child: Row(
           children: [
             PhdAvatar(
@@ -1656,6 +1672,9 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                   ),
                   if (cref != null && cref.isNotEmpty)
                     Text('CREF $cref', style: AppText.caption(11.5)),
+                  if (personalId != null)
+                    Text('Ver perfil e cupons',
+                        style: AppText.bodyStrong(11.5, color: AppColors.accent)),
                 ],
               ),
             ),

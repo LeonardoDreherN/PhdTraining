@@ -416,6 +416,64 @@ class DietaService {
     };
   }
 
+  /// Os registros do dia, por refeição: feita ou não, e o que o aluno
+  /// comeu quando mexeu na refeição.
+  static Future<Map<String, RegistroRefeicao>> registrosDoDia({
+    required String alunoId,
+    required DateTime dia,
+  }) async {
+    final linhas = await _db
+        .from('refeicoes_registro')
+        .select('refeicao_id, feita, itens')
+        .eq('aluno_id', alunoId)
+        .eq('data', _iso(dia));
+    return {
+      for (final l in List<Map<String, dynamic>>.from(linhas))
+        l['refeicao_id'] as String: RegistroRefeicao.doMapa(l),
+    };
+  }
+
+  /// As refeições em que o aluno mexeu desde [de], da mais recente para a
+  /// mais antiga. É o que o profissional vê no acompanhamento.
+  static Future<List<({DateTime data, String refeicao, List<ItemConsumido> itens})>> ajustesDoAluno({
+    required String alunoId,
+    required DateTime de,
+  }) async {
+    final linhas = await _db
+        .from('refeicoes_registro')
+        .select('data, itens, plano_refeicoes(nome)')
+        .eq('aluno_id', alunoId)
+        .gte('data', _iso(de))
+        .not('itens', 'is', null)
+        .order('data', ascending: false);
+    return [
+      for (final l in List<Map<String, dynamic>>.from(linhas))
+        (
+          data: DateTime.parse(l['data'] as String),
+          refeicao: ((l['plano_refeicoes'] as Map?)?['nome'] as String?) ?? 'Refeição',
+          itens: RegistroRefeicao.doMapa({...l, 'refeicao_id': ''}).itens ?? const [],
+        ),
+    ];
+  }
+
+  /// Grava o que o aluno comeu na refeição. `itens` nulo volta ao plano.
+  /// Não mexe em `observacoes`: o upsert só altera as colunas enviadas.
+  static Future<void> salvarConsumo({
+    required String alunoId,
+    required String refeicaoId,
+    required DateTime dia,
+    required List<ItemConsumido>? itens,
+    required bool feita,
+  }) async {
+    await _db.from('refeicoes_registro').upsert({
+      'aluno_id': alunoId,
+      'refeicao_id': refeicaoId,
+      'data': _iso(dia),
+      'feita': feita,
+      'itens': itens?.map((i) => i.paraMapa()).toList(),
+    }, onConflict: 'aluno_id,refeicao_id,data');
+  }
+
   static Future<void> marcarRefeicao({
     required String alunoId,
     required String refeicaoId,

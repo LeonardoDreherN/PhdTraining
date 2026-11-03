@@ -30,19 +30,32 @@ typedef AlimentoEscolhido = ({
 Future<AlimentoEscolhido?> escolherAlimento(
   BuildContext context, {
   ItemRefeicao? substitutoDe,
+  bool doAluno = false,
+  bool mostrarNumeros = true,
 }) {
   return showModalBottomSheet<AlimentoEscolhido>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _BuscaAlimentoSheet(substitutoDe: substitutoDe),
+    builder: (_) => _BuscaAlimentoSheet(
+      substitutoDe: substitutoDe,
+      doAluno: doAluno,
+      mostrarNumeros: mostrarNumeros,
+    ),
   );
 }
 
 class _BuscaAlimentoSheet extends StatefulWidget {
-  const _BuscaAlimentoSheet({this.substitutoDe});
+  const _BuscaAlimentoSheet({this.substitutoDe, this.doAluno = false, this.mostrarNumeros = true});
 
   final ItemRefeicao? substitutoDe;
+
+  /// Aberta pelo aluno, para trocar ou acrescentar no que comeu: muda o
+  /// texto, não a conta.
+  final bool doAluno;
+
+  /// Falso quando o profissional desligou calorias e macros para o aluno.
+  final bool mostrarNumeros;
 
   @override
   State<_BuscaAlimentoSheet> createState() => _BuscaAlimentoSheetState();
@@ -161,15 +174,17 @@ class _BuscaAlimentoSheetState extends State<_BuscaAlimentoSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (widget.substitutoDe case final p?) ...[
-              Text('Substituto', style: AppText.title(18)),
+              Text(widget.doAluno ? 'Trocar alimento' : 'Substituto', style: AppText.title(18)),
               const SizedBox(height: 2),
               Text(
-                'O aluno pode comer no lugar de ${p.nome} (${p.quantidadeTexto}). '
+                '${widget.doAluno ? 'No lugar de' : 'O aluno pode comer no lugar de'} '
+                '${p.nome} (${p.quantidadeTexto}). '
                 'A quantidade vem calculada para equivaler.',
                 style: AppText.caption(12, color: AppColors.textMuted),
               ),
             ] else
-              Text('Adicionar alimento', style: AppText.title(18)),
+              Text(widget.doAluno ? 'O que mais você comeu' : 'Adicionar alimento',
+                  style: AppText.title(18)),
             const SizedBox(height: AppSpacing.md),
             PhdField(
               label: 'Buscar',
@@ -255,19 +270,23 @@ class _BuscaAlimentoSheetState extends State<_BuscaAlimentoSheet> {
                   style: AppText.bodyStrong(14),
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                '${a.kcal.round()} kcal',
-                style: AppText.number(13, color: AppColors.textSecondary),
-              ),
+              if (widget.mostrarNumeros) ...[
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  '${a.kcal.round()} kcal',
+                  style: AppText.number(13, color: AppColors.textSecondary),
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            'por 100 g · P ${_g(a.proteina)} · C ${_g(a.carboidrato)} · '
-            'G ${_g(a.gordura)}',
-            style: AppText.caption(11.5, color: AppColors.textMuted),
-          ),
+          if (widget.mostrarNumeros) ...[
+            const SizedBox(height: 4),
+            Text(
+              'por 100 g · P ${_g(a.proteina)} · C ${_g(a.carboidrato)} · '
+              'G ${_g(a.gordura)}',
+              style: AppText.caption(11.5, color: AppColors.textMuted),
+            ),
+          ],
           if (_procedencia(a) != null) ...[
             const SizedBox(height: AppSpacing.sm),
             _procedencia(a)!,
@@ -299,7 +318,12 @@ class _BuscaAlimentoSheetState extends State<_BuscaAlimentoSheet> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _QuantidadeSheet(alimento: a, principal: widget.substitutoDe),
+      builder: (_) => _QuantidadeSheet(
+        alimento: a,
+        principal: widget.substitutoDe,
+        doAluno: widget.doAluno,
+        mostrarNumeros: widget.mostrarNumeros,
+      ),
     );
     if (escolha != null && mounted) Navigator.pop(context, escolha);
   }
@@ -311,9 +335,16 @@ class _BuscaAlimentoSheetState extends State<_BuscaAlimentoSheet> {
 /// montado dentro de um builder, o controlador criado na função vaza a cada
 /// abertura.
 class _QuantidadeSheet extends StatefulWidget {
-  const _QuantidadeSheet({required this.alimento, this.principal});
+  const _QuantidadeSheet({
+    required this.alimento,
+    this.principal,
+    this.doAluno = false,
+    this.mostrarNumeros = true,
+  });
 
   final Alimento alimento;
+  final bool doAluno;
+  final bool mostrarNumeros;
 
   /// Quando é substituto: o item que ele substitui.
   final ItemRefeicao? principal;
@@ -437,7 +468,7 @@ class _QuantidadeSheetState extends State<_QuantidadeSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(a.rotulo, style: AppText.title(17)),
-              if (widget.principal != null) ...[
+              if (widget.principal != null && widget.mostrarNumeros) ...[
                 const SizedBox(height: AppSpacing.lg),
                 _equivalencia(),
               ],
@@ -457,11 +488,17 @@ class _QuantidadeSheetState extends State<_QuantidadeSheet> {
                         : null,
                 onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              _previa(n),
+              if (widget.mostrarNumeros) ...[
+                const SizedBox(height: AppSpacing.lg),
+                _previa(n),
+              ],
               const SizedBox(height: AppSpacing.xl),
               PhdButton(
-                label: widget.principal == null ? 'Adicionar' : 'Adicionar substituto',
+                label: widget.doAluno
+                    ? (widget.principal == null ? 'Adicionar' : 'Trocar')
+                    : widget.principal == null
+                        ? 'Adicionar'
+                        : 'Adicionar substituto',
                 icon: widget.principal == null ? Icons.add_rounded : Icons.swap_horiz_rounded,
                 // Quantidade zero não é prescrição. Desligar o botão explica
                 // melhor que aceitar e gravar uma linha de 0 g.

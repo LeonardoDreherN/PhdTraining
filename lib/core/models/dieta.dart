@@ -178,6 +178,144 @@ class ItemRefeicao {
       );
 }
 
+/// De onde veio um alimento que o aluno comeu.
+enum OrigemConsumo {
+  /// Como o plano prescreveu.
+  plano,
+
+  /// No lugar de um item do plano.
+  troca,
+
+  /// Acrescentado pelo aluno.
+  extra,
+}
+
+/// Um alimento que o aluno comeu, com os nutrientes por 100 g copiados do
+/// alimento no momento do registro (ver migração 0022).
+class ItemConsumido {
+  const ItemConsumido({
+    this.alimentoId,
+    required this.nome,
+    required this.gramas,
+    required this.valores,
+    this.origem = OrigemConsumo.plano,
+    this.itemPlanoId,
+    this.receita = false,
+  });
+
+  /// Nulo nas receitas: elas entram como um bloco só.
+  final String? alimentoId;
+  final String nome;
+  final double gramas;
+  final ValoresPor100g valores;
+  final OrigemConsumo origem;
+
+  /// O item do plano que este cumpre ou substitui.
+  final String? itemPlanoId;
+
+  /// Receita da refeição. Os `valores` são da porção inteira (gramas = 100),
+  /// então não faz sentido mudar a quantidade em gramas — só tirar.
+  final bool receita;
+
+  ({double kcal, double proteina, double carboidrato, double gordura, double fibra})
+      get nutrientes => somar([(valores: valores, gramas: gramas)]);
+
+  factory ItemConsumido.deAlimento(
+    Alimento a,
+    double gramas, {
+    String? nome,
+    OrigemConsumo origem = OrigemConsumo.extra,
+    String? itemPlanoId,
+  }) =>
+      ItemConsumido(
+        alimentoId: a.id,
+        nome: nome ?? a.rotulo,
+        gramas: gramas,
+        valores: a.valores,
+        origem: origem,
+        itemPlanoId: itemPlanoId,
+      );
+
+  factory ItemConsumido.doItem(ItemRefeicao i) => ItemConsumido.deAlimento(
+        i.alimento,
+        i.quantidadeG,
+        nome: i.nome,
+        origem: OrigemConsumo.plano,
+        itemPlanoId: i.id,
+      );
+
+  ItemConsumido comGramas(double g) => ItemConsumido(
+        alimentoId: alimentoId,
+        nome: nome,
+        gramas: g,
+        valores: valores,
+        // Mudar a quantidade do que o plano pediu já é sair do plano.
+        origem: origem == OrigemConsumo.plano ? OrigemConsumo.troca : origem,
+        itemPlanoId: itemPlanoId,
+        receita: receita,
+      );
+
+  factory ItemConsumido.doMapa(Map<String, dynamic> m) => ItemConsumido(
+        alimentoId: m['alimento_id'] as String?,
+        nome: m['nome'] as String? ?? 'Alimento',
+        gramas: _num(m['gramas']) ?? 0,
+        valores: ValoresPor100g(
+          kcal: _num(m['kcal']) ?? 0,
+          proteina: _num(m['proteina']) ?? 0,
+          carboidrato: _num(m['carboidrato']) ?? 0,
+          gordura: _num(m['gordura']) ?? 0,
+          fibra: _num(m['fibra']),
+        ),
+        origem: OrigemConsumo.values.asNameMap()[m['origem']] ?? OrigemConsumo.extra,
+        itemPlanoId: m['item_plano_id'] as String?,
+        receita: m['receita'] as bool? ?? false,
+      );
+
+  Map<String, dynamic> paraMapa() => {
+        'alimento_id': alimentoId,
+        'nome': nome,
+        'gramas': gramas,
+        'kcal': valores.kcal,
+        'proteina': valores.proteina,
+        'carboidrato': valores.carboidrato,
+        'gordura': valores.gordura,
+        'fibra': valores.fibra,
+        'origem': origem.name,
+        'item_plano_id': itemPlanoId,
+        if (receita) 'receita': true,
+      };
+}
+
+/// A refeição num dia: se foi feita e, quando o aluno mexeu, o que ele
+/// comeu de fato.
+class RegistroRefeicao {
+  const RegistroRefeicao({required this.refeicaoId, this.feita = false, this.itens});
+
+  final String refeicaoId;
+  final bool feita;
+
+  /// Nulo = comeu o que o plano diz.
+  final List<ItemConsumido>? itens;
+
+  bool get alterada => itens != null;
+
+  factory RegistroRefeicao.doMapa(Map<String, dynamic> m) => RegistroRefeicao(
+        refeicaoId: m['refeicao_id'] as String,
+        feita: m['feita'] as bool? ?? false,
+        itens: m['itens'] is List
+            ? [
+                for (final i in m['itens'] as List)
+                  if (i is Map) ItemConsumido.doMapa(i.cast<String, dynamic>()),
+              ]
+            : null,
+      );
+}
+
+/// Soma dos itens consumidos.
+({double kcal, double proteina, double carboidrato, double gordura, double fibra})
+    somarConsumo(List<ItemConsumido> itens) =>
+        somar([for (final i in itens) (valores: i.valores, gramas: i.gramas)]);
+
 /// Um alimento da refeição com os substitutos dele. O [principal] é o que
 /// conta no total (ver `Refeicao.total`); um item sem substituto é um bloco
 /// de um só.
@@ -241,6 +379,36 @@ class Refeicao {
         else
           BlocoDeItens(porGrupo[o]!.first, porGrupo[o]!.sublist(1)),
     ];
+  }
+
+  /// O que o plano manda comer, como ponto de partida para o aluno editar:
+  /// o principal de cada bloco e as receitas.
+  List<ItemConsumido> get comoPrescrito => [
+        for (final b in blocos) ItemConsumido.doItem(b.principal),
+        for (final rr in receitas)
+          () {
+            final n = rr.nutrientes;
+            return ItemConsumido(
+              nome: rr.receita.nome,
+              gramas: 100,
+              valores: ValoresPor100g(
+                kcal: n.kcal,
+                proteina: n.proteina,
+                carboidrato: n.carboidrato,
+                gordura: n.gordura,
+                fibra: n.fibra,
+              ),
+              receita: true,
+            );
+          }(),
+      ];
+
+  /// O que o aluno comeu nesta refeição: o registro dele quando mexeu, o
+  /// plano quando não.
+  ({double kcal, double proteina, double carboidrato, double gordura, double fibra})
+      consumido(RegistroRefeicao? registro) {
+    final itens = registro?.itens;
+    return itens == null ? total : somarConsumo(itens);
   }
 
   /// O bloco em que o item está.

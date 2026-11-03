@@ -17,6 +17,7 @@ import '../../../core/utils/dieta_calculos.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../personal/dieta/plano_pdf.dart';
 import 'cartao_agua.dart';
+import 'editar_refeicao_sheet.dart';
 import 'folhas_registro.dart';
 import 'lista_compras_screen.dart';
 import 'receita_screen.dart';
@@ -42,6 +43,10 @@ class AlunoDietaScreen extends StatefulWidget {
 class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
   PlanoAlimentar? _plano;
   Set<String> _feitas = const {};
+
+  /// O que foi registrado em cada refeição do dia — inclusive o que o aluno
+  /// comeu no lugar do plano.
+  Map<String, RegistroRefeicao> _registros = const {};
   List<RegistroDiario> _diario = const [];
   double? _peso;
   RecursosAluno _recursos = RecursosAluno.todos;
@@ -71,9 +76,9 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
       _erro = null;
     });
     try {
-      final (plano, feitas, diario, pesos, recursos) = await (
+      final (plano, registros, diario, pesos, recursos) = await (
         DietaService.planoAtivo(widget.alunoId),
-        DietaService.refeicoesFeitas(alunoId: widget.alunoId, dia: _dia),
+        DietaService.registrosDoDia(alunoId: widget.alunoId, dia: _dia),
         _talvez(
             DiarioService.listar(alunoId: widget.alunoId, de: _dia, ate: _dia)),
         _talvez(DiarioService.pesos(widget.alunoId, limite: 1)),
@@ -82,7 +87,7 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
       if (!mounted) return;
       setState(() {
         _plano = plano;
-        _feitas = feitas;
+        _usarRegistros(registros);
         _diario = diario ?? const [];
         _peso = pesos?.lastOrNull?.pesoKg;
         _recursos = recursos;
@@ -110,19 +115,62 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
   Future<void> _trocarDia(DateTime novo) async {
     setState(() => _dia = _soData(novo));
     try {
-      final (feitas, diario) = await (
-        DietaService.refeicoesFeitas(alunoId: widget.alunoId, dia: _dia),
+      final (registros, diario) = await (
+        DietaService.registrosDoDia(alunoId: widget.alunoId, dia: _dia),
         _talvez(
             DiarioService.listar(alunoId: widget.alunoId, de: _dia, ate: _dia)),
       ).wait;
       if (mounted) {
         setState(() {
-          _feitas = feitas;
+          _usarRegistros(registros);
           _diario = diario ?? const [];
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _feitas = const {});
+      if (mounted) setState(() => _usarRegistros(const {}));
+    }
+  }
+
+  void _usarRegistros(Map<String, RegistroRefeicao> registros) {
+    _registros = registros;
+    _feitas = {for (final r in registros.values) if (r.feita) r.refeicaoId};
+  }
+
+  /// Abre a refeição para o aluno dizer o que comeu de fato. Salvar já
+  /// marca como feita: ninguém ajusta o que não comeu.
+  Future<void> _editar(Refeicao r) async {
+    final atual = _registros[r.id]?.itens;
+    final res = await editarRefeicao(
+      context,
+      refeicao: r,
+      atual: atual,
+      mostrarNumeros: _recursos.nutricional,
+    );
+    if (res == null || !mounted) return;
+    try {
+      await DietaService.salvarConsumo(
+        alunoId: widget.alunoId,
+        refeicaoId: r.id,
+        dia: _dia,
+        itens: res.itens,
+        feita: true,
+      );
+      if (!mounted) return;
+      setState(() {
+        _registros = {
+          ..._registros,
+          r.id: RegistroRefeicao(refeicaoId: r.id, feita: true, itens: res.itens),
+        };
+        _feitas = {..._feitas, r.id};
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.surfaceHigh,
+          content: Text('Não consegui salvar: $e', style: AppText.body(13.5)),
+        ),
+      );
     }
   }
 
@@ -494,7 +542,7 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
     var kcal = 0.0, pr = 0.0, c = 0.0, g = 0.0, f = 0.0;
     for (final r in p.refeicoes) {
       if (!_feitas.contains(r.id)) continue;
-      final t = r.total;
+      final t = r.consumido(_registros[r.id]);
       kcal += t.kcal;
       pr += t.proteina;
       c += t.carboidrato;
@@ -601,7 +649,8 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
   Widget _cartaoRefeicao(Refeicao r) {
     final feita = _feitas.contains(r.id);
     final ocupada = _gravando.contains(r.id);
-    final t = r.total;
+    final consumo = _registros[r.id]?.itens;
+    final t = r.consumido(_registros[r.id]);
 
     return PhdCard(
       accentBar: feita ? AppColors.success : null,
@@ -642,8 +691,33 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          ..._blocosDeItens(r),
-          for (final rr in r.receitas) _linhaReceita(rr),
+          if (consumo != null) ...[
+            // O aluno mexeu: mostra o que ele comeu, não o plano — é o que
+            // está somando no dia.
+            Row(
+              children: [
+                Icon(Icons.edit_note_rounded, size: 16, color: AppColors.accent),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    _recursos.nutricional
+                        ? 'Você ajustou · no plano eram ${r.total.kcal.round()} kcal'
+                        : 'Você ajustou esta refeição',
+                    style: AppText.caption(11.5, color: AppColors.accent),
+                  ),
+                ),
+              ],
+            ),
+            for (final c in consumo) _linhaConsumida(c),
+            if (consumo.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Text('Nada nesta refeição.', style: AppText.caption(12.5)),
+              ),
+          ] else ...[
+            ..._blocosDeItens(r),
+            for (final rr in r.receitas) _linhaReceita(rr),
+          ],
           if (_recursos.diario)
             for (final reg in _diario.where((d) => d.refeicaoId == r.id)) ...[
               const SizedBox(height: AppSpacing.sm),
@@ -656,22 +730,36 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
                 child: _linhaRegistro(reg),
               ),
             ],
-          if (_recursos.diario) ...[
+          if (_recursos.diario || _recursos.trocarAlimentos) ...[
             const SizedBox(height: AppSpacing.sm),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => _registrar(refeicao: r),
-                icon: Icon(Icons.add_a_photo_outlined,
-                    size: 17, color: AppColors.accent),
-                label: Text('Registrar no diário',
-                    style: AppText.bodyStrong(13, color: AppColors.accent)),
-                style: TextButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                  minimumSize: const Size(0, 36),
-                ),
-              ),
+            Wrap(
+              spacing: AppSpacing.sm,
+              children: [
+                if (_recursos.trocarAlimentos)
+                  TextButton.icon(
+                    onPressed: () => _editar(r),
+                    icon: Icon(Icons.edit_outlined, size: 17, color: AppColors.accent),
+                    label: Text(consumo == null ? 'Editar' : 'Editar de novo',
+                        style: AppText.bodyStrong(13, color: AppColors.accent)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                      minimumSize: const Size(0, 36),
+                    ),
+                  ),
+                if (_recursos.diario)
+                  TextButton.icon(
+                    onPressed: () => _registrar(refeicao: r),
+                    icon: Icon(Icons.add_a_photo_outlined,
+                        size: 17, color: AppColors.accent),
+                    label: Text('Registrar no diário',
+                        style: AppText.bodyStrong(13, color: AppColors.accent)),
+                    style: TextButton.styleFrom(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                      minimumSize: const Size(0, 36),
+                    ),
+                  ),
+              ],
             ),
           ],
         ],
@@ -852,6 +940,42 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
         else
           _blocoSubstitutos(itens),
     ];
+  }
+
+  Widget _linhaConsumida(ItemConsumido c) {
+    final marca = switch (c.origem) {
+      OrigemConsumo.plano => null,
+      OrigemConsumo.troca => 'trocado',
+      OrigemConsumo.extra => 'a mais',
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 5, right: AppSpacing.sm),
+            child: Icon(Icons.circle, size: 5, color: AppColors.textMuted),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(c.nome, style: AppText.body(14)),
+                const SizedBox(height: 1),
+                Text(
+                  [
+                    c.receita ? 'receita do plano' : '${c.gramas.round()} g',
+                    if (marca != null) marca,
+                  ].join(' · '),
+                  style: AppText.caption(11.5, color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _linhaItem(ItemRefeicao i) {

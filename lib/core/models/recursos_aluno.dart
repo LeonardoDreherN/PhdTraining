@@ -10,6 +10,7 @@ class RecursosAluno {
     this.nutricional = true,
     this.listaCompras = true,
     this.chat = true,
+    this.trocarAlimentos = true,
   });
 
   /// Diário alimentar com foto.
@@ -27,6 +28,10 @@ class RecursosAluno {
   /// Mensagens pelo app. Desligado, o contato fica pelo WhatsApp.
   final bool chat;
 
+  /// O aluno troca, tira e acrescenta alimentos na refeição do dia. O plano
+  /// não muda; muda o que conta como consumido.
+  final bool trocarAlimentos;
+
   static const todos = RecursosAluno();
 
   factory RecursosAluno.doMapa(Object? m) {
@@ -38,6 +43,7 @@ class RecursosAluno {
       nutricional: ler('nutricional'),
       listaCompras: ler('lista_compras'),
       chat: ler('chat'),
+      trocarAlimentos: ler('trocar_alimentos'),
     );
   }
 
@@ -47,6 +53,7 @@ class RecursosAluno {
         'nutricional': nutricional,
         'lista_compras': listaCompras,
         'chat': chat,
+        'trocar_alimentos': trocarAlimentos,
       };
 
   RecursosAluno copiar({
@@ -55,6 +62,7 @@ class RecursosAluno {
     bool? nutricional,
     bool? listaCompras,
     bool? chat,
+    bool? trocarAlimentos,
   }) =>
       RecursosAluno(
         diario: diario ?? this.diario,
@@ -62,6 +70,7 @@ class RecursosAluno {
         nutricional: nutricional ?? this.nutricional,
         listaCompras: listaCompras ?? this.listaCompras,
         chat: chat ?? this.chat,
+        trocarAlimentos: trocarAlimentos ?? this.trocarAlimentos,
       );
 }
 

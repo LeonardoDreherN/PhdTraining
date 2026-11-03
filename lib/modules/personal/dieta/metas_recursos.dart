@@ -422,6 +422,14 @@ class _RecursosDoAlunoState extends State<RecursosDoAluno> {
           _linha('Lista de compras', 'Gerada a partir do plano.', r.listaCompras,
               (v) => _mudar(r.copiar(listaCompras: v))),
           Divider(height: 1, color: AppColors.line),
+          _linha(
+            'Trocar alimentos',
+            'O aluno troca, tira ou acrescenta alimentos na refeição do dia. O plano '
+                'não muda, e você vê as trocas no acompanhamento.',
+            r.trocarAlimentos,
+            (v) => _mudar(r.copiar(trocarAlimentos: v)),
+          ),
+          Divider(height: 1, color: AppColors.line),
           _linha('Mensagens pelo app', 'Desligado, o contato fica só pelo WhatsApp.', r.chat,
               (v) => _mudar(r.copiar(chat: v))),
         ],

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/models/diario.dart';
+import '../../../core/models/dieta.dart';
 import '../../../core/services/diario_service.dart';
+import '../../../core/services/dieta_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -27,6 +29,7 @@ class _AcompanhamentoAlunoState extends State<AcompanhamentoAluno> {
   List<RegistroDiario> _diario = const [];
   Map<DateTime, int> _agua = const {};
   List<RegistroPeso> _pesos = const [];
+  List<({DateTime data, String refeicao, List<ItemConsumido> itens})> _ajustes = const [];
   bool _carregou = false;
   bool _semTabela = false;
 
@@ -52,6 +55,12 @@ class _AcompanhamentoAlunoState extends State<AcompanhamentoAluno> {
         _agua = agua;
         _pesos = pesos;
       });
+      // À parte: sem a migration 0022 a coluna não existe, e o resto do
+      // acompanhamento não pode sumir por isso.
+      try {
+        final ajustes = await DietaService.ajustesDoAluno(alunoId: widget.alunoId, de: de);
+        if (mounted) setState(() => _ajustes = ajustes);
+      } catch (_) {}
     } catch (_) {
       // Tabela ainda não criada (migration 0014 não aplicada): a seção
       // avisa em vez de sumir sem explicação.
@@ -150,6 +159,25 @@ class _AcompanhamentoAlunoState extends State<AcompanhamentoAluno> {
             ],
           ),
         ),
+        if (_ajustes.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Text('O QUE O ALUNO TROCOU', style: AppText.label()),
+          const SizedBox(height: AppSpacing.sm),
+          PhdCard(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Column(
+              children: [
+                for (final (i, a) in _ajustes.indexed) ...[
+                  if (i > 0) Divider(height: 1, color: AppColors.line),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    child: _ajuste(a, hoje),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         Text('DIÁRIO', style: AppText.label()),
         const SizedBox(height: AppSpacing.sm),
@@ -209,6 +237,39 @@ class _AcompanhamentoAlunoState extends State<AcompanhamentoAluno> {
           Text(legenda, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.caption(11)),
         ],
       ),
+    );
+  }
+
+  /// Uma refeição ajustada: o que saiu do plano em destaque, o resto
+  /// apagado — o profissional quer ver a troca, não reler o plano.
+  Widget _ajuste(({DateTime data, String refeicao, List<ItemConsumido> itens}) a, DateTime hoje) {
+    final total = somarConsumo(a.itens);
+    final mudancas = a.itens.where((i) => i.origem != OrigemConsumo.plano).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text('${a.refeicao} · ${_rotuloDia(Datas.dia(a.data), hoje)}',
+                  style: AppText.bodyStrong(13.5)),
+            ),
+            Text('${total.kcal.round()} kcal', style: AppText.number(13, color: AppColors.textSecondary)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        if (mudancas.isEmpty)
+          Text('Tirou alimentos do plano.', style: AppText.caption(12.5))
+        else
+          for (final m in mudancas)
+            Text(
+              // "Ajuste" cobre a troca e a quantidade mudada do mesmo
+              // alimento: o registro não distingue as duas.
+              '${m.origem == OrigemConsumo.extra ? 'A mais' : 'Ajuste'}: '
+              '${m.nome}${m.receita ? '' : ' (${m.gramas.round()} g)'}',
+              style: AppText.caption(12.5, color: AppColors.textPrimary),
+            ),
+      ],
     );
   }
 
