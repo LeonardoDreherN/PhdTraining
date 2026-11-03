@@ -9,6 +9,7 @@ import '../../../core/widgets/widgets.dart';
 import '../../../core/services/profile_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/providers/app_providers.dart';
+import 'perfil_publico_editor.dart';
 
 class PersonalPerfilScreen extends ConsumerStatefulWidget {
   const PersonalPerfilScreen({super.key});
@@ -164,6 +165,10 @@ class _PersonalPerfilScreenState extends ConsumerState<PersonalPerfilScreen> {
                         _buildCampo(_nomeCtrl, 'Nome'),
                         const SizedBox(height: 8),
                         _buildBotaoPrimario('Salvar nome', _salvarNome),
+                        const SizedBox(height: 28),
+                        _rotulo('PERFIL PARA OS ALUNOS'),
+                        const SizedBox(height: 10),
+                        PerfilPublicoEditor(perfil: _perfil),
                         const SizedBox(height: 28),
                         _rotulo('APARÊNCIA'),
                         const SizedBox(height: 10),

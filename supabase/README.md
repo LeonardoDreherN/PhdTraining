@@ -22,6 +22,7 @@ No painel do Supabase → **SQL Editor** → cola e roda, **nesta ordem**:
 | 19 | `migrations/0019_circunferencias.sql` | Circunferências livres na sessão de avaliação |
 | 20 | `migrations/0020_alimentos_taco.sql` | Tabela TACO completa (591 alimentos) e busca sem acento |
 | 21 | `migrations/0021_item_nome_exibicao.sql` | Nome do alimento que o aluno lê no plano |
+| 22 | `migrations/0022_consumo_bio_cupons.sql` | O que o aluno comeu de fato, bio do profissional e cupons |
 
 A ordem importa: do 0002 em diante tudo usa funções criadas no 0001. Todos
 são seguros de rodar mais de uma vez.
