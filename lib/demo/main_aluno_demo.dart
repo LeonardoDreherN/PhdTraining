@@ -11,6 +11,10 @@ import '../core/services/dieta_service.dart';
 import '../modules/aluno/dieta/aluno_dieta_screen.dart';
 import '../modules/aluno/dieta/lista_compras_screen.dart';
 import '../modules/aluno/dieta/receita_screen.dart';
+import '../modules/aluno/perfil/aluno_perfil_config_screen.dart';
+import '../modules/aluno/progresso/progresso_screen.dart';
+import '../modules/aluno/shell/aluno_shell.dart';
+import '../modules/aluno/treino/aluno_treinos_screen.dart';
 import '../modules/aluno/home/aluno_home_screen.dart';
 import '../modules/chat/chat_screen.dart';
 import 'banco_falso.dart';
@@ -245,7 +249,22 @@ TemaApp _temaDaUrl() => TemaApp.values.firstWhere(
 final _router = GoRouter(
   initialLocation: '/aluno/home',
   routes: [
-    GoRoute(path: '/aluno/home', builder: (_, __) => const AlunoHomeScreen()),
+    ShellRoute(
+      builder: (_, __, child) => AlunoShell(child: child),
+      routes: [
+        GoRoute(path: '/aluno/home', builder: (_, __) => const AlunoHomeScreen()),
+        GoRoute(
+          path: '/aluno/treinos',
+          builder: (_, __) => ComAluno(builder: (id) => AlunoTreinosScreen(alunoId: id)),
+        ),
+        GoRoute(
+          path: '/aluno/nutricao',
+          builder: (_, __) => ComAluno(builder: (id) => AlunoDietaScreen(alunoId: id)),
+        ),
+        GoRoute(path: '/aluno/progresso', builder: (_, __) => const ProgressoScreen(emAba: true)),
+        GoRoute(path: '/aluno/perfil', builder: (_, __) => const AlunoPerfilConfigScreen(emAba: true)),
+      ],
+    ),
     // Rotas só da demo, para o vídeo abrir cada tela direto.
     GoRoute(
       path: '/compras',

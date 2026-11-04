@@ -182,6 +182,7 @@ Map<String, List<Map<String, dynamic>>> _dados() {
 
 /// Biblioteca, exercícios das fichas e quem treina cada uma.
 Map<String, List<Map<String, dynamic>>> _treinos(List<Map<String, dynamic>> alunos) {
+  const nomesFichas = ['Treino A — Superiores', 'Treino B — Inferiores', 'Treino C — Glúteos e core'];
   const video = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4';
   // (nome, grupo, equipamento, tem vídeo)
   const biblioteca = [
@@ -268,6 +269,7 @@ Map<String, List<Map<String, dynamic>>> _treinos(List<Map<String, dynamic>> alun
           'dias_semana': dias,
           'ativa': true,
           'alunos': alunos[a],
+          'fichas': {'id': 'ficha-$f', 'nome': nomesFichas[f], 'descricao': null},
         },
     ],
   };

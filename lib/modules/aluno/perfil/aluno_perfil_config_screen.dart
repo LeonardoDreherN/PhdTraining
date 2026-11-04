@@ -9,7 +9,11 @@ import '../../../core/services/profile_service.dart';
 import '../../../core/services/auth_service.dart';
 
 class AlunoPerfilConfigScreen extends StatefulWidget {
-  const AlunoPerfilConfigScreen({super.key});
+  const AlunoPerfilConfigScreen({super.key, this.emAba = false});
+
+  /// Aberta como aba do menu do aluno: sem seta de voltar, porque não há
+  /// para onde voltar — a navegação é pela barra de baixo.
+  final bool emAba;
 
   @override
   State<AlunoPerfilConfigScreen> createState() =>
@@ -84,7 +88,8 @@ class _AlunoPerfilConfigScreenState extends State<AlunoPerfilConfigScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
-        leading: IconButton(
+        automaticallyImplyLeading: false,
+        leading: widget.emAba ? null : IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),

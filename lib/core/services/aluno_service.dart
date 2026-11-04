@@ -11,6 +11,17 @@ class AlunoService {
   /// Janela usada para calcular adesão e "sem treinar há X dias".
   static const _janelaDias = 30;
 
+  /// O cadastro de aluno de quem está logado, ou `null` se a conta ainda
+  /// não foi vinculada. Quem foi cadastrado antes do vínculo automático só
+  /// tem o e-mail, por isso a segunda tentativa.
+  static Future<Map<String, dynamic>?> doUsuarioAtual() async {
+    final user = _db.auth.currentUser;
+    if (user == null) return null;
+    final linha = await _db.from('alunos').select().eq('user_id', user.id).maybeSingle();
+    if (linha != null || user.email == null) return linha;
+    return _db.from('alunos').select().eq('email', user.email!).maybeSingle();
+  }
+
   /// Lista os alunos já com ficha, último treino e adesão.
   ///
   /// Três consultas em vez de N+1: buscar as execuções de cada aluno dentro

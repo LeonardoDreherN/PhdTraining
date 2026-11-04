@@ -15,6 +15,9 @@ import '../../modules/personal/fichas/fichas_screen.dart';
 import '../../modules/personal/fichas/ficha_detalhe_screen.dart';
 import '../../modules/personal/relatorios/relatorios_screen.dart';
 import '../../modules/personal/perfil/personal_perfil_screen.dart';
+import '../../modules/aluno/perfil/aluno_perfil_config_screen.dart';
+import '../../modules/aluno/shell/aluno_shell.dart';
+import '../../modules/aluno/treino/aluno_treinos_screen.dart';
 import '../../modules/aluno/home/aluno_home_screen.dart';
 import '../../modules/aluno/treino/executar_treino_screen.dart';
 import '../../modules/aluno/treino/treino_simples_screen.dart';
@@ -297,9 +300,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           voltarPara: '/fichas',
         ),
       ),
-      GoRoute(
-        path: '/aluno/home',
-        builder: (context, state) => const AlunoHomeScreen(),
+      // O app do aluno tem menu embaixo: a home é o resumo do dia, e treino,
+      // dieta, progresso e perfil têm cada um a sua aba.
+      ShellRoute(
+        builder: (context, state, child) => AlunoShell(child: child),
+        routes: [
+          GoRoute(
+            path: '/aluno/home',
+            builder: (context, state) => const AlunoHomeScreen(),
+          ),
+          GoRoute(
+            path: '/aluno/treinos',
+            builder: (context, state) => ComAluno(builder: (id) => AlunoTreinosScreen(alunoId: id)),
+          ),
+          GoRoute(
+            path: '/aluno/nutricao',
+            builder: (context, state) => ComAluno(builder: (id) => AlunoDietaScreen(alunoId: id)),
+          ),
+          GoRoute(
+            path: '/aluno/progresso',
+            builder: (context, state) => const ProgressoScreen(emAba: true),
+          ),
+          GoRoute(
+            path: '/aluno/perfil',
+            builder: (context, state) => const AlunoPerfilConfigScreen(emAba: true),
+          ),
+        ],
       ),
       GoRoute(
         path: '/aluno/treino-simples',
@@ -309,10 +335,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           voltarPara: '/aluno/home',
         ),
       ),
-      GoRoute(
-        path: '/aluno/progresso',
-        builder: (context, state) => const ProgressoScreen(),
-      ),
+
       GoRoute(
         path: '/aluno/dieta',
         builder: (context, state) => _exigeExtra(

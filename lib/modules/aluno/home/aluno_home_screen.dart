@@ -29,6 +29,7 @@ import '../dieta/folhas_registro.dart';
 import '../../chat/chat_screen.dart';
 import '../../personal/mensagens/caixa_screen.dart' show BotaoMensagens;
 import 'cartao_consulta.dart';
+import '../treino/iniciar_treino.dart';
 import '../../personal/dieta/metas_recursos.dart';
 import '../perfil/aluno_perfil_config_screen.dart';
 import '../perfil/perfil_profissional_screen.dart';
@@ -1277,12 +1278,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     );
   }
 
-  Future<void> _abrirDieta() async {
-    final id = _aluno?['id']?.toString();
-    if (id == null) return;
-    await context.push('/aluno/dieta', extra: {'alunoId': id});
-    if (mounted) _carregar();
-  }
+  /// A dieta tem aba própria: o atalho daqui leva para ela.
+  void _abrirDieta() => context.go('/aluno/nutricao');
 
   // ── Corpo ───────────────────────────────────────────────────
 
@@ -1477,7 +1474,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
               cor: _corDescanso,
               titulo: 'Fotos',
               legenda: 'Sua evolução',
-              onTap: () => context.push('/aluno/progresso'),
+              onTap: () => context.go('/aluno/progresso'),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -1776,118 +1773,6 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   }
 
   Future<void> _escolherModo(Map<String, dynamic> ficha) async {
-    final modo = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      builder: (_) => const _FolhaModo(),
-    );
-    if (modo == null || !mounted) return;
-
-    if (modo == 'lista') {
-      await context.push('/aluno/treino-simples', extra: ficha);
-    } else {
-      await context.push('/aluno/treino', extra: {
-        'ficha': ficha,
-        'modoVideo': modo == 'video',
-        'diaSelecionado': _dia,
-      });
-    }
-    if (mounted) _carregar();
-  }
-}
-
-/// Como o aluno quer executar: guiado série a série, com vídeo, ou só a
-/// lista para quem já sabe o treino de cor.
-class _FolhaModo extends StatelessWidget {
-  const _FolhaModo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl,
-        AppSpacing.md,
-        AppSpacing.xl,
-        AppSpacing.xl,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 34,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.lineStrong,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text('Como quer treinar?', style: AppText.title(17)),
-          const SizedBox(height: AppSpacing.lg),
-          _opcao(
-            context,
-            valor: 'guiado',
-            icone: Icons.timer_outlined,
-            titulo: 'Guiado',
-            descricao: 'Um exercício por vez, com cronômetro de descanso.',
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _opcao(
-            context,
-            valor: 'video',
-            icone: Icons.play_circle_outline_rounded,
-            titulo: 'Guiado com vídeo',
-            descricao: 'Mostra a execução antes de cada exercício.',
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _opcao(
-            context,
-            valor: 'lista',
-            icone: Icons.list_alt_rounded,
-            titulo: 'Só a lista',
-            descricao: 'Para quem já sabe o treino e quer consultar rápido.',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _opcao(
-    BuildContext context, {
-    required String valor,
-    required IconData icone,
-    required String titulo,
-    required String descricao,
-  }) {
-    return PhdCard(
-      onTap: () => Navigator.pop(context, valor),
-      color: AppColors.surfaceHigh,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Row(
-        children: [
-          Icon(icone, size: 20, color: AppColors.accent),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(titulo, style: AppText.bodyStrong(14)),
-                const SizedBox(height: 2),
-                Text(descricao, style: AppText.caption(12)),
-              ],
-            ),
-          ),
-          Icon(Icons.chevron_right_rounded,
-              size: 19, color: AppColors.textMuted),
-        ],
-      ),
-    );
+    if (await iniciarTreino(context, ficha, dia: _dia) && mounted) _carregar();
   }
 }

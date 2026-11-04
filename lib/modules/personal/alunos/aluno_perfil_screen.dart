@@ -13,6 +13,7 @@ import '../../../core/utils/whatsapp.dart';
 import '../../../core/widgets/widgets.dart';
 import '../agenda/agenda_screen.dart' show FolhaConsulta, StatusConsultaTom, quandoConsulta;
 import '../mensagens/caixa_screen.dart' show abrirConversa;
+import 'dia_do_aluno.dart';
 
 const _diasLetra = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
@@ -35,6 +36,9 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   late Map<String, dynamic> _aluno = Map<String, dynamic>.from(widget.aluno);
   DetalheAluno _d = const DetalheAluno();
   bool _carregando = true;
+
+  /// O dia aberto em "Como foi o dia" — muda pelas setas ou pela grade.
+  DateTime _diaSel = Datas.dia(DateTime.now());
 
   late final _notas = TextEditingController(text: _aluno['notas'] as String? ?? '');
   bool _salvandoNota = false;
@@ -256,6 +260,17 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               _numeros(),
               const SizedBox(height: AppSpacing.xxl),
               _secao('Frequência · 5 semanas', _frequencia()),
+              _secao(
+                'Como foi o dia',
+                DiaDoAlunoCartao(
+                  alunoId: _id,
+                  dia: _diaSel,
+                  aoTrocarDia: (d) => setState(() => _diaSel = d),
+                  fichas: _d.fichas,
+                  plano: _d.plano,
+                  pesoAtual: _d.pesoAtual?.peso,
+                ),
+              ),
               _secao('Treinos', _treinos(), acao: 'Atribuir', aoTocar: _atribuirFicha),
               _secao('Nutrição', _nutricao()),
               _secao('Avaliação física', _avaliacao()),
@@ -501,6 +516,8 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               const SizedBox(width: 6),
               Text(total30 == 1 ? 'treino nos últimos 30 dias' : 'treinos nos últimos 30 dias',
                   style: AppText.caption(12.5)),
+              const Spacer(),
+              Text('toque num dia', style: AppText.caption(11, color: AppColors.textMuted)),
             ],
           ),
         ],
@@ -512,6 +529,22 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     final fez = feitos.contains(dia);
     final futuro = dia.isAfter(hoje);
     final ehHoje = dia == hoje;
+    final selecionado = dia == _diaSel;
+    // Tocar num dia abre ele em "Como foi o dia", logo abaixo.
+    return GestureDetector(
+      onTap: futuro ? null : () => setState(() => _diaSel = dia),
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: selecionado ? AppColors.textPrimary : Colors.transparent, width: 1.5),
+        ),
+        child: _bolinha(dia, fez, futuro, ehHoje),
+      ),
+    );
+  }
+
+  Widget _bolinha(DateTime dia, bool fez, bool futuro, bool ehHoje) {
     return Container(
       width: 30,
       height: 30,

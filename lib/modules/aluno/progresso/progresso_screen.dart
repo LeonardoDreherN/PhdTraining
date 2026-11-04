@@ -9,7 +9,11 @@ import '../../../core/services/progresso_service.dart';
 import '../../../core/utils/navegacao.dart';
 
 class ProgressoScreen extends StatefulWidget {
-  const ProgressoScreen({super.key});
+  const ProgressoScreen({super.key, this.emAba = false});
+
+  /// Aberta como aba do menu do aluno: sem seta de voltar, porque não há
+  /// para onde voltar — a navegação é pela barra de baixo.
+  final bool emAba;
 
   @override
   State<ProgressoScreen> createState() => _ProgressoScreenState();
@@ -179,7 +183,8 @@ class _ProgressoScreenState extends State<ProgressoScreen>
       appBar: AppBar(
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
-        leading: IconButton(
+        automaticallyImplyLeading: false,
+        leading: widget.emAba ? null : IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary, size: 20),
           onPressed: () => context.voltar(senaoPara: '/aluno/home'),
