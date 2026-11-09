@@ -23,6 +23,9 @@ const rotasComDesktop = {
   '/perfil',
   '/alunos/dieta/montar',
   '/alunos/perfil',
+  // Lista de cobrança pede largura: aluno, valor, vencimento e situação
+  // lado a lado em vez de empilhados num cartão.
+  '/financeiro',
 };
 
 /// O caminho da tela que está no topo, inclusive as abertas com `push`.

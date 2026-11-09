@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/layout/desktop.dart';
 import '../../../core/models/financeiro.dart';
 import '../../../core/services/financeiro_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -132,6 +134,15 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> {
           Row(
             children: [
               Expanded(child: Text('Financeiro', style: AppText.display(28))),
+              PhdIconButton(
+                icon: Icons.account_balance_wallet_outlined,
+                tooltip: 'Ativar recebimentos pelo app',
+                onPressed: () async {
+                  await context.push('/financeiro/ativar');
+                  if (mounted) await _carregar();
+                },
+              ),
+              const SizedBox(width: AppSpacing.sm),
               PhdButton(
                 label: 'Assinar',
                 icon: Icons.add_rounded,
@@ -263,6 +274,17 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> {
 
   List<Widget> _listaCobrancas(List<Cobranca> lista, {required Widget vazio}) {
     if (lista.isEmpty) return [vazio];
+
+    // No monitor a mesma informação cabe numa linha. Empilhar aluno, valor
+    // e situação num cartão alto faz o personal rolar para ver cinco
+    // cobranças que caberiam todas na tela.
+    if (ehDesktop(context)) {
+      return [
+        _cabecalhoTabela(),
+        for (final c in lista) _linhaCobranca(c),
+      ];
+    }
+
     return [
       for (final c in lista)
         Padding(
@@ -270,6 +292,120 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> {
           child: _cartaoCobranca(c),
         ),
     ];
+  }
+
+  Widget _cabecalhoTabela() => Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            Expanded(flex: 3, child: Text('Aluno', style: AppText.label())),
+            Expanded(flex: 3, child: Text('Cobrança', style: AppText.label())),
+            Expanded(flex: 2, child: Text('Vencimento', style: AppText.label())),
+            Expanded(flex: 2, child: Text('Situação', style: AppText.label())),
+            SizedBox(
+              width: 110,
+              child: Text('Valor',
+                  textAlign: TextAlign.right, style: AppText.label()),
+            ),
+            const SizedBox(width: 150),
+          ],
+        ),
+      );
+
+  Widget _linhaCobranca(Cobranca c) {
+    final ocupada = _gravando.contains(c.id);
+    final zap = linkWhatsApp(
+      c.alunoWhatsapp,
+      mensagem: 'Oi, ${c.alunoNome.split(' ').first}! Passando para lembrar '
+          'da ${c.descricao ?? 'mensalidade'} de ${c.valor}, '
+          'que venceu em ${c.vencimentoTexto}.',
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: PhdCard(
+        accentBar: c.vencida ? AppColors.danger : null,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg, vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: Text(c.alunoNome,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.bodyStrong(13.5)),
+            ),
+            Expanded(
+              flex: 3,
+              child: Text(
+                [
+                  c.descricao ?? 'Cobrança',
+                  if (c.parcelaTexto.isNotEmpty) c.parcelaTexto,
+                ].join('  ·  '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.caption(12, color: AppColors.textMuted),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(c.vencimentoTexto,
+                  style: AppText.number(12.5, color: AppColors.textSecondary)),
+            ),
+            Expanded(
+              flex: 2,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: c.paga
+                    ? const PhdStatusChip(label: 'pago', tone: PhdTone.success)
+                    : c.vencida
+                        ? PhdStatusChip(
+                            label: c.diasDeAtraso == 1
+                                ? '1 dia'
+                                : '${c.diasDeAtraso} dias',
+                            tone: PhdTone.danger,
+                          )
+                        : const PhdStatusChip(label: 'em aberto'),
+              ),
+            ),
+            SizedBox(
+              width: 110,
+              child: Text(c.valor,
+                  textAlign: TextAlign.right, style: AppText.number(14)),
+            ),
+            SizedBox(
+              width: 150,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (!c.paga && zap != null)
+                    PhdIconButton(
+                      icon: Icons.chat_outlined,
+                      tooltip: 'Cobrar ${c.alunoNome} no WhatsApp',
+                      onPressed: () => _abrir(zap),
+                    ),
+                  const SizedBox(width: AppSpacing.sm),
+                  PhdButton(
+                    label: c.paga ? 'Desfazer' : 'Recebi',
+                    variant: c.paga
+                        ? PhdButtonVariant.ghost
+                        : PhdButtonVariant.primary,
+                    size: PhdButtonSize.small,
+                    expand: false,
+                    loading: ocupada,
+                    onPressed: ocupada ? null : () => _alternarPaga(c),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _cartaoCobranca(Cobranca c) {
