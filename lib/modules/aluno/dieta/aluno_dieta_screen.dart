@@ -10,6 +10,7 @@ import '../../../core/services/dieta_service.dart';
 import '../../../core/services/lembretes_service.dart';
 import '../../../core/services/metas_service.dart';
 import '../../../core/services/profile_service.dart';
+import '../../../core/theme/cores_dados.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -611,17 +612,17 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
           const SizedBox(height: AppSpacing.lg),
           Divider(color: AppColors.line, height: 1),
           const SizedBox(height: AppSpacing.lg),
-          _macro('Proteína', consumido.proteina, p.metaProteina),
+          _macro('Proteína', consumido.proteina, p.metaProteina, CoresDados.proteina),
           const SizedBox(height: AppSpacing.md),
-          _macro('Carboidrato', consumido.carboidrato, p.metaCarboidrato),
+          _macro('Carboidrato', consumido.carboidrato, p.metaCarboidrato, CoresDados.carboidrato),
           const SizedBox(height: AppSpacing.md),
-          _macro('Gordura', consumido.gordura, p.metaGordura),
+          _macro('Gordura', consumido.gordura, p.metaGordura, CoresDados.gordura),
         ],
       ),
     );
   }
 
-  Widget _macro(String nome, double consumido, double? meta) {
+  Widget _macro(String nome, double consumido, double? meta, Color cor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -638,7 +639,7 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
         ),
         if (meta != null) ...[
           const SizedBox(height: 5),
-          PhdProgressBar(value: proporcao(consumido, meta)),
+          PhdProgressBar(value: proporcao(consumido, meta), color: cor),
         ],
       ],
     );

@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/widgets.dart';
+import 'conclusao_treino.dart';
 
 /// Modo "só a lista": para quem já sabe o treino de cor e não quer ser
 /// conduzido série a série.
@@ -85,7 +86,13 @@ class _TreinoSimplesScreenState extends State<TreinoSimplesScreen> {
         totalExercicios: _feitos.isEmpty ? _itens.length : _feitos.length,
       );
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      await mostrarConclusao(
+        context,
+        ficha: _nomeFicha,
+        exercicios: _feitos.isEmpty ? _itens.length : _feitos.length,
+        minutos: minutos,
+      );
+      if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _salvando = false);

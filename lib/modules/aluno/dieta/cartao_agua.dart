@@ -27,12 +27,17 @@ class CartaoAgua extends StatefulWidget {
     required this.dia,
     required this.metaMl,
     this.compacto = false,
+    this.aoMudar,
   });
 
   final String alunoId;
   final DateTime dia;
   final int metaMl;
   final bool compacto;
+
+  /// Recebe o total do dia (ml) sempre que ele muda — a home usa para o
+  /// "seu dia" saber se a meta de água foi batida.
+  final ValueChanged<int>? aoMudar;
 
   @override
   State<CartaoAgua> createState() => _CartaoAguaState();
@@ -42,6 +47,7 @@ class _CartaoAguaState extends State<CartaoAgua> {
   List<({String id, int ml})> _copos = [];
   bool _carregou = false;
   bool _gravando = false;
+  int? _avisado;
 
   int get _total => _copos.fold(0, (s, c) => s + c.ml);
 
@@ -118,6 +124,10 @@ class _CartaoAguaState extends State<CartaoAgua> {
   Widget build(BuildContext context) {
     final total = _total;
     final meta = widget.metaMl;
+    if (_carregou && _avisado != total && widget.aoMudar != null) {
+      _avisado = total;
+      WidgetsBinding.instance.addPostFrameCallback((_) => widget.aoMudar?.call(total));
+    }
     final bateu = total >= meta;
 
     final numero = Text.rich(TextSpan(children: [

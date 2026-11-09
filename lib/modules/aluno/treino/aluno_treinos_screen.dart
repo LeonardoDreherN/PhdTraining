@@ -240,11 +240,11 @@ class _AlunoTreinosScreenState extends State<AlunoTreinosScreen> {
                 height: 52,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: feitaHoje ? AppColors.success : AppColors.accent,
+                  color: feitaHoje ? AppColors.tint(AppColors.success) : AppColors.accent,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: feitaHoje
-                    ? Icon(Icons.check_rounded, color: AppColors.onAccent, size: 26)
+                    ? Icon(Icons.check_rounded, color: AppColors.successText, size: 26)
                     : Text(sigla, style: AppText.display(24, color: AppColors.onAccent)),
               ),
               const SizedBox(width: AppSpacing.md),

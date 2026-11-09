@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../core/services/profile_service.dart';
 import '../../../core/services/auth_service.dart';
@@ -83,99 +84,97 @@ class _AlunoPerfilConfigScreenState extends State<AlunoPerfilConfigScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final nome = _aluno?['nome'] as String? ?? _perfil?['nome'] as String? ?? '—';
+    final email = _db.auth.currentUser?.email;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        surfaceTintColor: Colors.transparent,
-        automaticallyImplyLeading: false,
-        leading: widget.emAba ? null : IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textPrimary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text('Meu Perfil',
-            style: GoogleFonts.montserrat(
-                color: AppColors.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w700)),
-      ),
-      body: _carregando
-          ? Center(
-              child: CircularProgressIndicator(color: AppColors.primary))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: AppColors.bg,
+      appBar: widget.emAba
+          ? null
+          : AppBar(
+              backgroundColor: AppColors.bg,
+              surfaceTintColor: Colors.transparent,
+              leading: IconButton(
+                icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+      body: SafeArea(
+        child: _carregando
+            ? Center(child: CircularProgressIndicator(color: AppColors.accent))
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.huge),
                 children: [
-                  Center(child: _buildFoto()),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: Text(
-                      _aluno?['nome'] as String? ??
-                          _perfil?['nome'] as String? ??
-                          '—',
-                      style: GoogleFonts.montserrat(
-                          color: AppColors.textPrimary,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700),
+                  Text('PERFIL', style: AppText.label()),
+                  const SizedBox(height: AppSpacing.lg),
+                  PhdCard(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Row(
+                      children: [
+                        _buildFoto(),
+                        const SizedBox(width: AppSpacing.lg),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(nome, style: AppText.display(20)),
+                              if (email != null) ...[
+                                const SizedBox(height: 2),
+                                Text(email, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.caption(13)),
+                              ],
+                              const SizedBox(height: AppSpacing.sm),
+                              GestureDetector(
+                                onTap: _uploadando ? null : _uploadFoto,
+                                child: Text(
+                                  _uploadando ? 'Enviando foto…' : 'Trocar foto',
+                                  style: AppText.bodyStrong(13, color: AppColors.accent),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Center(
-                    child: Text(
-                      _db.auth.currentUser?.email ?? '—',
-                      style: GoogleFonts.montserrat(
-                          color: AppColors.textSecondary, fontSize: 13),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
                   if (_aluno != null) ...[
-                    _rotulo('INFORMAÇÕES'),
-                    const SizedBox(height: 10),
-                    if (_aluno!['data_nascimento'] != null)
-                      _infoCard('Data de nascimento',
-                          _fmtData(_aluno!['data_nascimento'] as String)),
-                    if (_aluno!['genero'] != null) ...[
-                      const SizedBox(height: 6),
-                      _infoCard('Gênero', _aluno!['genero'] as String),
-                    ],
-                    if (_aluno!['whatsapp'] != null) ...[
-                      const SizedBox(height: 6),
-                      _infoCard('WhatsApp', _aluno!['whatsapp'] as String),
-                    ],
-                    const SizedBox(height: 28),
-                  ],
-                  _rotulo('APARÊNCIA'),
-                  const SizedBox(height: 10),
-                  const PhdSeletorTema(),
-                  const SizedBox(height: 28),
-                  _rotulo('CONTA'),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      onPressed: _logout,
-                      icon: Icon(Icons.logout,
-                          color: AppColors.error, size: 18),
-                      label: Text('Sair',
-                          style: GoogleFonts.montserrat(
-                              color: AppColors.error,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500)),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                            color: AppColors.error.withValues(alpha: 0.3),
-                            width: 0.5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                    const SizedBox(height: AppSpacing.xxl),
+                    const PhdSectionHeader(label: 'Seus dados'),
+                    const SizedBox(height: AppSpacing.md),
+                    PhdCard(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                      child: Column(
+                        children: [
+                          for (final (i, (rotulo, valor)) in [
+                            if (_aluno!['data_nascimento'] != null)
+                              ('Nascimento', _fmtData(_aluno!['data_nascimento'] as String)),
+                            if (_aluno!['genero'] != null) ('Gênero', _aluno!['genero'] as String),
+                            if (_aluno!['whatsapp'] != null) ('WhatsApp', _aluno!['whatsapp'] as String),
+                          ].indexed) ...[
+                            if (i > 0) Divider(height: 1, color: AppColors.line),
+                            _infoLinha(rotulo, valor),
+                          ],
+                        ],
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text('Para mudar algum dado, fale com seu personal.', style: AppText.caption(12.5)),
+                  ],
+                  const SizedBox(height: AppSpacing.xxl),
+                  const PhdSectionHeader(label: 'Aparência'),
+                  const SizedBox(height: AppSpacing.md),
+                  const PhdSeletorTema(),
+                  const SizedBox(height: AppSpacing.xxl),
+                  const PhdSectionHeader(label: 'Conta'),
+                  const SizedBox(height: AppSpacing.md),
+                  PhdButton(
+                    label: 'Sair da conta',
+                    icon: Icons.logout_rounded,
+                    variant: PhdButtonVariant.ghost,
+                    onPressed: _logout,
                   ),
                 ],
               ),
-            ),
+      ),
     );
   }
 
@@ -187,82 +186,56 @@ class _AlunoPerfilConfigScreenState extends State<AlunoPerfilConfigScreen> {
         alignment: Alignment.bottomRight,
         children: [
           Container(
-            width: 96,
-            height: 96,
+            width: 76,
+            height: 76,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.divider, width: 1.5),
+              border: Border.all(color: AppColors.accent, width: 2),
             ),
-            clipBehavior: Clip.hardEdge,
-            // `Image.network` em vez de `CachedNetworkImage`: no web o cache
-            // dele busca por XHR e falhava na releitura, deixando a foto
-            // "preta" (o placeholder escuro).
-            child: url != null
-                ? Image.network(
-                    url,
-                    fit: BoxFit.cover,
-                    width: 96,
-                    height: 96,
-                    loadingBuilder: (_, filho, progresso) =>
-                        progresso == null ? filho : const _PlaceholderIcon(),
-                    errorBuilder: (_, __, ___) => const _PlaceholderIcon(),
-                  )
-                : const _PlaceholderIcon(),
+            padding: const EdgeInsets.all(3),
+            child: ClipOval(
+              // `Image.network` em vez de `CachedNetworkImage`: no web o cache
+              // dele busca por XHR e falhava na releitura, deixando a foto
+              // "preta" (o placeholder escuro).
+              child: url != null
+                  ? Image.network(
+                      url,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (_, filho, progresso) => progresso == null ? filho : const _PlaceholderIcon(),
+                      errorBuilder: (_, __, ___) => const _PlaceholderIcon(),
+                    )
+                  : const _PlaceholderIcon(),
+            ),
           ),
           Container(
-            width: 28,
-            height: 28,
+            width: 26,
+            height: 26,
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              color: AppColors.accent,
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.background, width: 2),
+              border: Border.all(color: AppColors.surface, width: 2),
             ),
             child: _uploadando
                 ? Padding(
                     padding: const EdgeInsets.all(5),
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: AppColors.onAccent),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent),
                   )
-                : Icon(Icons.camera_alt, color: AppColors.onAccent, size: 15),
+                : Icon(Icons.photo_camera_rounded, color: AppColors.onAccent, size: 13),
           ),
         ],
       ),
     );
   }
 
-  Widget _rotulo(String texto) {
-    return Text(texto,
-        style: GoogleFonts.montserrat(
-            color: AppColors.textSecondary,
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.2));
-  }
-
-  Widget _infoCard(String label, String valor) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.divider, width: 0.5),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style: GoogleFonts.montserrat(
-                  color: AppColors.textSecondary, fontSize: 13)),
-          Text(valor,
-              style: GoogleFonts.montserrat(
-                  color: AppColors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
+  Widget _infoLinha(String rotulo, String valor) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Row(
+          children: [
+            Expanded(child: Text(rotulo, style: AppText.body(14, color: AppColors.textSecondary))),
+            Text(valor, style: AppText.bodyStrong(14)),
+          ],
+        ),
+      );
 
   String _fmtData(String raw) {
     final dt = DateTime.tryParse(raw);
@@ -276,8 +249,8 @@ class _PlaceholderIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.surface,
-      child: Icon(Icons.person, color: AppColors.textSecondary, size: 46),
+      color: AppColors.surfaceHigh,
+      child: Icon(Icons.person_rounded, color: AppColors.textMuted, size: 36),
     );
   }
 }

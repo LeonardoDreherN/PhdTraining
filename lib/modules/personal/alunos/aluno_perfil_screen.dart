@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/layout/desktop.dart';
 import '../../../core/services/aluno_detalhe_service.dart';
 import '../../../core/services/aluno_service.dart';
 import '../../../core/services/ficha_service.dart';
@@ -13,6 +14,7 @@ import '../../../core/utils/whatsapp.dart';
 import '../../../core/widgets/widgets.dart';
 import '../agenda/agenda_screen.dart' show FolhaConsulta, StatusConsultaTom, quandoConsulta;
 import '../mensagens/caixa_screen.dart' show abrirConversa;
+import '../shell/menu_lateral.dart';
 import 'dia_do_aluno.dart';
 
 const _diasLetra = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
@@ -212,33 +214,35 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final desktop = ehDesktop(context);
+    final menu = PopupMenuButton<String>(
+      color: AppColors.surfaceHigh,
+      surfaceTintColor: Colors.transparent,
+      tooltip: 'Opções do aluno',
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.rMd),
+      icon: Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
+      onSelected: _menu,
+      itemBuilder: (_) => [
+        PopupMenuItem(value: 'editar', child: Text('Editar dados', style: AppText.body(14))),
+        PopupMenuItem(
+          value: 'status',
+          child: Text(_ativo ? 'Inativar aluno' : 'Reativar aluno', style: AppText.body(14)),
+        ),
+        PopupMenuItem(
+          value: 'excluir',
+          child: Text('Excluir aluno', style: AppText.body(14, color: AppColors.dangerText)),
+        ),
+      ],
+    );
+
+    if (desktop) return _desktop(menu);
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         backgroundColor: AppColors.bg,
         surfaceTintColor: Colors.transparent,
-        actions: [
-          PopupMenuButton<String>(
-            color: AppColors.surfaceHigh,
-            surfaceTintColor: Colors.transparent,
-            tooltip: 'Opções do aluno',
-            shape: RoundedRectangleBorder(borderRadius: AppRadius.rMd),
-            icon: Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
-            onSelected: _menu,
-            itemBuilder: (_) => [
-              PopupMenuItem(value: 'editar', child: Text('Editar dados', style: AppText.body(14))),
-              PopupMenuItem(
-                value: 'status',
-                child: Text(_ativo ? 'Inativar aluno' : 'Reativar aluno', style: AppText.body(14)),
-              ),
-              PopupMenuItem(
-                value: 'excluir',
-                child: Text('Excluir aluno', style: AppText.body(14, color: AppColors.dangerText)),
-              ),
-            ],
-          ),
-          const SizedBox(width: AppSpacing.sm),
-        ],
+        actions: [menu, const SizedBox(width: AppSpacing.sm)],
       ),
       body: RefreshIndicator(
         color: AppColors.accent,
@@ -258,27 +262,11 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               )
             else ...[
               _numeros(),
-              const SizedBox(height: AppSpacing.xxl),
-              _secao('Frequência · 5 semanas', _frequencia()),
-              _secao(
-                'Como foi o dia',
-                DiaDoAlunoCartao(
-                  alunoId: _id,
-                  dia: _diaSel,
-                  aoTrocarDia: (d) => setState(() => _diaSel = d),
-                  fichas: _d.fichas,
-                  plano: _d.plano,
-                  pesoAtual: _d.pesoAtual?.peso,
-                ),
-              ),
-              _secao('Treinos', _treinos(), acao: 'Atribuir', aoTocar: _atribuirFicha),
-              _secao('Nutrição', _nutricao()),
-              _secao('Avaliação física', _avaliacao()),
-              _secao('Consulta', _consulta()),
-              if (_d.cobrancas.isNotEmpty) _secao('Mensalidade', _mensalidade()),
-              _secao('Fotos e arquivos', _fotosArquivos()),
-              _secao('Dados', _dados(), acao: 'Editar', aoTocar: () => _menu('editar')),
-              _secao('Anotações', _anotacoes()),
+              const SizedBox(height: AppSpacing.lg),
+              _atalhosSecoes(),
+              const SizedBox(height: AppSpacing.xl),
+              ..._secoesResumo(),
+              ..._secoesAreas(),
             ],
           ],
         ),
@@ -286,8 +274,169 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     );
   }
 
+  /// No notebook: menu à esquerda e o aluno em duas colunas — à esquerda
+  /// quem ele é e como está indo (frequência, o dia); à direita cada área
+  /// para mexer. Nada de rolar 2.500px para achar a mensalidade.
+  Widget _desktop(Widget menu) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: Row(
+        children: [
+          const MenuLateral(caminho: '/alunos'),
+          Expanded(
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.lg, AppSpacing.md),
+                  decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.line))),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        tooltip: 'Voltar',
+                        onPressed: () => Navigator.maybePop(context),
+                        icon: Icon(Icons.arrow_back_rounded, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text('Alunos  /  $_nome', style: AppText.caption(13)),
+                      const Spacer(),
+                      menu,
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: _carregando
+                      ? const Center(child: CircularProgressIndicator())
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: 440,
+                              child: ListView(
+                                padding: const EdgeInsets.fromLTRB(AppSpacing.xxl, AppSpacing.lg, AppSpacing.lg, AppSpacing.huge),
+                                children: [
+                                  _hero(),
+                                  const SizedBox(height: AppSpacing.xl),
+                                  _acoes(),
+                                  const SizedBox(height: AppSpacing.xl),
+                                  _numeros(),
+                                  const SizedBox(height: AppSpacing.xxl),
+                                  ..._secoesResumo(),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: RefreshIndicator(
+                                color: AppColors.accent,
+                                onRefresh: _carregar,
+                                child: ListView(
+                                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xl, AppSpacing.xxl, AppSpacing.huge),
+                                  children: [
+                                    Center(
+                                      child: ConstrainedBox(
+                                        constraints: const BoxConstraints(maxWidth: 720),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: _secoesAreas(),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Como o aluno está indo: a frequência e o dia aberto.
+  List<Widget> _secoesResumo() => [
+        _secao('Frequência · 5 semanas', _frequencia()),
+        _secao(
+          'Como foi o dia',
+          DiaDoAlunoCartao(
+            alunoId: _id,
+            dia: _diaSel,
+            aoTrocarDia: (d) => setState(() => _diaSel = d),
+            fichas: _d.fichas,
+            plano: _d.plano,
+            pesoAtual: _d.pesoAtual?.peso,
+          ),
+        ),
+      ];
+
+  /// Cada área do aluno, com o resumo e o caminho para mexer nela.
+  List<Widget> _secoesAreas() => [
+        _secao('Treinos', _treinos(), acao: 'Atribuir', aoTocar: _atribuirFicha),
+        _secao('Nutrição', _nutricao()),
+        _secao('Avaliação física', _avaliacao()),
+        _secao('Consulta', _consulta()),
+        if (_d.cobrancas.isNotEmpty) _secao('Mensalidade', _mensalidade()),
+        _secao('Fotos e arquivos', _fotosArquivos()),
+        _secao('Dados', _dados(), acao: 'Editar', aoTocar: () => _menu('editar')),
+        _secao('Anotações', _anotacoes()),
+      ];
+
+  /// Âncoras das seções, para os atalhos do topo levarem até elas.
+  final _ancoras = <String, GlobalKey>{};
+
+  /// No celular o perfil é longo: os atalhos pulam direto para a área.
+  Widget _atalhosSecoes() {
+    final destinos = [
+      ('Como foi o dia', 'Dia', Icons.today_rounded),
+      ('Treinos', 'Treinos', Icons.fitness_center_rounded),
+      ('Nutrição', 'Dieta', Icons.restaurant_menu_rounded),
+      ('Avaliação física', 'Avaliação', Icons.monitor_heart_outlined),
+      ('Consulta', 'Consulta', Icons.event_rounded),
+      if (_d.cobrancas.isNotEmpty) ('Mensalidade', 'Mensalidade', Icons.payments_outlined),
+      ('Fotos e arquivos', 'Arquivos', Icons.folder_outlined),
+      ('Anotações', 'Notas', Icons.sticky_note_2_outlined),
+    ];
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: destinos.length,
+        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
+        itemBuilder: (_, i) {
+          final (secao, rotulo, icone) = destinos[i];
+          return Material(
+            color: AppColors.surface,
+            shape: StadiumBorder(side: BorderSide(color: AppColors.line)),
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: () {
+                final alvo = _ancoras[secao]?.currentContext;
+                if (alvo != null) {
+                  Scrollable.ensureVisible(alvo, duration: AppDuration.normal, curve: Curves.easeOutCubic);
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: Row(
+                  children: [
+                    Icon(icone, size: 15, color: AppColors.textSecondary),
+                    const SizedBox(width: 6),
+                    Text(rotulo, style: AppText.bodyStrong(12.5, color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _secao(String titulo, Widget corpo, {String? acao, VoidCallback? aoTocar}) {
     return Padding(
+      key: _ancoras.putIfAbsent(titulo, GlobalKey.new),
       padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -299,6 +448,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
       ),
     );
   }
+
 
   Widget _hero() {
     final nasc = Datas.ler(_aluno['data_nascimento']);
@@ -551,15 +701,16 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
+        // Treino feito é conquista: verde. O vermelho fica para ação e "hoje".
         color: fez
-            ? AppColors.accent
+            ? AppColors.tint(AppColors.success)
             : futuro
                 ? Colors.transparent
                 : AppColors.surfaceHigh,
         border: ehHoje && !fez ? Border.all(color: AppColors.accent, width: 1.5) : null,
       ),
       child: fez
-          ? Icon(Icons.check_rounded, size: 16, color: AppColors.onAccent)
+          ? Icon(Icons.check_rounded, size: 16, color: AppColors.successText)
           : Text('${dia.day}',
               style: AppText.caption(10.5, color: futuro ? AppColors.lineStrong : AppColors.textMuted)),
     );

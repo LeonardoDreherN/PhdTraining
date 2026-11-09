@@ -15,6 +15,7 @@ import '../../../core/services/ficha_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/services/profile_service.dart';
 import '../../../core/services/treino_service.dart';
+import '../../../core/theme/cores_dados.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -23,9 +24,7 @@ import '../../../core/utils/dieta_calculos.dart';
 import '../../../core/utils/whatsapp.dart';
 import '../../../core/widgets/widgets.dart';
 import '../anamnese/aluno_anamnese_screen.dart';
-import '../avaliacoes/aluno_avaliacoes_screen.dart';
 import '../dieta/cartao_agua.dart';
-import '../dieta/folhas_registro.dart';
 import '../../chat/chat_screen.dart';
 import '../../personal/mensagens/caixa_screen.dart' show BotaoMensagens;
 import 'cartao_consulta.dart';
@@ -48,13 +47,9 @@ class AlunoHomeScreen extends StatefulWidget {
   State<AlunoHomeScreen> createState() => _AlunoHomeScreenState();
 }
 
-/// Cores dos macros. Fora de `AppColors` porque só existem aqui e na dieta:
-/// são categorias, não estados. Tons médios, que leem sobre preto e branco.
-// Azul fixo, não a cor da marca: com a marca vermelha, proteína em
-// vermelho ficaria colada na gordura (rosa).
-const _corProteina = Color(0xFF3B82F6);
-const _corCarbo = Color(0xFFF59E0B);
-const _corGordura = Color(0xFFEC4899);
+const _corProteina = CoresDados.proteina;
+const _corCarbo = CoresDados.carboidrato;
+const _corGordura = CoresDados.gordura;
 const _corDescanso = Color(0xFF818CF8);
 
 const _nomesDia = [
@@ -86,7 +81,6 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   Map<String, dynamic>? _aluno;
   Map<String, dynamic>? _personal;
   List<Map<String, dynamic>> _fichas = [];
-  List<Map<String, dynamic>> _historico = [];
   List<({DateTime quando, int minutos})> _execucoes = [];
   Map<int, Set<String>> _feitoPorDia = {};
   PlanoAlimentar? _plano;
@@ -102,6 +96,9 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   /// estado. Sem ela, beber água na tela da dieta e voltar mostraria o
   /// número antigo.
   int _versao = 0;
+
+  /// Água de hoje, informada pelo cartão de água (que carrega sozinho).
+  int _aguaMl = 0;
 
   bool _carregando = true;
   String? _erro;
@@ -128,7 +125,6 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         ProfileService.getPerfil(),
         _doAluno(),
         TreinoService.concluidosDaSemana(),
-        TreinoService.historico(limite: 5),
         TreinoService.execucoesRecentes(),
       ]);
       if (!mounted) return;
@@ -146,8 +142,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         _pesos = dados['pesos'] as List<RegistroPeso>? ?? [];
         _versao++;
         _feitoPorDia = r[2] as Map<int, Set<String>>;
-        _historico = r[3] as List<Map<String, dynamic>>;
-        _execucoes = r[4] as List<({DateTime quando, int minutos})>;
+        _execucoes = r[3] as List<({DateTime quando, int minutos})>;
       });
 
       NotificationService.agendarTreinos(_fichas);
@@ -347,6 +342,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                           _semana(),
                           const SizedBox(height: AppSpacing.md),
                           _treinoDoDia(),
+                          const SizedBox(height: AppSpacing.md),
+                          _meuDia(),
                           Padding(
                             padding: const EdgeInsets.fromLTRB(
                               AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0,
@@ -369,11 +366,11 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                               key: ValueKey(_versao),
                               alunoId: _aluno!['id'] as String,
                               dia: Datas.dia(DateTime.now()),
-                              metaMl: DiarioService.metaAgua(
-                                metaDoPlano: _plano?.aguaMl,
-                                pesoKg: _seriePeso.lastOrNull?.peso,
-                              ),
+                              metaMl: _metaAgua,
                               compacto: true,
+                              aoMudar: (ml) {
+                                if (ml != _aguaMl) setState(() => _aguaMl = ml);
+                              },
                             ),
                           ),
                           Padding(
@@ -389,14 +386,6 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                               somenteAbertas: true,
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.md),
-                          _corpo(),
-                          const SizedBox(height: AppSpacing.md),
-                          _atalhos(),
-                          if (_historico.isNotEmpty) ...[
-                            const SizedBox(height: AppSpacing.xxl),
-                            _historicoRecente(),
-                          ],
                           if (_personal != null) ...[
                             const SizedBox(height: AppSpacing.xxl),
                             _cartaoPersonal(_personal!),
@@ -566,9 +555,10 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     final Color texto;
     final Border? borda;
     if (treinou) {
-      fundo = AppColors.accent;
-      texto = AppColors.onAccent;
-      borda = null;
+      // Treino feito é conquista: verde. O vermelho fica para ação e "hoje".
+      fundo = AppColors.tint(AppColors.success);
+      texto = AppColors.successText;
+      borda = Border.all(color: AppColors.success, width: 1.4);
     } else if (ehHoje) {
       fundo = Colors.transparent;
       texto = AppColors.textPrimary;
@@ -619,7 +609,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                 ),
                 child: treinou
                     ? Icon(Icons.check_rounded,
-                        size: 18, color: AppColors.onAccent)
+                        size: 18, color: AppColors.successText)
                     : Text('${data.day}',
                         style: AppText.number(13.5, color: texto)),
               ),
@@ -642,6 +632,99 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
       ),
     );
   }
+
+
+  // ── Seu dia ─────────────────────────────────────────────────
+
+  int get _metaAgua => DiarioService.metaAgua(
+        metaDoPlano: _plano?.aguaMl,
+        pesoKg: _seriePeso.lastOrNull?.peso,
+      );
+
+  /// O checklist de hoje: treino, refeições e água. É o mesmo "seguiu tudo?"
+  /// que o personal vê no perfil — quando fecha, a home comemora.
+  Widget _meuDia() {
+    final fichasHoje = _fichas.where((f) {
+      final d = f['dias_semana'];
+      return d is List && d.contains(_hoje);
+    }).toList();
+    final feitasHoje = _feitoPorDia[_hoje] ?? const <String>{};
+    final treinoOk = fichasHoje.every((f) => feitasHoje.contains((f['fichas'] as Map?)?['id']));
+    final refeicoes = (_plano?.refeicoes ?? const []).where((r) => !r.vazia).toList();
+    final comidas = refeicoes.where((r) => _refeicoesFeitas.contains(r.id)).length;
+    final meta = _metaAgua;
+
+    final itens = [
+      if (fichasHoje.isNotEmpty)
+        (Icons.fitness_center_rounded, 'Treino', treinoOk ? 'feito' : 'pendente', treinoOk),
+      if (refeicoes.isNotEmpty)
+        (Icons.restaurant_menu_rounded, 'Refeições', '$comidas/${refeicoes.length}', comidas == refeicoes.length),
+      if (meta > 0)
+        (Icons.water_drop_outlined, 'Água', '${(_aguaMl / 1000).toStringAsFixed(1)}/${(meta / 1000).toStringAsFixed(1)} L', _aguaMl >= meta),
+    ];
+    if (itens.isEmpty) return const SizedBox.shrink();
+    final feitos = itens.where((i) => i.$4).length;
+    final completo = feitos == itens.length;
+
+    return Padding(
+      padding: AppSpacing.screen,
+      child: AnimatedContainer(
+        duration: AppDuration.normal,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: completo ? Color.alphaBlend(AppColors.tint(AppColors.success), AppColors.surface) : AppColors.surface,
+          borderRadius: AppRadius.rXl,
+          border: Border.all(color: completo ? AppColors.success : AppColors.line),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(completo ? 'DIA COMPLETO' : 'SEU DIA',
+                      style: AppText.label(color: completo ? AppColors.successText : null)),
+                ),
+                Text('$feitos de ${itens.length}',
+                    style: AppText.number(13, color: completo ? AppColors.successText : AppColors.textSecondary)),
+              ],
+            ),
+            if (completo) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text('Você seguiu tudo hoje 🎉', style: AppText.title(17)),
+              Text('Treino, dieta e água em dia. Seu personal vê isso no seu perfil.', style: AppText.caption(13)),
+            ],
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                for (final (i, it) in itens.indexed) ...[
+                  if (i > 0) const SizedBox(width: AppSpacing.sm),
+                  Expanded(child: _itemDia(it.$1, it.$2, it.$3, it.$4)),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _itemDia(IconData icone, String rotulo, String valor, bool ok) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.md),
+        decoration: BoxDecoration(
+          color: ok ? AppColors.tint(AppColors.success) : AppColors.surfaceHigh,
+          borderRadius: AppRadius.rLg,
+        ),
+        child: Column(
+          children: [
+            Icon(ok ? Icons.check_circle_rounded : icone,
+                size: 20, color: ok ? AppColors.successText : AppColors.textSecondary),
+            const SizedBox(height: 4),
+            Text(rotulo, style: AppText.bodyStrong(12.5)),
+            Text(valor, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.caption(12)),
+          ],
+        ),
+      );
 
   // ── Treino do dia ───────────────────────────────────────────
 
@@ -1299,320 +1382,9 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     return lista;
   }
 
-  Future<void> _registrarPeso() async {
-    final id = _aluno?['id'] as String?;
-    if (id == null) return;
-    final salvo = await registrarPeso(context,
-        alunoId: id, ultimo: _seriePeso.lastOrNull?.peso);
-    if (salvo != null && mounted) _carregar();
-  }
-
-  Widget _corpo() {
-    final serie = _seriePeso;
-    final atual = serie.lastOrNull;
-    final anterior = serie.length >= 2 ? serie[serie.length - 2] : null;
-
-    // Gordura só vem de avaliação, e compara com a avaliação anterior que
-    // mediu gordura — uma sessão só de flexibilidade não conta.
-    final ultAval = _avaliacoes.firstOrNull;
-    final gordAnt = _avaliacoes
-        .skip(1)
-        .map((s) => s.percGordura)
-        .whereType<double>()
-        .firstOrNull;
-    final proxima = ultAval?.sessao.proximaAvaliacao;
-
-    return Padding(
-      padding: AppSpacing.screen,
-      child: PhdCard(
-        onTap: _avaliacoes.isEmpty
-            ? _registrarPeso
-            : () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const AlunoAvaliacoesScreen()),
-                ),
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _tituloCartao(
-              'SEU CORPO',
-              atual == null
-                  ? 'Sem registros ainda'
-                  : 'Peso de ${Datas.longa(atual.data)}',
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            if (atual == null && ultAval?.percGordura == null)
-              Text(
-                'Registre seu peso uma vez por semana para ver a evolução aqui.',
-                style: AppText.body(13.5, color: AppColors.textSecondary),
-              )
-            else
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (atual != null)
-                    Expanded(
-                      child: _medida(
-                        'Peso',
-                        _n(atual.peso),
-                        'kg',
-                        anterior == null ? null : atual.peso - anterior.peso,
-                        // Peso subir ou descer não é bom nem ruim sozinho:
-                        // depende do objetivo. Fica neutro.
-                        bomQuandoDesce: null,
-                      ),
-                    ),
-                  if (ultAval?.percGordura != null)
-                    Expanded(
-                      child: _medida(
-                        'Gordura',
-                        _n(ultAval!.percGordura!),
-                        '%',
-                        gordAnt == null ? null : ultAval.percGordura! - gordAnt,
-                        bomQuandoDesce: true,
-                      ),
-                    ),
-                ],
-              ),
-            if (serie.length >= 2) ...[
-              const SizedBox(height: AppSpacing.lg),
-              PhdSparkline(valores: [for (final p in serie) p.peso]),
-            ],
-            if (proxima != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Icon(Icons.event_rounded,
-                      size: 15, color: AppColors.textMuted),
-                  const SizedBox(width: 6),
-                  Text(_textoProximaAvaliacao(proxima),
-                      style: AppText.caption(12)),
-                ],
-              ),
-            ],
-            if (_recursos.peso) ...[
-              const SizedBox(height: AppSpacing.md),
-              PhdButton(
-                label: 'Registrar peso',
-                icon: Icons.monitor_weight_outlined,
-                variant: PhdButtonVariant.ghost,
-                size: PhdButtonSize.medium,
-                onPressed: _registrarPeso,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _medida(
-    String rotulo,
-    String valor,
-    String unidade,
-    double? delta, {
-    required bool? bomQuandoDesce,
-  }) {
-    Color cor = AppColors.textSecondary;
-    if (delta != null && bomQuandoDesce != null && delta.abs() >= 0.05) {
-      final melhorou = (delta < 0) == bomQuandoDesce;
-      cor = melhorou ? AppColors.successText : AppColors.warningText;
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(rotulo.toUpperCase(), style: AppText.label()),
-        const SizedBox(height: 5),
-        Text.rich(TextSpan(children: [
-          TextSpan(
-              text: valor, style: AppText.number(26, weight: FontWeight.w800)),
-          TextSpan(text: ' $unidade', style: AppText.caption(13)),
-        ])),
-        if (delta != null && delta.abs() >= 0.05) ...[
-          const SizedBox(height: 3),
-          Row(
-            children: [
-              Icon(
-                delta < 0 ? Icons.south_east_rounded : Icons.north_east_rounded,
-                size: 14,
-                color: cor,
-              ),
-              const SizedBox(width: 3),
-              Text('${_n(delta.abs())} $unidade',
-                  style: AppText.bodyStrong(12, color: cor)),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-
-  String _textoProximaAvaliacao(DateTime d) {
-    final dias = Datas.dia(d).difference(Datas.dia(DateTime.now())).inDays;
-    if (dias < 0) return 'Reavaliação pendente — combine com seu personal';
-    if (dias == 0) return 'Reavaliação marcada para hoje';
-    if (dias == 1) return 'Reavaliação amanhã';
-    return 'Próxima avaliação em $dias dias';
-  }
-
-  /// `68,2` — uma casa, vírgula brasileira.
-  String _n(double v) => v.toStringAsFixed(1).replaceAll('.', ',');
-
   // ── Atalhos ─────────────────────────────────────────────────
 
-  Widget _atalhos() {
-    return Padding(
-      padding: AppSpacing.screen,
-      child: Row(
-        children: [
-          Expanded(
-            child: _atalho(
-              icone: Icons.photo_camera_outlined,
-              cor: _corDescanso,
-              titulo: 'Fotos',
-              legenda: 'Sua evolução',
-              onTap: () => context.go('/aluno/progresso'),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: _atalho(
-              icone: Icons.monitor_heart_outlined,
-              cor: _corGordura,
-              titulo: 'Avaliações',
-              legenda: _avaliacoes.isEmpty
-                  ? 'Nenhuma ainda'
-                  : '${_avaliacoes.length} ${_avaliacoes.length == 1 ? 'registro' : 'registros'}',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const AlunoAvaliacoesScreen()),
-              ),
-            ),
-          ),
-          // Sem plano não há cartão de dieta; o atalho segura o lugar para
-          // o aluno saber que a função existe.
-          if (_plano == null || _plano!.vazio) ...[
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: _atalho(
-                icone: Icons.restaurant_menu_rounded,
-                cor: _corCarbo,
-                titulo: 'Dieta',
-                legenda: 'Sem plano ativo',
-                onTap: _abrirDieta,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _atalho({
-    required IconData icone,
-    required Color cor,
-    required String titulo,
-    required String legenda,
-    required VoidCallback onTap,
-  }) {
-    return PhdCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _icone(icone, cor),
-          const SizedBox(height: AppSpacing.md),
-          Text(titulo,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.bodyStrong(14)),
-          Text(legenda,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.caption(11.5)),
-        ],
-      ),
-    );
-  }
-
   // ── Histórico ───────────────────────────────────────────────
-
-  Widget _historicoRecente() {
-    return Padding(
-      padding: AppSpacing.screen,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const PhdSectionHeader(label: 'Últimos treinos'),
-          const SizedBox(height: AppSpacing.md),
-          PhdCard(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Column(
-              children: [
-                for (final (i, h) in _historico.indexed) ...[
-                  if (i > 0) Divider(height: 1, color: AppColors.line),
-                  Padding(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                    child: Row(
-                      children: [
-                        _icone(Icons.check_rounded, AppColors.success,
-                            tamanho: 34),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(h['ficha_nome'] as String? ?? 'Treino',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppText.bodyStrong(13.5)),
-                              Text(
-                                [
-                                  _quando(h['executado_em'] as String?),
-                                  if ((h['total_exercicios'] as num?)
-                                      case final n? when n > 0)
-                                    '$n exercícios',
-                                ].join(' · '),
-                                style: AppText.caption(12),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(_duracao(h['duracao_minutos']),
-                            style: AppText.number(13.5,
-                                color: AppColors.textSecondary)),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// "Hoje", "Ontem" ou "12/03" — data absoluta só quando já saiu da memória
-  /// recente, que é quando ela passa a ajudar mais do que o nome do dia.
-  String _quando(String? iso) {
-    final d = DateTime.tryParse(iso ?? '')?.toLocal();
-    if (d == null) return '';
-    final hoje = DateTime.now();
-    final dias = DateTime(hoje.year, hoje.month, hoje.day)
-        .difference(DateTime(d.year, d.month, d.day))
-        .inDays;
-    if (dias == 0) return 'Hoje';
-    if (dias == 1) return 'Ontem';
-    if (dias < 7) return 'Há $dias dias';
-    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
-  }
 
   String _duracao(Object? minutos) {
     final m = (minutos as num?)?.toInt();

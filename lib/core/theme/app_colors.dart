@@ -65,7 +65,7 @@ abstract class AppColors {
     lineStrong: Color(0xFF3A3A40),
     textPrimary: Color(0xFFF4F4F5),
     textSecondary: Color(0xFF9A9AA2),
-    textMuted: Color(0xFF7A7A83),
+    textMuted: Color(0xFF8E8E97),
     // Branco sobre #DC2626 passa 4.8:1; um vermelho mais vivo ficaria
     // abaixo de 4.5 e o texto dos botões perderia leitura.
     accent: Color(0xFFDC2626),
@@ -94,7 +94,7 @@ abstract class AppColors {
     lineStrong: Color(0xFFCBD0D9),
     textPrimary: Color(0xFF0D0F14),
     textSecondary: Color(0xFF545B6B),
-    textMuted: Color(0xFF6B7282),
+    textMuted: Color(0xFF5E6575),
     accent: Color(0xFFDC2626),
     accentLight: Color(0xFFEF4444),
     accentDark: Color(0xFFB91C1C),

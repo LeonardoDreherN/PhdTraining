@@ -2,12 +2,36 @@ import 'dart:typed_data';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/models/diario.dart';
+import '../../../core/models/recursos_aluno.dart';
+import '../../../core/services/aluno_service.dart';
+import '../../../core/services/diario_service.dart';
 import '../../../core/services/progresso_service.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/datas.dart';
 import '../../../core/utils/navegacao.dart';
+import '../../../core/widgets/widgets.dart';
+import '../avaliacoes/aluno_avaliacoes_screen.dart';
+import '../dieta/folhas_registro.dart';
 
+/// Cores dos gráficos: são dados, não ação — por isso nada de vermelho,
+/// que no app é o botão e o alerta.
+const _corPeso = Color(0xFF3B82F6);
+const _corGordura = Color(0xFFF59E0B);
+const _corMagra = Color(0xFF22C55E);
+
+const _meses = [
+  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+];
+
+enum _Secao { corpo, fotos, cargas }
+
+/// A aba Progresso do aluno: o corpo mudando (peso e avaliações), as fotos
+/// e a evolução das cargas — a prova de que o treino está funcionando.
 class ProgressoScreen extends StatefulWidget {
   const ProgressoScreen({super.key, this.emAba = false});
 
@@ -19,54 +43,55 @@ class ProgressoScreen extends StatefulWidget {
   State<ProgressoScreen> createState() => _ProgressoScreenState();
 }
 
-class _ProgressoScreenState extends State<ProgressoScreen>
-    with SingleTickerProviderStateMixin {
+class _ProgressoScreenState extends State<ProgressoScreen> {
   final _db = Supabase.instance.client;
-  late final TabController _tab;
 
+  _Secao _secao = _Secao.corpo;
+  Map<String, dynamic>? _aluno;
   List<Map<String, dynamic>> _fotos = [];
   List<Map<String, dynamic>> _avaliacoes = [];
   List<Map<String, dynamic>> _execucoes = [];
+  List<RegistroPeso> _pesos = [];
   bool _carregando = true;
   bool _enviando = false;
-  String? _alunoId;
 
-  static const _meses = [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-  ];
+  String? get _alunoId => _aluno?['id']?.toString();
+  RecursosAluno get _recursos => RecursosAluno.doMapa(_aluno?['recursos']);
 
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 3, vsync: this);
     _carregar();
   }
 
-  @override
-  void dispose() {
-    _tab.dispose();
-    super.dispose();
-  }
-
   Future<void> _carregar() async {
-    setState(() => _carregando = true);
     try {
-      _alunoId = await ProgressoService.getAlunoId();
-      if (_alunoId == null) return;
-
-      final results = await Future.wait([
-        ProgressoService.listarFotos(_alunoId!),
-        _carregarAvaliacoes(_alunoId!),
-        _carregarExecucoes(_alunoId!),
-      ]);
+      _aluno ??= await AlunoService.doUsuarioAtual();
+      final id = _alunoId;
+      if (id == null) return;
+      final (fotos, avaliacoes, execucoes, pesos) = await (
+        _talvez(ProgressoService.listarFotos(id)),
+        _carregarAvaliacoes(id),
+        _carregarExecucoes(id),
+        _talvez(DiarioService.pesos(id)),
+      ).wait;
+      if (!mounted) return;
       setState(() {
-        _fotos = (results[0] as List).cast<Map<String, dynamic>>();
-        _avaliacoes = (results[1] as List).cast<Map<String, dynamic>>();
-        _execucoes = (results[2] as List).cast<Map<String, dynamic>>();
+        _fotos = fotos ?? [];
+        _avaliacoes = avaliacoes;
+        _execucoes = execucoes;
+        _pesos = pesos ?? [];
       });
     } finally {
-      setState(() => _carregando = false);
+      if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  static Future<T?> _talvez<T>(Future<T> f) async {
+    try {
+      return await f;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -78,9 +103,7 @@ class _ProgressoScreenState extends State<ProgressoScreen>
           .eq('aluno_id', alunoId)
           .eq('excluida', false)
           .order('data_avaliacao', ascending: true);
-      if ((bio as List).isNotEmpty) {
-        return List<Map<String, dynamic>>.from(bio);
-      }
+      if ((bio as List).isNotEmpty) return List<Map<String, dynamic>>.from(bio);
       final dobras = await _db
           .from('avaliacao_morfologica_dobras')
           .select()
@@ -106,60 +129,75 @@ class _ProgressoScreenState extends State<ProgressoScreen>
     }
   }
 
-  // ── Extracted exercise loads ─────────────────────────────────────────────
-  // Returns: { exercicioNome: [ {data: DateTime, maxCarga: double} ] }
-  Map<String, List<_PontoLoad>> get _loadsPorExercicio {
-    final result = <String, List<_PontoLoad>>{};
-    for (final ex in _execucoes) {
-      final data = DateTime.tryParse(ex['executado_em'] as String? ?? '');
-      if (data == null) continue;
-      final detalhes = ex['detalhes'];
-      if (detalhes == null) continue;
-      final lista = detalhes is List ? detalhes : [];
-      for (final item in lista) {
-        if (item is! Map) continue;
-        final nome = item['exercicio_nome'] as String? ?? '';
-        if (nome.isEmpty) continue;
-        final series = item['series'];
-        if (series is! List) continue;
-        double maxCarga = 0;
-        for (final s in series) {
-          if (s is! Map) continue;
-          final c = s['carga_kg'];
-          if (c == null) continue;
-          final v = (c as num).toDouble();
-          if (v > maxCarga) maxCarga = v;
-        }
-        if (maxCarga > 0) {
-          result.putIfAbsent(nome, () => []).add(_PontoLoad(data, maxCarga));
-        }
-      }
+  // ── Dados ───────────────────────────────────────────────────
+
+  /// Peso ao longo do tempo: pesagens de casa e o peso anotado nas fotos,
+  /// um por dia. No mesmo dia, a pesagem de casa vence.
+  List<({DateTime data, double peso})> get _seriePeso {
+    final porDia = <DateTime, double>{};
+    for (final f in _fotos) {
+      final d = DateTime.tryParse(f['registrado_em'] as String? ?? '')?.toLocal();
+      final p = (f['peso_kg'] as num?)?.toDouble();
+      if (d != null && p != null) porDia[Datas.dia(d)] = p;
     }
-    // Only exercises with ≥ 2 data points
-    result.removeWhere((k, v) => v.length < 2);
-    return result;
+    for (final p in _pesos) {
+      porDia[Datas.dia(p.data)] = p.pesoKg;
+    }
+    return [for (final e in porDia.entries) (data: e.key, peso: e.value)]..sort((a, b) => a.data.compareTo(b.data));
   }
 
-  // ── Add photo ────────────────────────────────────────────────────────────
+  /// Maior carga por exercício em cada treino; só exercícios com 2+ pontos.
+  Map<String, List<({DateTime data, double carga})>> get _cargas {
+    final r = <String, List<({DateTime data, double carga})>>{};
+    for (final ex in _execucoes) {
+      final data = DateTime.tryParse(ex['executado_em'] as String? ?? '')?.toLocal();
+      final detalhes = ex['detalhes'];
+      if (data == null || detalhes is! List) continue;
+      for (final item in detalhes) {
+        if (item is! Map) continue;
+        final nome = item['exercicio_nome'] as String? ?? '';
+        final series = item['series'];
+        if (nome.isEmpty || series is! List) continue;
+        var max = 0.0;
+        for (final s in series) {
+          final c = s is Map ? (s['carga_kg'] as num?)?.toDouble() : null;
+          if (c != null && c > max) max = c;
+        }
+        if (max > 0) r.putIfAbsent(nome, () => []).add((data: data, carga: max));
+      }
+    }
+    r.removeWhere((_, v) => v.length < 2);
+    return r;
+  }
+
+  // ── Ações ───────────────────────────────────────────────────
+
+  Future<void> _registrarPeso() async {
+    final id = _alunoId;
+    if (id == null) return;
+    final salvo = await registrarPeso(context, alunoId: id, ultimo: _seriePeso.lastOrNull?.peso);
+    if (salvo != null && mounted) _carregar();
+  }
+
   Future<void> _adicionarFoto() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const _SourceSheet(),
+      backgroundColor: AppColors.surface,
+      builder: (_) => const _FolhaOrigem(),
     );
     if (source == null || !mounted) return;
-    final picker = ImagePicker();
-    final foto = await picker.pickImage(source: source, imageQuality: 75, maxWidth: 1200);
+    final foto = await ImagePicker().pickImage(source: source, imageQuality: 75, maxWidth: 1200);
     if (foto == null || !mounted) return;
     final result = await showDialog<Map<String, dynamic>?>(
       context: context,
-      builder: (ctx) => _FotoFormDialog(foto: foto),
+      builder: (_) => _FotoFormDialog(foto: foto),
     );
-    if (result == null || _alunoId == null || !mounted) return;
+    final id = _alunoId;
+    if (result == null || id == null || !mounted) return;
     setState(() => _enviando = true);
     try {
       await ProgressoService.adicionarFoto(
-        alunoId: _alunoId!,
+        alunoId: id,
         foto: foto,
         pesoKg: result['peso'] as double?,
         observacoes: result['observacoes'] as String?,
@@ -168,7 +206,7 @@ class _ProgressoScreenState extends State<ProgressoScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao enviar: $e'), backgroundColor: AppColors.error),
+          SnackBar(content: Text('Não consegui enviar: $e', style: AppText.body(13.5))),
         );
       }
     } finally {
@@ -176,889 +214,609 @@ class _ProgressoScreenState extends State<ProgressoScreen>
     }
   }
 
+  // ── Tela ────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        surfaceTintColor: Colors.transparent,
-        automaticallyImplyLeading: false,
-        leading: widget.emAba ? null : IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textPrimary, size: 20),
-          onPressed: () => context.voltar(senaoPara: '/aluno/home'),
-        ),
-        title: Text('Meu Progresso',
-            style: GoogleFonts.montserrat(
-                color: AppColors.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w700)),
-        bottom: TabBar(
-          controller: _tab,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          indicatorColor: AppColors.primary,
-          indicatorWeight: 2,
-          labelStyle: GoogleFonts.montserrat(fontWeight: FontWeight.w600, fontSize: 13),
-          unselectedLabelStyle: GoogleFonts.montserrat(fontWeight: FontWeight.w400, fontSize: 13),
-          tabs: const [
-            Tab(text: 'Fotos'),
-            Tab(text: 'Evolução'),
-            Tab(text: 'Cargas'),
-          ],
-        ),
+      backgroundColor: AppColors.bg,
+      appBar: widget.emAba
+          ? null
+          : AppBar(
+              backgroundColor: AppColors.bg,
+              surfaceTintColor: Colors.transparent,
+              leading: IconButton(
+                icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                onPressed: () => context.voltar(senaoPara: '/aluno/home'),
+              ),
+            ),
+      body: SafeArea(
+        child: _carregando
+            ? Center(child: CircularProgressIndicator(color: AppColors.accent))
+            : RefreshIndicator(
+                color: AppColors.accent,
+                backgroundColor: AppColors.surface,
+                onRefresh: _carregar,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.huge),
+                  children: [
+                    Text('PROGRESSO', style: AppText.label()),
+                    const SizedBox(height: 6),
+                    Text('Sua evolução', style: AppText.display(26)),
+                    const SizedBox(height: AppSpacing.lg),
+                    Row(
+                      children: [
+                        for (final (s, rotulo) in const [
+                          (_Secao.corpo, 'Corpo'),
+                          (_Secao.fotos, 'Fotos'),
+                          (_Secao.cargas, 'Cargas'),
+                        ]) ...[
+                          PhdFilterChip(label: rotulo, selected: _secao == s, onTap: () => setState(() => _secao = s)),
+                          const SizedBox(width: AppSpacing.sm),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    if (_alunoId == null)
+                      const PhdEmptyState(
+                        icon: Icons.link_off_rounded,
+                        title: 'Conta ainda não vinculada',
+                        message: 'Peça ao seu personal para conferir o e-mail do seu cadastro.',
+                      )
+                    else
+                      ...switch (_secao) {
+                        _Secao.corpo => _corpo(),
+                        _Secao.fotos => _secaoFotos(),
+                        _Secao.cargas => _secaoCargas(),
+                      },
+                  ],
+                ),
+              ),
       ),
-      floatingActionButton: _tab.index == 0 && _alunoId != null
-          ? FloatingActionButton.extended(
-              onPressed: _enviando ? null : _adicionarFoto,
-              backgroundColor: AppColors.primary,
-              icon: _enviando
-                  ? SizedBox(
-                      width: 20, height: 20,
-                      child: CircularProgressIndicator(color: AppColors.onAccent, strokeWidth: 2))
-                  : const Icon(Icons.add_a_photo_rounded),
-              label: Text(_enviando ? 'Enviando...' : 'Nova foto',
-                  style: GoogleFonts.montserrat(fontWeight: FontWeight.w600)),
-            )
-          : null,
-      body: _carregando
-          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : TabBarView(
-              controller: _tab,
+    );
+  }
+
+  // ── Corpo ───────────────────────────────────────────────────
+
+  List<Widget> _corpo() {
+    final serie = _seriePeso;
+    final atual = serie.lastOrNull;
+    final primeiro = serie.firstOrNull;
+    final temComp = _avaliacoes.length >= 2;
+
+    return [
+      PhdCard(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _buildFotosTab(),
-                _buildEvolucaoTab(),
-                _buildCargasTab(),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('PESO', style: AppText.label()),
+                      const SizedBox(height: 4),
+                      Text.rich(TextSpan(children: [
+                        TextSpan(text: atual == null ? '—' : _n(atual.peso), style: AppText.number(32)),
+                        TextSpan(text: ' kg', style: AppText.caption(14)),
+                      ])),
+                      Text(
+                        atual == null ? 'Nenhum registro ainda' : 'em ${Datas.longa(atual.data)}',
+                        style: AppText.caption(12.5),
+                      ),
+                    ],
+                  ),
+                ),
+                if (atual != null && primeiro != null && serie.length >= 2)
+                  _variacao(atual.peso - primeiro.peso, 'kg', 'desde ${Datas.longa(primeiro.data)}'),
               ],
             ),
-    );
-  }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // TAB 1 — FOTOS
-  // ════════════════════════════════════════════════════════════════════════════
-
-  Widget _buildFotosTab() {
-    if (_fotos.isEmpty) return _buildVazioFotos();
-
-    final items = <dynamic>[];
-    String? lastMes;
-    for (final foto in _fotos) {
-      final mes = _mesAno(foto['registrado_em']);
-      if (mes != lastMes) {
-        items.add(mes);
-        lastMes = mes;
-      }
-      items.add(foto);
-    }
-
-    return RefreshIndicator(
-      color: AppColors.primary,
-      onRefresh: _carregar,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-        itemCount: items.length + 1,
-        itemBuilder: (ctx, i) {
-          if (i == 0) return _buildResumoFotos();
-          final item = items[i - 1];
-          if (item is String) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 24, bottom: 12),
-              child: Row(children: [
-                Text(item,
-                    style: GoogleFonts.montserrat(
-                        color: AppColors.primary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.5)),
-                const SizedBox(width: 10),
-                Expanded(child: Divider(color: AppColors.divider, height: 1)),
-              ]),
-            );
-          }
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _buildFotoCard(item as Map<String, dynamic>),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildVazioFotos() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100, height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.divider),
+            if (serie.length >= 2) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _grafico(
+                [for (final p in serie) p.peso],
+                [for (final p in serie) p.data],
+                _corPeso,
+                'kg',
               ),
-              child: Icon(Icons.add_a_photo_rounded, color: AppColors.primary, size: 44),
-            ),
-            const SizedBox(height: 24),
-            Text('Registre seu progresso',
-                style: GoogleFonts.montserrat(
-                    color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
-            Text('Envie uma foto por mês e acompanhe\nsua evolução ao longo do tempo',
-                style: GoogleFonts.montserrat(
-                    color: AppColors.textSecondary, fontSize: 14),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: 200, height: 50,
-              child: ElevatedButton.icon(
-                onPressed: _adicionarFoto,
-                icon: const Icon(Icons.camera_alt_rounded),
-                label: Text('Enviar foto',
-                    style: GoogleFonts.montserrat(fontWeight: FontWeight.w600)),
-                style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+            ] else ...[
+              const SizedBox(height: AppSpacing.md),
+              Text('Registre seu peso uma vez por semana, no mesmo horário, para ver a curva aqui.',
+                  style: AppText.body(13.5, color: AppColors.textSecondary)),
+            ],
+            if (_recursos.peso) ...[
+              const SizedBox(height: AppSpacing.lg),
+              PhdButton(
+                label: 'Registrar peso',
+                icon: Icons.monitor_weight_outlined,
+                variant: PhdButtonVariant.secondary,
+                size: PhdButtonSize.medium,
+                onPressed: _registrarPeso,
               ),
-            ),
+            ],
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildResumoFotos() {
-    final primeira = DateTime.parse(_fotos.last['registrado_em']).toLocal();
-    final peso = _fotos.first['peso_kg'];
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider, width: 0.5),
+      if (temComp) ...[
+        const SizedBox(height: AppSpacing.md),
+        _cartaoGrafico('Gordura corporal', '%', _corGordura, 'perc_gordura', bomQuandoDesce: true),
+        const SizedBox(height: AppSpacing.md),
+        _cartaoGrafico('Massa magra', 'kg', _corMagra, 'massa_magra', bomQuandoDesce: false),
+      ],
+      const SizedBox(height: AppSpacing.md),
+      PhdCard(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AlunoAvaliacoesScreen())),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(color: AppColors.tint(_corGordura), borderRadius: AppRadius.rMd),
+              child: const Icon(Icons.monitor_heart_outlined, color: _corGordura),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Avaliações físicas', style: AppText.bodyStrong(14.5)),
+                  Text(
+                    _avaliacoes.isEmpty
+                        ? 'Composição, medidas e testes feitos pelo seu personal'
+                        : '${_avaliacoes.length} ${_avaliacoes.length == 1 ? 'avaliação' : 'avaliações'} de composição',
+                    style: AppText.caption(12.5),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          ],
+        ),
       ),
-      child: Row(children: [
-        Expanded(child: _resumoItem('${_fotos.length}', 'fotos')),
-        Container(width: 1, height: 40, color: AppColors.divider),
-        Expanded(
-          child: _resumoItem(
-            '${_meses[primeira.month - 1].substring(0, 3)} ${primeira.year}', 'início'),
-        ),
-        if (peso != null) ...[
-          Container(width: 1, height: 40, color: AppColors.divider),
-          Expanded(child: _resumoItem('${peso}kg', 'peso atual')),
+    ];
+  }
+
+  Widget _cartaoGrafico(String titulo, String unidade, Color cor, String campo, {required bool bomQuandoDesce}) {
+    final pontos = [
+      for (final a in _avaliacoes)
+        if ((a[campo] as num?)?.toDouble() case final v?)
+          if (DateTime.tryParse(a['data_avaliacao'] as String? ?? '') case final d?) (data: d, valor: v),
+    ];
+    if (pontos.length < 2) return const SizedBox.shrink();
+    final delta = pontos.last.valor - pontos.first.valor;
+
+    return PhdCard(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(titulo.toUpperCase(), style: AppText.label()),
+                    const SizedBox(height: 4),
+                    Text.rich(TextSpan(children: [
+                      TextSpan(text: _n(pontos.last.valor), style: AppText.number(26)),
+                      TextSpan(text: ' $unidade', style: AppText.caption(13)),
+                    ])),
+                  ],
+                ),
+              ),
+              _variacao(delta, unidade, 'desde a 1ª avaliação', bomQuandoDesce: bomQuandoDesce),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _grafico([for (final p in pontos) p.valor], [for (final p in pontos) p.data], cor, unidade),
         ],
-      ]),
+      ),
     );
   }
 
-  Widget _resumoItem(String v, String l) => Column(children: [
-    Text(v, style: GoogleFonts.montserrat(
-        color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w800)),
-    Text(l, style: GoogleFonts.montserrat(color: AppColors.textSecondary, fontSize: 11)),
-  ]);
+  /// "+1,2 kg" — verde quando é bom, âmbar quando não é, cinza quando
+  /// depende do objetivo (peso sozinho não diz se melhorou).
+  Widget _variacao(double delta, String unidade, String apoio, {bool? bomQuandoDesce}) {
+    final cor = delta.abs() < 0.05 || bomQuandoDesce == null
+        ? AppColors.textSecondary
+        : (delta < 0) == bomQuandoDesce
+            ? AppColors.successText
+            : AppColors.warningText;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text('${delta > 0 ? '+' : ''}${_n(delta)} $unidade', style: AppText.number(15, color: cor)),
+        Text(apoio, style: AppText.caption(12)),
+      ],
+    );
+  }
 
-  Widget _buildFotoCard(Map<String, dynamic> foto) {
-    final peso = foto['peso_kg'];
-    final obs = foto['observacoes'] as String?;
-    return GestureDetector(
-      onTap: () => _verFotoFullscreen(foto['foto_url']),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.divider, width: 0.5),
+  Widget _grafico(List<double> valores, List<DateTime> datas, Color cor, String unidade) {
+    final spots = [for (final (i, v) in valores.indexed) FlSpot(i.toDouble(), v)];
+    final ordenados = [...valores]..sort();
+    final folga = ((ordenados.last - ordenados.first) * 0.2).clamp(0.5, double.infinity);
+
+    return SizedBox(
+      height: 140,
+      child: LineChart(LineChartData(
+        minY: ordenados.first - folga,
+        maxY: ordenados.last + folga,
+        gridData: FlGridData(
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (_) => FlLine(color: AppColors.line, strokeWidth: 1),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: AspectRatio(
-              aspectRatio: 3 / 4,
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 36,
+              getTitlesWidget: (v, meta) => v == meta.min || v == meta.max
+                  ? const SizedBox.shrink()
+                  : Text(v.toStringAsFixed(0), style: AppText.caption(11)),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 24,
+              interval: spots.length <= 6 ? 1 : (spots.length / 4).roundToDouble(),
+              getTitlesWidget: (v, _) {
+                final i = v.toInt();
+                if (i < 0 || i >= datas.length || v != i.toDouble()) return const SizedBox.shrink();
+                final d = datas[i];
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text('${d.day}/${d.month}', style: AppText.caption(11)),
+                );
+              },
+            ),
+          ),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => AppColors.surfaceHigh,
+            getTooltipItems: (s) =>
+                [for (final p in s) LineTooltipItem('${_n(p.y)} $unidade', AppText.bodyStrong(12, color: cor))],
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            curveSmoothness: 0.3,
+            color: cor,
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              getDotPainter: (_, __, ___, ____) =>
+                  FlDotCirclePainter(radius: 3.5, color: cor, strokeWidth: 2, strokeColor: AppColors.surface),
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [cor.withValues(alpha: 0.18), cor.withValues(alpha: 0)],
+              ),
+            ),
+          ),
+        ],
+      )),
+    );
+  }
+
+  // ── Fotos ───────────────────────────────────────────────────
+
+  List<Widget> _secaoFotos() {
+    final botao = PhdButton(
+      label: _enviando ? 'Enviando…' : 'Nova foto',
+      icon: Icons.add_a_photo_outlined,
+      loading: _enviando,
+      onPressed: _enviando ? null : _adicionarFoto,
+    );
+    if (_fotos.isEmpty) {
+      return [
+        const PhdEmptyState(
+          icon: Icons.photo_camera_outlined,
+          title: 'Registre seu ponto de partida',
+          message: 'Uma foto por mês, na mesma luz e posição. Em 3 meses a diferença aparece — mesmo quando a balança não mostra.',
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        botao,
+      ];
+    }
+
+    final primeira = DateTime.parse(_fotos.last['registrado_em'] as String).toLocal();
+    return [
+      Row(
+        children: [
+          Expanded(child: _numero('${_fotos.length}', _fotos.length == 1 ? 'foto' : 'fotos')),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: _numero('${_meses[primeira.month - 1].substring(0, 3)} ${primeira.year}', 'primeira')),
+        ],
+      ),
+      const SizedBox(height: AppSpacing.md),
+      botao,
+      const SizedBox(height: AppSpacing.lg),
+      GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: AppSpacing.sm,
+          mainAxisSpacing: AppSpacing.sm,
+          childAspectRatio: 0.62,
+        ),
+        itemCount: _fotos.length,
+        itemBuilder: (_, i) => _cartaoFoto(_fotos[i]),
+      ),
+    ];
+  }
+
+  Widget _numero(String valor, String rotulo) => PhdCard(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(valor, style: AppText.number(20)),
+            Text(rotulo, style: AppText.caption(12)),
+          ],
+        ),
+      );
+
+  Widget _cartaoFoto(Map<String, dynamic> foto) {
+    final peso = (foto['peso_kg'] as num?)?.toDouble();
+    final d = DateTime.parse(foto['registrado_em'] as String).toLocal();
+    final obs = (foto['observacoes'] as String?)?.trim();
+    return PhdCard(
+      onTap: () => _verFoto(foto['foto_url'] as String),
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
               child: Image.network(
-                foto['foto_url'], fit: BoxFit.cover,
-                loadingBuilder: (_, child, progress) => progress == null
-                    ? child
-                    : Container(
-                        color: AppColors.background,
-                        child: Center(
-                            child: CircularProgressIndicator(
-                                color: AppColors.primary, strokeWidth: 2))),
-                errorBuilder: (_, __, ___) => Container(
-                    color: AppColors.background,
-                    child: Center(
-                        child: Icon(Icons.broken_image, color: AppColors.textHint, size: 48))),
+                foto['foto_url'] as String,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => ColoredBox(
+                  color: AppColors.surfaceHigh,
+                  child: Icon(Icons.broken_image_outlined, color: AppColors.textMuted),
+                ),
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(_formatarData(foto['registrado_em']),
-                  style: GoogleFonts.montserrat(
-                      color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 15)),
-              if (peso != null) ...[
-                const SizedBox(height: 6),
-                Row(children: [
-                  Icon(Icons.monitor_weight_outlined,
-                      color: AppColors.primary, size: 15),
-                  const SizedBox(width: 6),
-                  Text('$peso kg',
-                      style: GoogleFonts.montserrat(
-                          color: AppColors.textSecondary, fontSize: 13)),
-                ]),
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${d.day} ${_meses[d.month - 1].substring(0, 3)} ${d.year}', style: AppText.bodyStrong(13)),
+                Text(
+                  [if (peso != null) '${_n(peso)} kg', if (obs != null && obs.isNotEmpty) obs].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.caption(12),
+                ),
               ],
-              if (obs != null && obs.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text('"$obs"',
-                    style: GoogleFonts.montserrat(
-                        color: AppColors.textSecondary,
-                        fontSize: 13,
-                        fontStyle: FontStyle.italic)),
-              ],
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text('Toque para ampliar',
-                    style: GoogleFonts.montserrat(
-                        color: AppColors.textHint, fontSize: 11)),
-              ),
-            ]),
+            ),
           ),
-        ]),
+        ],
       ),
     );
   }
 
-  void _verFotoFullscreen(String url) {
-    showDialog(
+  void _verFoto(String url) {
+    showDialog<void>(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: Colors.black, insetPadding: EdgeInsets.zero,
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
         child: GestureDetector(
           onTap: () => Navigator.pop(ctx),
-          child: SizedBox.expand(
-            child: InteractiveViewer(child: Image.network(url, fit: BoxFit.contain)),
-          ),
+          child: SizedBox.expand(child: InteractiveViewer(child: Image.network(url, fit: BoxFit.contain))),
         ),
       ),
     );
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // TAB 2 — EVOLUÇÃO
-  // ════════════════════════════════════════════════════════════════════════════
+  // ── Cargas ──────────────────────────────────────────────────
 
-  Widget _buildEvolucaoTab() {
-    final temPeso = _fotos.where((f) => f['peso_kg'] != null).length >= 2;
-    final temComp = _avaliacoes.length >= 2;
-
-    if (!temPeso && !temComp) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.show_chart_rounded, color: AppColors.textHint, size: 56),
-            const SizedBox(height: 16),
-            Text('Dados insuficientes',
-                style: GoogleFonts.montserrat(
-                    color: AppColors.textSecondary, fontSize: 15, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text('Registre pelo menos 2 fotos com peso\nou aguarde 2 avaliações físicas.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.montserrat(color: AppColors.textHint, fontSize: 13)),
-          ]),
+  List<Widget> _secaoCargas() {
+    final cargas = _cargas;
+    if (cargas.isEmpty) {
+      return const [
+        PhdEmptyState(
+          icon: Icons.fitness_center_rounded,
+          title: 'Sem histórico de cargas',
+          message: 'Anote a carga ao fazer o treino guiado. A curva de cada exercício aparece a partir do 2º treino com carga.',
         ),
-      );
+      ];
     }
+    // Quem mais evoluiu primeiro: é o que o aluno quer ver.
+    final nomes = cargas.keys.toList()
+      ..sort((a, b) {
+        double ganho(String n) => cargas[n]!.last.carga - cargas[n]!.first.carga;
+        return ganho(b).compareTo(ganho(a));
+      });
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (temPeso) ...[
-          _buildChartCard(
-            title: 'Peso corporal',
-            unit: 'kg',
-            color: AppColors.primary,
-            spots: _fotosComPesoSpots(),
-            labels: _fotosComPesoLabels(),
-          ),
-          const SizedBox(height: 16),
-        ],
-        if (temComp) ...[
-          _buildChartCard(
-            title: '% Gordura',
-            unit: '%',
-            color: AppColors.error,
-            spots: _avaliacaoSpots('perc_gordura'),
-            labels: _avaliacaoLabels(),
-          ),
-          const SizedBox(height: 16),
-          _buildChartCard(
-            title: 'Massa Magra',
-            unit: 'kg',
-            color: const Color(0xFF4FC3F7),
-            spots: _avaliacaoSpots('massa_magra'),
-            labels: _avaliacaoLabels(),
-          ),
-          const SizedBox(height: 16),
-          _buildChartCard(
-            title: 'Massa Gorda',
-            unit: 'kg',
-            color: AppColors.error,
-            spots: _avaliacaoSpots('massa_gorda'),
-            labels: _avaliacaoLabels(),
-          ),
-        ],
-      ]),
-    );
+    return [
+      for (final nome in nomes) ...[
+        _cartaoCarga(nome, [...cargas[nome]!]..sort((a, b) => a.data.compareTo(b.data))),
+        const SizedBox(height: AppSpacing.md),
+      ],
+    ];
   }
 
-  List<FlSpot> _fotosComPesoSpots() {
-    final comPeso = _fotos
-        .where((f) => f['peso_kg'] != null)
-        .toList()
-        ..sort((a, b) => (a['registrado_em'] as String)
-            .compareTo(b['registrado_em'] as String));
-    return comPeso.asMap().entries
-        .map((e) => FlSpot(e.key.toDouble(), (e.value['peso_kg'] as num).toDouble()))
-        .toList();
-  }
-
-  List<String> _fotosComPesoLabels() {
-    final comPeso = _fotos
-        .where((f) => f['peso_kg'] != null)
-        .toList()
-        ..sort((a, b) => (a['registrado_em'] as String)
-            .compareTo(b['registrado_em'] as String));
-    return comPeso.map((f) {
-      final dt = DateTime.tryParse(f['registrado_em'] as String? ?? '');
-      if (dt == null) return '';
-      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
-    }).toList();
-  }
-
-  List<FlSpot> _avaliacaoSpots(String campo) {
-    return _avaliacoes.asMap().entries
-        .map((e) {
-          final v = (e.value[campo] as num?)?.toDouble();
-          return v != null ? FlSpot(e.key.toDouble(), v) : null;
-        })
-        .whereType<FlSpot>()
-        .toList();
-  }
-
-  List<String> _avaliacaoLabels() {
-    return _avaliacoes.map((av) {
-      final dt = DateTime.tryParse(av['data_avaliacao'] as String? ?? '');
-      if (dt == null) return '';
-      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
-    }).toList();
-  }
-
-  Widget _buildChartCard({
-    required String title,
-    required String unit,
-    required Color color,
-    required List<FlSpot> spots,
-    required List<String> labels,
-  }) {
-    if (spots.length < 2) return const SizedBox.shrink();
-    final vals = spots.map((s) => s.y).toList()..sort();
-    final minY = (vals.first * 0.93).floorToDouble();
-    final maxY = (vals.last * 1.07).ceilToDouble();
-    final delta = spots.last.y - spots.first.y;
-    final isUp = delta >= 0;
-    final deltaStr = '${isUp ? '+' : ''}${delta.toStringAsFixed(1)} $unit';
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.divider, width: 0.5),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(
-            child: Text(title,
-                style: GoogleFonts.montserrat(
-                    color: AppColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700)),
-          ),
-          Text('${spots.last.y.toStringAsFixed(1)} $unit',
-              style: GoogleFonts.montserrat(
-                  color: AppColors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(width: 8),
-          Text(deltaStr,
-              style: GoogleFonts.montserrat(
-                  color: delta == 0
-                      ? AppColors.textSecondary
-                      : (title.contains('Gordura') ? (isUp ? AppColors.error : AppColors.active)
-                          : (isUp ? AppColors.active : AppColors.error)),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600)),
-        ]),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: 130,
-          child: LineChart(LineChartData(
-            minY: minY,
-            maxY: maxY,
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: false,
-              getDrawingHorizontalLine: (_) => FlLine(color: AppColors.line, strokeWidth: 1),
-            ),
-            borderData: FlBorderData(show: false),
-            titlesData: FlTitlesData(
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 38,
-                  getTitlesWidget: (v, _) => Text(
-                    v.toStringAsFixed(v % 1 == 0 ? 0 : 1),
-                    style: GoogleFonts.montserrat(
-                        color: AppColors.textSecondary, fontSize: 9),
-                  ),
-                ),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 22,
-                  interval: 1,
-                  getTitlesWidget: (v, _) {
-                    final i = v.toInt();
-                    if (i < 0 || i >= labels.length) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(labels[i],
-                          style: GoogleFonts.montserrat(
-                              color: AppColors.textSecondary, fontSize: 9)),
-                    );
-                  },
-                ),
-              ),
-              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            ),
-            lineTouchData: LineTouchData(
-              touchTooltipData: LineTouchTooltipData(
-                getTooltipColor: (_) => AppColors.surface,
-                getTooltipItems: (spots) => spots
-                    .map((s) => LineTooltipItem(
-                        '${s.y.toStringAsFixed(1)} $unit',
-                        GoogleFonts.montserrat(color: color, fontSize: 11, fontWeight: FontWeight.w600)))
-                    .toList(),
-              ),
-            ),
-            lineBarsData: [
-              LineChartBarData(
-                spots: spots,
-                isCurved: true,
-                curveSmoothness: 0.3,
-                color: color,
-                barWidth: 2.5,
-                isStrokeCapRound: true,
-                dotData: FlDotData(
-                  show: true,
-                  getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
-                    radius: 4,
-                    color: color,
-                    strokeWidth: 2,
-                    strokeColor: AppColors.background,
-                  ),
-                ),
-                belowBarData: BarAreaData(
-                  show: true,
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [color.withValues(alpha: 0.15), color.withValues(alpha: 0)],
-                  ),
-                ),
-              ),
-            ],
-          )),
-        ),
-      ]),
-    );
-  }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // TAB 3 — CARGAS
-  // ════════════════════════════════════════════════════════════════════════════
-
-  Widget _buildCargasTab() {
-    final loads = _loadsPorExercicio;
-    if (loads.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.fitness_center_rounded, color: AppColors.textHint, size: 56),
-            const SizedBox(height: 16),
-            Text('Sem histórico de cargas',
-                style: GoogleFonts.montserrat(
-                    color: AppColors.textSecondary, fontSize: 15, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text('Registre cargas ao executar treinos.\nAparece após 2+ execuções com carga.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.montserrat(color: AppColors.textHint, fontSize: 13)),
-          ]),
-        ),
-      );
-    }
-
-    final exercicios = loads.keys.toList()..sort();
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+  Widget _cartaoCarga(String nome, List<({DateTime data, double carga})> pontos) {
+    final delta = pontos.last.carga - pontos.first.carga;
+    return PhdCard(
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final nome in exercicios) ...[
-            _buildCargaCard(nome, loads[nome]!),
-            const SizedBox(height: 14),
-          ],
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(nome, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStrong(14.5)),
+                    Text('${pontos.length} treinos com carga', style: AppText.caption(12)),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('${_n(pontos.last.carga)} kg', style: AppText.number(17)),
+                  if (delta.abs() >= 0.05)
+                    Text('${delta > 0 ? '+' : ''}${_n(delta)} kg',
+                        style: AppText.bodyStrong(12, color: delta > 0 ? AppColors.successText : AppColors.warningText)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _grafico([for (final p in pontos) p.carga], [for (final p in pontos) p.data], _corMagra, 'kg'),
         ],
       ),
     );
   }
 
-  Widget _buildCargaCard(String nome, List<_PontoLoad> pontos) {
-    final sorted = [...pontos]..sort((a, b) => a.data.compareTo(b.data));
-    final spots = sorted.asMap().entries
-        .map((e) => FlSpot(e.key.toDouble(), e.value.carga))
-        .toList();
-    final labels = sorted
-        .map((p) =>
-            '${p.data.day.toString().padLeft(2, '0')}/${p.data.month.toString().padLeft(2, '0')}')
-        .toList();
-
-    final maxCarga = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
-    final minCarga = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
-    final atual = sorted.last.carga;
-    final delta = sorted.last.carga - sorted.first.carga;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.divider, width: 0.5),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(
-            child: Text(nome,
-                style: GoogleFonts.montserrat(
-                    color: AppColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700),
-                overflow: TextOverflow.ellipsis),
-          ),
-          Text('${atual.toStringAsFixed(1)} kg',
-              style: GoogleFonts.montserrat(
-                  color: AppColors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(width: 8),
-          if (delta != 0)
-            Text(
-              '${delta > 0 ? '+' : ''}${delta.toStringAsFixed(1)} kg',
-              style: GoogleFonts.montserrat(
-                  color: delta > 0 ? AppColors.active : AppColors.error,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600),
-            ),
-        ]),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 110,
-          child: LineChart(LineChartData(
-            minY: (minCarga * 0.9).floorToDouble(),
-            maxY: (maxCarga * 1.1).ceilToDouble(),
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: false,
-              getDrawingHorizontalLine: (_) => FlLine(color: AppColors.line, strokeWidth: 1),
-            ),
-            borderData: FlBorderData(show: false),
-            titlesData: FlTitlesData(
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 36,
-                  getTitlesWidget: (v, _) => Text(
-                    v.toStringAsFixed(0),
-                    style: GoogleFonts.montserrat(
-                        color: AppColors.textSecondary, fontSize: 9),
-                  ),
-                ),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 20,
-                  interval: spots.length <= 6 ? 1 : (spots.length / 4).roundToDouble(),
-                  getTitlesWidget: (v, _) {
-                    final i = v.toInt();
-                    if (i < 0 || i >= labels.length) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(labels[i],
-                          style: GoogleFonts.montserrat(
-                              color: AppColors.textSecondary, fontSize: 9)),
-                    );
-                  },
-                ),
-              ),
-              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            ),
-            lineTouchData: LineTouchData(
-              touchTooltipData: LineTouchTooltipData(
-                getTooltipColor: (_) => AppColors.surface,
-                getTooltipItems: (spots) => spots
-                    .map((s) => LineTooltipItem(
-                        '${s.y.toStringAsFixed(1)} kg',
-                        GoogleFonts.montserrat(
-                            color: AppColors.active,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600)))
-                    .toList(),
-              ),
-            ),
-            lineBarsData: [
-              LineChartBarData(
-                spots: spots,
-                isCurved: true,
-                curveSmoothness: 0.3,
-                color: AppColors.active,
-                barWidth: 2.5,
-                isStrokeCapRound: true,
-                dotData: FlDotData(
-                  show: true,
-                  getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
-                    radius: 3.5,
-                    color: AppColors.active,
-                    strokeWidth: 2,
-                    strokeColor: AppColors.background,
-                  ),
-                ),
-                belowBarData: BarAreaData(
-                  show: true,
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      AppColors.active.withValues(alpha: 0.15),
-                      AppColors.active.withValues(alpha: 0),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          )),
-        ),
-      ]),
-    );
-  }
-
-  // ── Helpers ──────────────────────────────────────────────────────────────
-  String _formatarData(String iso) {
-    final dt = DateTime.parse(iso).toLocal();
-    return '${dt.day} de ${_meses[dt.month - 1]} de ${dt.year}';
-  }
-
-  String _mesAno(String iso) {
-    final dt = DateTime.parse(iso).toLocal();
-    return '${_meses[dt.month - 1].toUpperCase()} ${dt.year}';
+  /// "72,5" — vírgula, uma casa, sem ",0".
+  static String _n(double v) {
+    final s = v.toStringAsFixed(1).replaceAll('.', ',');
+    return s.endsWith(',0') ? s.substring(0, s.length - 2) : s;
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-class _PontoLoad {
-  final DateTime data;
-  final double carga;
-  const _PontoLoad(this.data, this.carga);
-}
+class _FolhaOrigem extends StatelessWidget {
+  const _FolhaOrigem();
 
-// ─────────────────────────────────────────────────────────────
-class _SourceSheet extends StatelessWidget {
-  const _SourceSheet();
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(12),
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-      decoration: BoxDecoration(
-          color: AppColors.surface, borderRadius: BorderRadius.circular(24)),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(width: 40, height: 4,
-              decoration: BoxDecoration(
-                  color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          Text('Adicionar foto',
-              style: GoogleFonts.montserrat(
-                  color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 20),
-          Row(children: [
-            Expanded(child: _opc(context, ImageSource.camera, Icons.camera_alt_rounded, 'Câmera')),
-            const SizedBox(width: 12),
-            Expanded(child: _opc(context, ImageSource.gallery, Icons.photo_library_rounded, 'Galeria')),
-          ]),
-        ],
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Adicionar foto', style: AppText.title(17)),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                Expanded(child: _opcao(context, ImageSource.camera, Icons.photo_camera_outlined, 'Câmera')),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(child: _opcao(context, ImageSource.gallery, Icons.photo_library_outlined, 'Galeria')),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _opc(BuildContext ctx, ImageSource src, IconData icon, String label) {
-    return InkWell(
-      onTap: () => Navigator.pop(ctx, src),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.divider)),
-        child: Column(children: [
-          Icon(icon, color: AppColors.primary, size: 36),
-          const SizedBox(height: 8),
-          Text(label,
-              style: GoogleFonts.montserrat(
-                  color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-        ]),
-      ),
-    );
-  }
+  Widget _opcao(BuildContext ctx, ImageSource src, IconData icone, String rotulo) => PhdCard(
+        onTap: () => Navigator.pop(ctx, src),
+        color: AppColors.surfaceHigh,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          children: [
+            Icon(icone, color: AppColors.accent, size: 30),
+            const SizedBox(height: AppSpacing.sm),
+            Text(rotulo, style: AppText.bodyStrong(14)),
+          ],
+        ),
+      );
 }
 
-// ─────────────────────────────────────────────────────────────
 class _FotoFormDialog extends StatefulWidget {
-  final XFile foto;
   const _FotoFormDialog({required this.foto});
+  final XFile foto;
+
   @override
   State<_FotoFormDialog> createState() => _FotoFormDialogState();
 }
 
 class _FotoFormDialogState extends State<_FotoFormDialog> {
-  final _pesoCtrl = TextEditingController();
-  final _obsCtrl = TextEditingController();
-  Uint8List? _previewBytes;
+  final _peso = TextEditingController();
+  final _obs = TextEditingController();
+  Uint8List? _bytes;
 
   @override
   void initState() {
     super.initState();
-    widget.foto.readAsBytes().then((bytes) {
-      if (mounted) setState(() => _previewBytes = bytes);
+    widget.foto.readAsBytes().then((b) {
+      if (mounted) setState(() => _bytes = b);
     });
   }
 
   @override
   void dispose() {
-    _pesoCtrl.dispose();
-    _obsCtrl.dispose();
+    _peso.dispose();
+    _obs.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      insetPadding: const EdgeInsets.all(20),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+    return AlertDialog(
+      backgroundColor: AppColors.surfaceHigh,
+      title: Text('Nova foto', style: AppText.title(17)),
+      content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AppRadius.rLg,
               child: SizedBox(
-                width: double.infinity, height: 180,
-                child: _previewBytes != null
-                    ? Image.memory(_previewBytes!, fit: BoxFit.cover)
-                    : const Center(child: CircularProgressIndicator()),
+                height: 180,
+                child: _bytes == null
+                    ? Center(child: CircularProgressIndicator(color: AppColors.accent))
+                    : Image.memory(_bytes!, fit: BoxFit.cover),
               ),
             ),
-            const SizedBox(height: 20),
-            Text('Registrar medidas',
-                style: GoogleFonts.montserrat(
-                    color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            Text('Opcionais — mas ajudam a acompanhar sua evolução',
-                style: GoogleFonts.montserrat(
-                    color: AppColors.textSecondary, fontSize: 12)),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _pesoCtrl,
+            const SizedBox(height: AppSpacing.lg),
+            PhdField(
+              label: 'Peso de hoje (opcional)',
+              controller: _peso,
+              hint: '72,5',
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: TextStyle(color: AppColors.textPrimary),
-              decoration: InputDecoration(
-                labelText: 'Peso corporal (kg)',
-                hintText: 'Ex: 75.5',
-                prefixIcon: Icon(Icons.monitor_weight_outlined,
-                    color: AppColors.textSecondary, size: 20),
-                labelStyle: GoogleFonts.montserrat(color: AppColors.textSecondary),
-              ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _obsCtrl,
-              style: TextStyle(color: AppColors.textPrimary),
-              maxLines: 2,
-              decoration: InputDecoration(
-                labelText: 'Observações',
-                hintText: 'Como você está se sentindo?',
-                prefixIcon: Icon(Icons.notes_rounded,
-                    color: AppColors.textSecondary, size: 20),
-                labelStyle: GoogleFonts.montserrat(color: AppColors.textSecondary),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context, null),
-                  child: Text('Cancelar',
-                      style: GoogleFonts.montserrat(fontWeight: FontWeight.w500)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: () {
-                    final peso = double.tryParse(_pesoCtrl.text.replaceAll(',', '.'));
-                    final obs = _obsCtrl.text.trim();
-                    Navigator.pop(context, {
-                      'peso': peso,
-                      'observacoes': obs.isNotEmpty ? obs : null,
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12))),
-                  child: Text('Salvar foto',
-                      style: GoogleFonts.montserrat(fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ]),
+            const SizedBox(height: AppSpacing.md),
+            PhdField(label: 'Como você está se sentindo? (opcional)', controller: _obs, maxLines: 2),
           ],
         ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancelar', style: AppText.bodyStrong(13.5, color: AppColors.textSecondary)),
+        ),
+        TextButton(
+          onPressed: () {
+            final obs = _obs.text.trim();
+            Navigator.pop(context, {
+              'peso': double.tryParse(_peso.text.replaceAll(',', '.')),
+              'observacoes': obs.isEmpty ? null : obs,
+            });
+          },
+          child: Text('Salvar foto', style: AppText.bodyStrong(13.5, color: AppColors.accent)),
+        ),
+      ],
     );
   }
 }

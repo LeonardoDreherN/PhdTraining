@@ -55,16 +55,24 @@ abstract class AppText {
 
   // ── Manrope ───────────────────────────────────────────────
 
+  /// Menor tamanho de texto de leitura. Abaixo de 12px, em cinza sobre
+  /// preto e com o celular na mão na academia, o texto some — então quem
+  /// pedir menos recebe 12. Rótulo em caixa alta (`label`) e número
+  /// (`number`) ficam de fora: são curtos e pesados o bastante.
+  static const double minimo = 12;
+
+  static double _min(double size) => size < minimo ? minimo : size;
+
   static TextStyle body(double size, {Color? color, FontWeight? weight}) =>
       GoogleFonts.manrope(
-        fontSize: size,
+        fontSize: _min(size),
         fontWeight: weight ?? FontWeight.w400,
         height: 1.5,
         color: color ?? AppColors.textPrimary,
       );
 
   static TextStyle bodyStrong(double size, {Color? color}) => GoogleFonts.manrope(
-        fontSize: size,
+        fontSize: _min(size),
         fontWeight: FontWeight.w700,
         height: 1.35,
         color: color ?? AppColors.textPrimary,
@@ -72,7 +80,7 @@ abstract class AppText {
 
   /// Texto de apoio: subtítulo de linha de lista, data, unidade.
   static TextStyle caption(double size, {Color? color}) => GoogleFonts.manrope(
-        fontSize: size,
+        fontSize: _min(size),
         fontWeight: FontWeight.w500,
         height: 1.4,
         color: color ?? AppColors.textSecondary,

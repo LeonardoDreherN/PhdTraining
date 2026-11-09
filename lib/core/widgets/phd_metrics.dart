@@ -74,7 +74,7 @@ class PhdProgressBar extends StatelessWidget {
         value: value.clamp(0.0, 1.0),
         minHeight: height,
         backgroundColor: track ?? AppColors.surfaceHigh,
-        valueColor: AlwaysStoppedAnimation(color ?? AppColors.accent),
+        valueColor: AlwaysStoppedAnimation(color ?? AppColors.success),
       ),
     );
   }
@@ -110,7 +110,7 @@ class PhdSegments extends StatelessWidget {
               child: Container(
                 height: height,
                 decoration: BoxDecoration(
-                  color: i < filled ? (color ?? AppColors.accent) : AppColors.line,
+                  color: i < filled ? (color ?? AppColors.success) : AppColors.line,
                   borderRadius: AppRadius.rPill,
                 ),
               ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/models/dieta.dart';
 import '../../../core/services/dia_aluno_service.dart';
+import '../../../core/theme/cores_dados.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -215,7 +216,7 @@ class _DiaDoAlunoCartaoState extends State<DiaDoAlunoCartao> {
             PhdProgressBar(
               value: d.metaAguaMl == 0 ? 0 : (d.aguaMl / d.metaAguaMl).clamp(0.0, 1.0),
               height: 6,
-              color: const Color(0xFF3B82F6),
+              color: CoresDados.agua,
             ),
           ],
         ),

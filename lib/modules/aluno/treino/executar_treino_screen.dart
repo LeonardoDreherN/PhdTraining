@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/widgets.dart';
+import 'conclusao_treino.dart';
 
 /// A tela mais usada do produto: o aluno com o celular na mão, no meio da
 /// academia, entre uma série e outra.
@@ -273,19 +274,13 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
     }
 
     if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _Concluido(
-        ficha: widget.ficha['nome'] as String? ?? 'Treino',
-        exercicios: _itens.length,
-        minutos: minutos < 1 ? 1 : minutos,
-        series: _log.fold<int>(
-          0,
-          (s, e) => s + (e['series'] as List).length,
-        ),
-        falha: falha,
-      ),
+    await mostrarConclusao(
+      context,
+      ficha: widget.ficha['nome'] as String? ?? 'Treino',
+      exercicios: _itens.length,
+      minutos: minutos,
+      series: _log.fold<int>(0, (s, e) => s + (e['series'] as List).length),
+      falha: falha,
     );
     if (mounted) context.pop();
   }
@@ -972,87 +967,3 @@ class _Contagem extends StatelessWidget {
   }
 }
 
-class _Concluido extends StatelessWidget {
-  const _Concluido({
-    required this.ficha,
-    required this.exercicios,
-    required this.minutos,
-    required this.series,
-    this.falha,
-  });
-
-  final String ficha;
-  final int exercicios;
-  final int minutos;
-  final int series;
-
-  /// Quando a gravação falhou. O aluno precisa saber — senão ele acha que
-  /// está registrado e o personal nunca vê o treino.
-  final String? falha;
-
-  @override
-  Widget build(BuildContext context) {
-    final ok = falha == null;
-
-    return AlertDialog(
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: AppRadius.rXl),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.tint(ok ? AppColors.success : AppColors.warning),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              ok ? Icons.check_rounded : Icons.cloud_off_rounded,
-              color: ok ? AppColors.success : AppColors.warning,
-              size: 30,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(ok ? 'Treino concluído' : 'Treino feito, mas não salvo',
-              textAlign: TextAlign.center, style: AppText.title(18)),
-          const SizedBox(height: 4),
-          Text(ficha, textAlign: TextAlign.center, style: AppText.caption(13)),
-          const SizedBox(height: AppSpacing.xl),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _stat('$exercicios', 'exercícios'),
-              _stat('$series', 'séries'),
-              _stat('$minutos', 'minutos'),
-            ],
-          ),
-          if (!ok) ...[
-            const SizedBox(height: AppSpacing.xl),
-            PhdAviso(
-              texto: 'Não consegui registrar este treino: $falha',
-              cor: AppColors.warning,
-            ),
-          ],
-        ],
-      ),
-      actions: [
-        PhdButton(
-          label: 'Fechar',
-          onPressed: () => Navigator.pop(context),
-        ),
-      ],
-    );
-  }
-
-  Widget _stat(String valor, String rotulo) {
-    return Column(
-      children: [
-        Text(valor, style: AppText.number(24, color: AppColors.accent)),
-        const SizedBox(height: 2),
-        Text(rotulo, style: AppText.caption(11.5)),
-      ],
-    );
-  }
-}

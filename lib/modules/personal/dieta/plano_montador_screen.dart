@@ -5,6 +5,7 @@ import '../../../core/layout/desktop.dart';
 import '../../../core/services/dieta_service.dart';
 import '../../../core/services/modelo_plano_service.dart';
 import '../../../core/services/receita_service.dart';
+import '../../../core/theme/cores_dados.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -483,11 +484,11 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
               ],
             ),
             _divisor(),
-            Expanded(child: _macroDesktop('Proteína', t.proteina, p.metaProteina)),
+            Expanded(child: _macroDesktop('Proteína', t.proteina, p.metaProteina, CoresDados.proteina)),
             const SizedBox(width: AppSpacing.lg),
-            Expanded(child: _macroDesktop('Carboidrato', t.carboidrato, p.metaCarboidrato)),
+            Expanded(child: _macroDesktop('Carboidrato', t.carboidrato, p.metaCarboidrato, CoresDados.carboidrato)),
             const SizedBox(width: AppSpacing.lg),
-            Expanded(child: _macroDesktop('Gordura', t.gordura, p.metaGordura)),
+            Expanded(child: _macroDesktop('Gordura', t.gordura, p.metaGordura, CoresDados.gordura)),
             _divisor(),
             SizedBox(
               width: 170,
@@ -505,9 +506,9 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
                         children: kcalMacros <= 0
                             ? [Expanded(child: ColoredBox(color: AppColors.surfaceHigh))]
                             : [
-                                Expanded(flex: (t.proteina * 4).round() + 1, child: ColoredBox(color: AppColors.accent)),
-                                Expanded(flex: (t.carboidrato * 4).round() + 1, child: ColoredBox(color: AppColors.warning)),
-                                Expanded(flex: (t.gordura * 9).round() + 1, child: ColoredBox(color: AppColors.textSecondary)),
+                                Expanded(flex: (t.proteina * 4).round() + 1, child: const ColoredBox(color: CoresDados.proteina)),
+                                Expanded(flex: (t.carboidrato * 4).round() + 1, child: const ColoredBox(color: CoresDados.carboidrato)),
+                                Expanded(flex: (t.gordura * 9).round() + 1, child: const ColoredBox(color: CoresDados.gordura)),
                               ],
                       ),
                     ),
@@ -532,7 +533,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
         color: AppColors.line,
       );
 
-  Widget _macroDesktop(String nome, double prescrito, double? meta) {
+  Widget _macroDesktop(String nome, double prescrito, double? meta, Color cor) {
     final falta = meta == null ? null : meta - prescrito;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -549,7 +550,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
           ]),
         ),
         const SizedBox(height: 5),
-        PhdProgressBar(value: meta == null ? 0 : proporcao(prescrito, meta), height: 6),
+        PhdProgressBar(value: meta == null ? 0 : proporcao(prescrito, meta), height: 6, color: cor),
         const SizedBox(height: 3),
         Text(
           falta == null
@@ -879,11 +880,11 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
           const SizedBox(height: AppSpacing.lg),
           Divider(color: AppColors.line, height: 1),
           const SizedBox(height: AppSpacing.lg),
-          _macro('Proteína', total.proteina, p.metaProteina),
+          _macro('Proteína', total.proteina, p.metaProteina, CoresDados.proteina),
           const SizedBox(height: AppSpacing.md),
-          _macro('Carboidrato', total.carboidrato, p.metaCarboidrato),
+          _macro('Carboidrato', total.carboidrato, p.metaCarboidrato, CoresDados.carboidrato),
           const SizedBox(height: AppSpacing.md),
-          _macro('Gordura', total.gordura, p.metaGordura),
+          _macro('Gordura', total.gordura, p.metaGordura, CoresDados.gordura),
           if (total.fibra > 0) ...[
             const SizedBox(height: AppSpacing.md),
             Text(
@@ -933,7 +934,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
     );
   }
 
-  Widget _macro(String nome, double prescrito, double? meta) {
+  Widget _macro(String nome, double prescrito, double? meta, Color cor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -950,7 +951,7 @@ class _PlanoMontadorScreenState extends State<PlanoMontadorScreen> {
         ),
         if (meta != null) ...[
           const SizedBox(height: 5),
-          PhdProgressBar(value: proporcao(prescrito, meta)),
+          PhdProgressBar(value: proporcao(prescrito, meta), color: cor),
         ],
       ],
     );

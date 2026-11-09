@@ -22,6 +22,7 @@ const rotasComDesktop = {
   '/relatorios',
   '/perfil',
   '/alunos/dieta/montar',
+  '/alunos/perfil',
 };
 
 /// O caminho da tela que está no topo, inclusive as abertas com `push`.
