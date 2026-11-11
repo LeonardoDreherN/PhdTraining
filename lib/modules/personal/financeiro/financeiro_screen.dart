@@ -147,11 +147,8 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> {
               Expanded(child: Text('Financeiro', style: AppText.display(28))),
               PhdIconButton(
                 icon: Icons.account_balance_wallet_outlined,
-                tooltip: 'Ativar recebimentos pelo app',
-                onPressed: () async {
-                  await context.push('/financeiro/ativar');
-                  if (mounted) await _carregar();
-                },
+                tooltip: 'Recebimentos pelo app',
+                onPressed: _abrirAtivacao,
               ),
               const SizedBox(width: AppSpacing.sm),
               PhdButton(
@@ -164,6 +161,10 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
+          if (_conta?.aprovado != true) ...[
+            _convite(),
+            const SizedBox(height: AppSpacing.lg),
+          ],
           _painel(),
           if (_conta?.podeSacar == true) ...[
             const SizedBox(height: AppSpacing.sm),
@@ -173,6 +174,57 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> {
           _filtros(),
           const SizedBox(height: AppSpacing.lg),
           ..._conteudo(),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _abrirAtivacao() async {
+    await context.push('/financeiro/ativar');
+    if (mounted) await _carregar();
+  }
+
+  /// Enquanto o cadastro no gateway não está aprovado, o caminho para ele
+  /// fica à vista — o ícone sozinho no topo passava despercebido.
+  Widget _convite() {
+    final c = _conta;
+    final (titulo, texto, botao) = c == null || c.kycStatus == 'pendente'
+        ? (
+            'Receba pelo app',
+            'Pix, boleto e cartão caem direto na sua conta, e a baixa da cobrança '
+                'acontece sozinha quando o aluno paga.',
+            'Ativar recebimentos',
+          )
+        : c.recusado
+            ? ('Cadastro recusado', 'Veja o motivo e corrija os dados.', 'Ver cadastro')
+            : (
+                'Cadastro em análise',
+                'O gateway está conferindo seus dados. Veja se falta algum documento.',
+                'Ver situação',
+              );
+    return PhdCard(
+      accentBar: AppColors.accent,
+      child: Row(
+        children: [
+          Icon(Icons.account_balance_wallet_outlined, color: AppColors.accent),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(titulo, style: AppText.bodyStrong(14.5)),
+                const SizedBox(height: 2),
+                Text(texto, style: AppText.caption(12, color: AppColors.textMuted)),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          PhdButton(
+            label: botao,
+            size: PhdButtonSize.small,
+            expand: false,
+            onPressed: _abrirAtivacao,
+          ),
         ],
       ),
     );
