@@ -21,6 +21,72 @@ class PagamentoService {
     return linha == null ? null : PagamentoConta.doMapa(linha);
   }
 
+  // ── Gateway (Edge Functions asaas-*) ───────────────────────
+
+  /// Chama uma Edge Function e devolve o corpo. O erro que ela manda em
+  /// `{ erro }` já é a frase para a tela.
+  static Future<Map<String, dynamic>> _funcao(String nome, Map<String, dynamic> corpo) async {
+    try {
+      final r = await _db.functions.invoke(nome, body: corpo);
+      return Map<String, dynamic>.from(r.data as Map);
+    } on FunctionException catch (e) {
+      final d = e.details;
+      final msg = d is Map && d['erro'] is String ? d['erro'] as String : 'O servidor recusou (${e.status}).';
+      throw Exception(msg);
+    }
+  }
+
+  /// Cria a subconta no gateway com os dados já salvos.
+  static Future<SituacaoGateway> enviarParaAnalise() async =>
+      SituacaoGateway.doMapa(await _funcao('asaas-subconta', {'acao': 'criar'}));
+
+  /// Situação no gateway e documentos pendentes. Também atualiza o banco.
+  static Future<SituacaoGateway> situacao() async =>
+      SituacaoGateway.doMapa(await _funcao('asaas-subconta', {'acao': 'status'}));
+
+  /// Gera a cobrança no gateway e devolve o link da fatura. Sem CPF do
+  /// aluno devolve `precisaCpf`, e a tela pergunta.
+  static Future<({String? link, bool precisaCpf})> linkDeCobranca(String cobrancaId, {String? cpf}) async {
+    final r = await _funcao('asaas-cobranca', {
+      'acao': 'gerar',
+      'cobranca_id': cobrancaId,
+      if (cpf != null) 'cpf': cpf,
+    });
+    return (link: r['link'] as String?, precisaCpf: r['precisa_cpf'] == true);
+  }
+
+  static Future<void> cancelarCobranca(String cobrancaId) =>
+      _funcao('asaas-cobranca', {'acao': 'cancelar', 'cobranca_id': cobrancaId});
+
+  /// Saldo disponível para saque, lido do gateway.
+  static Future<int> saldoCentavos() async =>
+      ((await _funcao('asaas-saque', {'acao': 'saldo'}))['saldo_centavos'] as num).toInt();
+
+  static Future<void> sacar({
+    required int valorCentavos,
+    required String chavePix,
+    required String tipoChave,
+    required String idempotencia,
+  }) =>
+      _funcao('asaas-saque', {
+        'acao': 'sacar',
+        'valor_centavos': valorCentavos,
+        'pix_chave': chavePix,
+        'pix_tipo': tipoChave,
+        'idempotency_key': idempotencia,
+      });
+
+  /// Os saques do personal, do mais recente ao mais antigo.
+  static Future<List<Map<String, dynamic>>> saques() async {
+    final linhas = await _db
+        .from('saques')
+        .select()
+        .eq('personal_id', _uid)
+        .order('solicitado_em', ascending: false)
+        .limit(20);
+    return List<Map<String, dynamic>>.from(linhas);
+  }
+
   /// Quantos dos 4 passos estão completos, segundo o banco.
   ///
   /// A tela também sabe calcular isso, para a barra reagir enquanto a

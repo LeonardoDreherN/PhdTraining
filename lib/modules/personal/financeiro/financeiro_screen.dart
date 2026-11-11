@@ -4,7 +4,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/layout/desktop.dart';
 import '../../../core/models/financeiro.dart';
+import '../../../core/models/pagamento_conta.dart';
 import '../../../core/services/financeiro_service.dart';
+import '../../../core/services/pagamento_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -12,6 +14,7 @@ import '../../../core/utils/moeda.dart';
 import '../../../core/utils/whatsapp.dart';
 import '../../../core/widgets/widgets.dart';
 import 'nova_assinatura_sheet.dart';
+import 'recebimentos_gateway.dart';
 
 /// O financeiro do personal.
 ///
@@ -32,6 +35,9 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> {
   List<PlanoVenda> _planos = const [];
   List<Assinatura> _assinaturas = const [];
   List<Cobranca> _cobrancas = const [];
+
+  /// Conta no gateway. Aprovada, a tela ganha link de pagamento e saque.
+  PagamentoConta? _conta;
 
   bool _carregando = true;
   Object? _erro;
@@ -64,6 +70,11 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> {
         _assinaturas = assinaturas;
         _cobrancas = cobrancas;
       });
+      // À parte: sem conta no gateway o financeiro manual segue igual.
+      try {
+        final conta = await PagamentoService.minhaConta();
+        if (mounted) setState(() => _conta = conta);
+      } catch (_) {}
     } catch (e) {
       if (mounted) setState(() => _erro = e);
     } finally {
@@ -154,6 +165,10 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           _painel(),
+          if (_conta?.podeSacar == true) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const CartaoCarteira(),
+          ],
           const SizedBox(height: AppSpacing.lg),
           _filtros(),
           const SizedBox(height: AppSpacing.lg),
@@ -309,10 +324,46 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> {
               child: Text('Valor',
                   textAlign: TextAlign.right, style: AppText.label()),
             ),
-            const SizedBox(width: 150),
+            const SizedBox(width: 200),
           ],
         ),
       );
+
+  /// Link de pagamento: na cobrança que já está no gateway (reabre o
+  /// link) ou na manual em aberto, com a conta aprovada (gera).
+  bool _temLink(Cobranca c) =>
+      !c.paga &&
+      c.status != 'cancelado' &&
+      (c.peloGateway ? c.linkPagamento != null : _conta?.podeReceber == true);
+
+  Future<void> _link(Cobranca c) async {
+    setState(() => _gravando.add(c.id));
+    try {
+      final mudou = await mostrarLinkDePagamento(context, c);
+      if (mudou) await _carregar();
+    } finally {
+      if (mounted) setState(() => _gravando.remove(c.id));
+    }
+  }
+
+  /// "Recebi" é para o dinheiro que entrou por fora. Cobrança do gateway
+  /// recebe baixa sozinha pelo webhook — e a policy nem deixaria marcar.
+  Widget _baixa(Cobranca c, bool ocupada) {
+    if (c.peloGateway) {
+      return PhdStatusChip(
+        label: c.paga ? 'pago pelo app' : 'aguardando',
+        tone: c.paga ? PhdTone.success : PhdTone.neutral,
+      );
+    }
+    return PhdButton(
+      label: c.paga ? 'Desfazer' : 'Recebi',
+      variant: c.paga ? PhdButtonVariant.ghost : PhdButtonVariant.primary,
+      size: PhdButtonSize.small,
+      expand: false,
+      loading: ocupada,
+      onPressed: ocupada ? null : () => _alternarPaga(c),
+    );
+  }
 
   Widget _linhaCobranca(Cobranca c) {
     final ocupada = _gravando.contains(c.id);
@@ -378,27 +429,26 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> {
                   textAlign: TextAlign.right, style: AppText.number(14)),
             ),
             SizedBox(
-              width: 150,
+              width: 200,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (!c.paga && zap != null)
+                  if (_temLink(c)) ...[
+                    PhdIconButton(
+                      icon: Icons.link_rounded,
+                      tooltip: 'Link de pagamento para ${c.alunoNome}',
+                      onPressed: ocupada ? null : () => _link(c),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
+                  if (!c.paga && zap != null && !c.peloGateway)
                     PhdIconButton(
                       icon: Icons.chat_outlined,
                       tooltip: 'Cobrar ${c.alunoNome} no WhatsApp',
                       onPressed: () => _abrir(zap),
                     ),
                   const SizedBox(width: AppSpacing.sm),
-                  PhdButton(
-                    label: c.paga ? 'Desfazer' : 'Recebi',
-                    variant: c.paga
-                        ? PhdButtonVariant.ghost
-                        : PhdButtonVariant.primary,
-                    size: PhdButtonSize.small,
-                    expand: false,
-                    loading: ocupada,
-                    onPressed: ocupada ? null : () => _alternarPaga(c),
-                  ),
+                  _baixa(c, ocupada),
                 ],
               ),
             ),
@@ -463,22 +513,22 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> {
               else
                 const PhdStatusChip(label: 'em aberto'),
               const Spacer(),
-              if (!c.paga && zap != null)
+              if (_temLink(c)) ...[
+                PhdIconButton(
+                  icon: Icons.link_rounded,
+                  tooltip: 'Link de pagamento para ${c.alunoNome}',
+                  onPressed: ocupada ? null : () => _link(c),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+              ],
+              if (!c.paga && zap != null && !c.peloGateway)
                 PhdIconButton(
                   icon: Icons.chat_outlined,
                   tooltip: 'Cobrar ${c.alunoNome} no WhatsApp',
                   onPressed: () => _abrir(zap),
                 ),
               const SizedBox(width: AppSpacing.sm),
-              PhdButton(
-                label: c.paga ? 'Desfazer' : 'Recebi',
-                variant:
-                    c.paga ? PhdButtonVariant.ghost : PhdButtonVariant.primary,
-                size: PhdButtonSize.small,
-                expand: false,
-                loading: ocupada,
-                onPressed: ocupada ? null : () => _alternarPaga(c),
-              ),
+              _baixa(c, ocupada),
             ],
           ),
         ],

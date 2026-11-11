@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/models/pagamento_conta.dart';
 import '../../../core/services/pagamento_service.dart';
@@ -31,6 +34,8 @@ class _AtivarRecebimentosScreenState extends State<AtivarRecebimentosScreen> {
   final _renda = TextEditingController();
   final _email = TextEditingController();
   final _celular = TextEditingController();
+  final _nascimento = TextEditingController();
+  final _razaoSocial = TextEditingController();
 
   final _cep = TextEditingController();
   final _logradouro = TextEditingController();
@@ -43,8 +48,11 @@ class _AtivarRecebimentosScreenState extends State<AtivarRecebimentosScreen> {
   String _tipoEmpresa = 'INDIVIDUAL';
 
   PagamentoConta? _conta;
+  SituacaoGateway? _gw;
   bool _carregando = true;
   bool _salvando = false;
+  bool _enviando = false;
+  bool _consultando = false;
   Object? _erro;
 
   @override
@@ -56,7 +64,7 @@ class _AtivarRecebimentosScreenState extends State<AtivarRecebimentosScreen> {
   @override
   void dispose() {
     for (final c in [
-      _cpfCnpj, _nome, _renda, _email, _celular,
+      _cpfCnpj, _nome, _renda, _email, _celular, _nascimento, _razaoSocial,
       _cep, _logradouro, _numero, _complemento, _bairro, _cidade, _uf,
     ]) {
       c.dispose();
@@ -76,6 +84,11 @@ class _AtivarRecebimentosScreenState extends State<AtivarRecebimentosScreen> {
         _conta = c;
         if (c != null) _preencher(c);
       });
+      // Conta já no gateway e ainda não aprovada: consulta o que falta ao
+      // abrir, para a tela não mostrar uma situação velha.
+      if (c != null && c.temContaNoGateway && !c.aprovado && _gw == null) {
+        unawaited(_atualizarSituacao());
+      }
     } catch (e) {
       if (mounted) setState(() => _erro = e);
     } finally {
@@ -91,6 +104,11 @@ class _AtivarRecebimentosScreenState extends State<AtivarRecebimentosScreen> {
         : (c.rendaMensalCentavos! / 100).toStringAsFixed(2).replaceAll('.', ',');
     _email.text = c.emailCobranca ?? '';
     _celular.text = c.telefoneCelular ?? '';
+    final n = c.dataNascimento;
+    _nascimento.text = n == null
+        ? ''
+        : '${n.day.toString().padLeft(2, '0')}/${n.month.toString().padLeft(2, '0')}/${n.year}';
+    _razaoSocial.text = c.razaoSocial ?? '';
     _cep.text = c.cep ?? '';
     _logradouro.text = c.logradouro ?? '';
     _numero.text = c.numero ?? '';
@@ -126,6 +144,18 @@ class _AtivarRecebimentosScreenState extends State<AtivarRecebimentosScreen> {
         podeReceber: _conta?.podeReceber ?? false,
         podeSacar: _conta?.podeSacar ?? false,
       );
+
+  /// "10/05/1990" → data. `null` se vazio ou inválido.
+  DateTime? get _dataNascimento {
+    final p = _nascimento.text.trim().split('/');
+    if (p.length != 3) return null;
+    final d = int.tryParse(p[0]), m = int.tryParse(p[1]), a = int.tryParse(p[2]);
+    if (d == null || m == null || a == null || a < 1900) return null;
+    final data = DateTime(a, m, d);
+    // DateTime aceita 31/02 e vira março: confere que não "andou".
+    if (data.day != d || data.month != m) return null;
+    return data;
+  }
 
   int? get _rendaCentavos {
     final t = _renda.text.trim().replaceAll('.', '').replaceAll(',', '.');
@@ -328,6 +358,27 @@ class _AtivarRecebimentosScreenState extends State<AtivarRecebimentosScreen> {
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: AppSpacing.lg),
+        if (_tipoEmpresa == 'INDIVIDUAL')
+          PhdField(
+            label: 'Data de nascimento',
+            controller: _nascimento,
+            enabled: editavel,
+            hint: 'dd/mm/aaaa',
+            keyboardType: TextInputType.datetime,
+            ajuda: _nascimento.text.trim().isNotEmpty && _dataNascimento == null
+                ? 'Data inválida'
+                : 'O gateway exige para pessoa física',
+            onChanged: (_) => setState(() {}),
+          )
+        else
+          PhdField(
+            label: 'Razão social',
+            controller: _razaoSocial,
+            enabled: editavel,
+            hint: 'Como está no CNPJ',
+            onChanged: (_) => setState(() {}),
+          ),
+        const SizedBox(height: AppSpacing.lg),
         PhdField(
           label: _tipoEmpresa == 'INDIVIDUAL'
               ? 'Nome completo'
@@ -460,17 +511,53 @@ class _AtivarRecebimentosScreenState extends State<AtivarRecebimentosScreen> {
     );
   }
 
+  Future<void> _enviarParaAnalise() async {
+    setState(() => _enviando = true);
+    try {
+      final s = await PagamentoService.enviarParaAnalise();
+      if (!mounted) return;
+      setState(() => _gw = s);
+      await _carregar();
+      // O gateway leva uns segundos para listar os documentos da conta nova.
+      Future.delayed(const Duration(seconds: 16), () {
+        if (mounted) _atualizarSituacao();
+      });
+    } catch (e) {
+      _avisar('$e'.replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  Future<void> _atualizarSituacao() async {
+    setState(() => _consultando = true);
+    try {
+      final s = await PagamentoService.situacao();
+      final c = await PagamentoService.minhaConta();
+      if (!mounted) return;
+      setState(() {
+        _gw = s;
+        _conta = c;
+      });
+    } catch (e) {
+      _avisar('Não consegui consultar o gateway: ${'$e'.replaceFirst('Exception: ', '')}');
+    } finally {
+      if (mounted) setState(() => _consultando = false);
+    }
+  }
+
+  void _avisar(String texto) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      backgroundColor: AppColors.surfaceHigh,
+      content: Text(texto, style: AppText.body(13.5)),
+    ));
+  }
+
   Widget _documentos() {
     final c = _conta;
 
-    if (c?.temDocumentos == true) {
-      return PhdAviso(
-        texto: 'Documentos enviados. O gateway está analisando.',
-        icone: Icons.task_alt_rounded,
-        cor: AppColors.success,
-        corTexto: AppColors.successText,
-      );
-    }
+    if (c?.temContaNoGateway == true) return _documentosDoGateway(c!);
 
     // O envio depende da conta já existir no gateway: é ele que diz quais
     // documentos faltam, e alguns têm de ir por um link próprio em vez da
@@ -493,13 +580,109 @@ class _AtivarRecebimentosScreenState extends State<AtivarRecebimentosScreen> {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            _atual.temDados && _atual.temEndereco
-                ? 'Salve o cadastro para o gateway dizer quais documentos '
-                    'pede no seu caso. A lista muda conforme você recebe '
-                    'como pessoa física, MEI ou empresa.'
-                : 'Preencha os dados e o endereço primeiro.',
+            !(_atual.temDados && _atual.temEndereco)
+                ? 'Preencha os dados e o endereço primeiro.'
+                : !(c?.temDados == true && c?.temEndereco == true)
+                    ? 'Salve o cadastro e depois envie para análise.'
+                    : 'Envie para análise: o gateway cria sua conta e diz quais '
+                        'documentos pede no seu caso. A lista muda conforme você '
+                        'recebe como pessoa física, MEI ou empresa.',
             style: AppText.caption(12, color: AppColors.textMuted),
           ),
+          if (c?.temDados == true && c?.temEndereco == true) ...[
+            const SizedBox(height: AppSpacing.md),
+            PhdButton(
+              label: 'Enviar para análise',
+              icon: Icons.send_rounded,
+              size: PhdButtonSize.medium,
+              loading: _enviando,
+              onPressed: _enviando ? null : _enviarParaAnalise,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _documentosDoGateway(PagamentoConta c) {
+    final gw = _gw;
+    final docs = gw?.documentos ?? const [];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (gw == null || gw.aguardando)
+          PhdAviso(
+            texto: 'Conta criada no gateway. Ele leva alguns segundos para '
+                'dizer quais documentos pede.',
+            icone: Icons.hourglass_bottom_rounded,
+            cor: AppColors.warning,
+            corTexto: AppColors.warningText,
+          )
+        else if (docs.isEmpty || docs.every((d) => d.status == 'APPROVED'))
+          PhdAviso(
+            texto: c.aprovado
+                ? 'Documentos aprovados.'
+                : 'Nenhum documento pendente. O gateway está analisando.',
+            icone: Icons.task_alt_rounded,
+            cor: AppColors.success,
+            corTexto: AppColors.successText,
+          )
+        else
+          for (final d in docs) ...[
+            _linhaDocumento(d),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        const SizedBox(height: AppSpacing.sm),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _consultando ? null : _atualizarSituacao,
+            icon: _consultando
+                ? SizedBox.square(
+                    dimension: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
+                : Icon(Icons.refresh_rounded, size: 17, color: AppColors.accent),
+            label: Text('Atualizar situação', style: AppText.bodyStrong(13, color: AppColors.accent)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _linhaDocumento(({String titulo, String? descricao, String status, String? link}) d) {
+    final (rotulo, tom) = switch (d.status) {
+      'APPROVED' => ('Aprovado', PhdTone.success),
+      'PENDING' => ('Em análise', PhdTone.warning),
+      'REJECTED' => ('Recusado', PhdTone.danger),
+      'IGNORED' => ('Dispensado', PhdTone.neutral),
+      _ => ('Falta enviar', PhdTone.accent),
+    };
+    final enviar = d.link != null && (d.status == 'NOT_SENT' || d.status == 'REJECTED');
+    return PhdCard(
+      color: AppColors.surfaceHigh,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(d.titulo, style: AppText.bodyStrong(13))),
+              PhdStatusChip(label: rotulo, tone: tom),
+            ],
+          ),
+          if (d.descricao != null && enviar) ...[
+            const SizedBox(height: 4),
+            Text(d.descricao!, style: AppText.caption(12, color: AppColors.textMuted)),
+          ],
+          if (enviar) ...[
+            const SizedBox(height: AppSpacing.md),
+            PhdButton(
+              label: 'Enviar no site do gateway',
+              icon: Icons.open_in_new_rounded,
+              size: PhdButtonSize.small,
+              expand: false,
+              onPressed: () => launchUrl(Uri.parse(d.link!), mode: LaunchMode.externalApplication),
+            ),
+          ],
         ],
       ),
     );
@@ -517,6 +700,10 @@ class _AtivarRecebimentosScreenState extends State<AtivarRecebimentosScreen> {
         'renda_mensal_centavos': _rendaCentavos,
         'email_cobranca': _email.text.trim(),
         'telefone_celular': _celular.text.trim(),
+        'data_nascimento': _tipoEmpresa == 'INDIVIDUAL' && _dataNascimento != null
+            ? _dataNascimento!.toIso8601String().substring(0, 10)
+            : null,
+        'razao_social': _tipoEmpresa == 'INDIVIDUAL' ? null : _razaoSocial.text.trim(),
         'cep': _cep.text.trim(),
         'logradouro': _logradouro.text.trim(),
         'numero': _numero.text.trim(),

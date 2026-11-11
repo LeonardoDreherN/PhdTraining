@@ -94,6 +94,11 @@ class PagamentoConta {
 
   bool get temDocumentos => documentosEnviadosEm != null;
 
+  /// A subconta já existe no gateway. "criando:..." é a trava da Edge
+  /// Function enquanto a criação está em andamento — ainda não conta.
+  bool get temContaNoGateway =>
+      gatewayAccountId != null && !gatewayAccountId!.startsWith('criando:');
+
   /// Mesma contagem da função `progresso_cadastro_pagamento` do 0003.
   ///
   /// Calculada aqui também para a barra reagir enquanto a pessoa digita,
@@ -147,6 +152,46 @@ class PagamentoConta {
         recusadoMotivo: m['recusado_motivo'] as String?,
         podeReceber: m['pode_receber'] as bool? ?? false,
         podeSacar: m['pode_sacar'] as bool? ?? false,
+      );
+}
+
+/// O que o gateway diz da conta agora (função `asaas-subconta`).
+class SituacaoGateway {
+  const SituacaoGateway({
+    required this.kycStatus,
+    this.podeReceber = false,
+    this.podeSacar = false,
+    this.documentos = const [],
+    this.aguardando = false,
+  });
+
+  final String kycStatus;
+  final bool podeReceber;
+  final bool podeSacar;
+
+  /// Documentos que o gateway pede. `link` é a página do próprio gateway
+  /// para enviar; quando vem, o envio é por lá e não pelo app.
+  final List<({String titulo, String? descricao, String status, String? link})> documentos;
+
+  /// A conta acabou de ser criada: o gateway leva alguns segundos para
+  /// dizer o que falta.
+  final bool aguardando;
+
+  factory SituacaoGateway.doMapa(Map<String, dynamic> m) => SituacaoGateway(
+        kycStatus: m['kyc_status'] as String? ?? 'pendente',
+        podeReceber: m['pode_receber'] as bool? ?? false,
+        podeSacar: m['pode_sacar'] as bool? ?? false,
+        aguardando: m['aguardando'] as bool? ?? false,
+        documentos: [
+          for (final d in (m['documentos'] as List? ?? const []))
+            if (d is Map)
+              (
+                titulo: d['titulo']?.toString() ?? 'Documento',
+                descricao: d['descricao'] as String?,
+                status: d['status']?.toString() ?? '',
+                link: d['link'] as String?,
+              ),
+        ],
       );
 }
 

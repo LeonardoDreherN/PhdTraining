@@ -153,11 +153,18 @@ class Cobranca {
     this.origem = 'manual',
     this.parcelaNumero,
     this.parcelas = 1,
+    this.linkPagamento,
   });
 
   final String id;
   final String? alunoId;
   final String alunoNome;
+
+  /// A fatura do gateway, onde o aluno paga por Pix, boleto ou cartão.
+  final String? linkPagamento;
+
+  /// Cobrada pelo gateway: quem dá baixa é o webhook, não o personal.
+  bool get peloGateway => origem == 'gateway';
   final String? alunoWhatsapp;
   final String? descricao;
   final int valorCentavos;
@@ -222,6 +229,7 @@ class Cobranca {
       origem: m['origem'] as String? ?? 'manual',
       parcelaNumero: (m['parcela_numero'] as num?)?.toInt(),
       parcelas: (m['parcelas'] as num?)?.toInt() ?? 1,
+      linkPagamento: m['link_pagamento'] as String?,
     );
   }
 }
