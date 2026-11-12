@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/ficha.dart';
 import '../models/ficha_exercicio.dart';
+import 'periodizacao_service.dart';
 
 class FichaService {
   static final _db = Supabase.instance.client;
@@ -229,6 +230,11 @@ class FichaService {
       'ativa': true,
       'dias_semana': diasSemana,
       'data_inicio': DateTime.now().toIso8601String().split('T').first,
+      // Atribuir à mão é "vale agora, avulsa": se a ficha estava
+      // programada numa etapa, sai dela — senão a virada de etapa a
+      // devolveria para programada logo em seguida.
+      'etapa_id': null,
+      'data_fim': null,
     }, onConflict: 'aluno_id,ficha_id');
   }
 
@@ -251,6 +257,9 @@ class FichaService {
   /// três a cinco fichas, e uma requisição por cartão na rede da academia é
   /// a diferença entre a tela abrir e a tela parecer travada.
   static Future<List<Map<String, dynamic>>> fichasDoAluno(String alunoId) async {
+    // Etapa que começou hoje entra antes de listar: é aqui que o treino
+    // do aluno troca na data programada, sem esperar o cron da madrugada.
+    await PeriodizacaoService.aplicar(alunoId);
     final linhas = List<Map<String, dynamic>>.from(
       await _db
           .from('aluno_fichas')

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/layout/desktop.dart';
+import '../../../core/models/periodizacao.dart';
 import '../../../core/services/aluno_detalhe_service.dart';
+import '../../../core/services/periodizacao_service.dart';
 import '../../../core/services/aluno_service.dart';
 import '../../../core/services/ficha_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -16,6 +18,7 @@ import '../agenda/agenda_screen.dart' show FolhaConsulta, StatusConsultaTom, qua
 import '../mensagens/caixa_screen.dart' show abrirConversa;
 import '../shell/menu_lateral.dart';
 import 'dia_do_aluno.dart';
+import 'periodizacao_screen.dart';
 
 const _diasLetra = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
@@ -37,6 +40,7 @@ class AlunoPerfilScreen extends StatefulWidget {
 class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   late Map<String, dynamic> _aluno = Map<String, dynamic>.from(widget.aluno);
   DetalheAluno _d = const DetalheAluno();
+  List<EtapaPeriodizacao> _etapas = const [];
   bool _carregando = true;
 
   /// O dia aberto em "Como foi o dia" — muda pelas setas ou pela grade.
@@ -63,12 +67,25 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   }
 
   Future<void> _carregar() async {
-    final d = await AlunoDetalheService.carregar(_id);
+    // Periodização à parte: sem a migration 0024 o perfil abre igual.
+    final (d, etapas) = await (
+      AlunoDetalheService.carregar(_id),
+      PeriodizacaoService.listar(_id).catchError((_) => <EtapaPeriodizacao>[]),
+    ).wait;
     if (!mounted) return;
     setState(() {
       _d = d;
+      _etapas = etapas;
       _carregando = false;
     });
+  }
+
+  Future<void> _abrirPeriodizacao() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => PeriodizacaoScreen(alunoId: _id, alunoNome: _nome)),
+    );
+    _carregar();
   }
 
   void _avisar(String msg) => ScaffoldMessenger.of(context)
@@ -374,6 +391,12 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   /// Cada área do aluno, com o resumo e o caminho para mexer nela.
   List<Widget> _secoesAreas() => [
         _secao('Treinos', _treinos(), acao: 'Atribuir', aoTocar: _atribuirFicha),
+        _secao(
+          'Periodização',
+          ResumoPeriodizacao(etapas: _etapas, onAbrir: _abrirPeriodizacao),
+          acao: 'Abrir',
+          aoTocar: _abrirPeriodizacao,
+        ),
         _secao('Nutrição', _nutricao()),
         _secao('Avaliação física', _avaliacao()),
         _secao('Consulta', _consulta()),
@@ -391,6 +414,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     final destinos = [
       ('Como foi o dia', 'Dia', Icons.today_rounded),
       ('Treinos', 'Treinos', Icons.fitness_center_rounded),
+      ('Periodização', 'Periodização', Icons.event_note_rounded),
       ('Nutrição', 'Dieta', Icons.restaurant_menu_rounded),
       ('Avaliação física', 'Avaliação', Icons.monitor_heart_outlined),
       ('Consulta', 'Consulta', Icons.event_rounded),
