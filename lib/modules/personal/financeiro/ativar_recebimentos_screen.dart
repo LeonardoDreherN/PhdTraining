@@ -573,7 +573,10 @@ class _AtivarRecebimentosScreenState extends State<AtivarRecebimentosScreen> {
                   size: 18, color: AppColors.textSecondary),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Text('Documento de identidade e comprovante de endereço',
+                // Não promete documento nenhum: quem decide a lista é o
+                // gateway, conta a conta (no sandbox, pessoa física pediu só
+                // a identificação).
+                child: Text('Documentos que o gateway pedir',
                     style: AppText.bodyStrong(13)),
               ),
             ],
