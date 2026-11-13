@@ -1,19 +1,40 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/utils/whatsapp.dart';
 
 class CredentialsModal extends StatefulWidget {
   final String email;
-  final String? senhaGerada;
+
+  /// A senha que foi **de fato** gravada no cadastro.
+  ///
+  /// Obrigatória, e o modal nunca inventa outra. Antes ela era opcional e,
+  /// faltando, este modal sorteava uma de 5 dígitos — enquanto a tela
+  /// gravava no banco uma de 6. O aluno recebia uma senha que não entrava.
+  final String senha;
+
+  /// Para a mensagem ir direto para ele, em vez de abrir o WhatsApp vazio
+  /// e o personal ter de procurar o contato na lista.
+  final String? whatsapp;
+
+  final String? nome;
+
+  /// Muda só a linha de ajuda embaixo da senha, para o personal saber o
+  /// que dizer se o aluno esquecer.
+  final bool senhaEhNascimento;
+
   final VoidCallback onClose;
 
   const CredentialsModal({
     super.key,
     required this.email,
-    this.senhaGerada,
+    required this.senha,
+    this.whatsapp,
+    this.nome,
+    this.senhaEhNascimento = false,
     required this.onClose,
   });
 
@@ -22,22 +43,21 @@ class CredentialsModal extends StatefulWidget {
 }
 
 class _CredentialsModalState extends State<CredentialsModal> {
-  late final String _senha;
+  String get _senha => widget.senha;
 
-  @override
-  void initState() {
-    super.initState();
-    _senha = widget.senhaGerada ?? _generatePassword();
-  }
-
-  String _generatePassword() {
-    final rand = Random();
-    return List.generate(5, (_) => rand.nextInt(10)).join();
+  /// Texto único para copiar e para o WhatsApp: duas versões divergiriam
+  /// na primeira vez que alguém mexesse em uma só.
+  String get _mensagem {
+    final primeiro = (widget.nome ?? '').trim().split(' ').first;
+    return '${primeiro.isEmpty ? 'Olá' : 'Olá, $primeiro'}! '
+        'Seu acesso ao PHD Training está pronto.\n\n'
+        'Entre em: ${AppConfig.login}\n'
+        'Login: ${widget.email}\n'
+        'Senha: $_senha';
   }
 
   void _copyCredentials() {
-    final text = 'Login: ${widget.email}\nSenha: $_senha';
-    Clipboard.setData(ClipboardData(text: text));
+    Clipboard.setData(ClipboardData(text: _mensagem));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Credenciais copiadas!'),
@@ -48,12 +68,11 @@ class _CredentialsModalState extends State<CredentialsModal> {
   }
 
   Future<void> _sendWhatsapp() async {
-    final msg = Uri.encodeComponent(
-      'Olá! Aqui estão seus dados de acesso ao app PHD Personal:\n'
-      'Login: ${widget.email}\n'
-      'Senha: $_senha',
-    );
-    final uri = Uri.parse('https://wa.me/?text=$msg');
+    // `linkWhatsApp` monta o `wa.me` com o DDI e devolve nulo quando o
+    // número não dá para discar. Sem número, abre o WhatsApp só com o
+    // texto e o personal escolhe o contato.
+    final uri = linkWhatsApp(widget.whatsapp, mensagem: _mensagem) ??
+        Uri.https('wa.me', '/', {'text': _mensagem});
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -129,7 +148,7 @@ class _CredentialsModalState extends State<CredentialsModal> {
             ),
             const SizedBox(height: 8),
             Text(
-              widget.senhaGerada != null
+              widget.senhaEhNascimento
                   ? 'Data de nascimento sem barras'
                   : AppStrings.geraSenha,
               style: TextStyle(color: AppColors.textHint, fontSize: 12),

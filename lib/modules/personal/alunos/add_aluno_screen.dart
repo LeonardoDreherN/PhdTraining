@@ -28,6 +28,10 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
   bool _bloquearInadimplente = false;
   bool _salvando = false;
 
+  /// A senha que foi gravada no cadastro, para o modal mostrar a mesma.
+  String _senhaGravada = '';
+  bool _senhaEhNascimento = false;
+
   final List<String> _generos = ['Masculino', 'Feminino', 'Outro'];
   final List<String> _grupos = ['Presencial', 'Online'];
 
@@ -46,6 +50,11 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
     try {
       final dataSemBarra = _dataNascimentoController.text.replaceAll('/', '');
       final senha = dataSemBarra.isNotEmpty ? dataSemBarra : _gerarSenhaAleatoria();
+      // Guardada para o modal mostrar exatamente esta. Antes ele recebia
+      // nulo quando não havia data de nascimento e sorteava outra senha —
+      // o aluno saía daqui com uma credencial que não entrava.
+      _senhaGravada = senha;
+      _senhaEhNascimento = dataSemBarra.isNotEmpty;
 
       await AlunoService.cadastrar(
         nome: _nomeController.text.trim(),
@@ -73,13 +82,15 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
   }
 
   void _showCredentialsModal() {
-    final dataSemBarra = _dataNascimentoController.text.replaceAll('/', '');
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => CredentialsModal(
         email: _emailController.text,
-        senhaGerada: dataSemBarra.isNotEmpty ? dataSemBarra : null,
+        senha: _senhaGravada,
+        senhaEhNascimento: _senhaEhNascimento,
+        whatsapp: _whatsappController.text.trim(),
+        nome: _nomeController.text.trim(),
         onClose: () {
           Navigator.of(context).pop();
           context.voltar(senaoPara: '/alunos');
