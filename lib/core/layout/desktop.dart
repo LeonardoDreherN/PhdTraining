@@ -57,7 +57,10 @@ class LarguraDeLeitura extends StatelessWidget {
     return ListenableBuilder(
       listenable: router.routerDelegate,
       builder: (context, _) {
-        final livre = ehDesktop(context) && rotasComDesktop.contains(rotaNoTopo(router));
+        final rota = rotaNoTopo(router);
+        // A landing é responsiva por conta própria (celular, tablet e
+        // desktop): ela nunca fica presa na coluna de 480px.
+        final livre = rota == '/' || (ehDesktop(context) && rotasComDesktop.contains(rota));
         // A árvore é a mesma nos dois casos, só muda o limite: trocar a
         // estrutura recriaria o Navigator e perderia a pilha de telas.
         return ColoredBox(
