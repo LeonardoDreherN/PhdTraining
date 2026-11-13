@@ -35,6 +35,7 @@ import '../../modules/personal/alunos/avaliacao_neuromotores_flexibilidade_scree
 import '../../modules/personal/alunos/avaliacao_neuromotores_resistencia_screen.dart';
 import '../../modules/personal/alunos/avaliacao_neuromotores_impulsao_screen.dart';
 import '../../modules/personal/alunos/avaliacao_neuromotores_carga_screen.dart';
+import '../../modules/personal/equipe/equipe_screen.dart';
 import '../../modules/personal/financeiro/financeiro_screen.dart';
 import '../../modules/personal/financeiro/ativar_recebimentos_screen.dart';
 import '../../modules/personal/dieta/dieta_screen.dart';
@@ -146,6 +147,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/alunos/adicionar',
         builder: (context, state) => const AddAlunoScreen(),
+      ),
+      GoRoute(
+        path: '/equipe',
+        builder: (context, state) => const EquipeScreen(),
       ),
       GoRoute(
         path: '/financeiro',

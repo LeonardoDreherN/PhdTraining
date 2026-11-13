@@ -174,6 +174,14 @@ class _PersonalPerfilScreenState extends ConsumerState<PersonalPerfilScreen> {
                         const SizedBox(height: 10),
                         const PhdSeletorTema(),
                         const SizedBox(height: 28),
+                        _rotulo('EQUIPE'),
+                        const SizedBox(height: 10),
+                        _buildBotaoOutline(
+                          'Profissionais com acesso',
+                          Icons.groups_outlined,
+                          () => context.push('/equipe'),
+                        ),
+                        const SizedBox(height: 28),
                         _rotulo('CONTA'),
                         const SizedBox(height: 10),
                         _buildBotaoOutline(
