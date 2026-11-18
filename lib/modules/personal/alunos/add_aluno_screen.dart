@@ -24,7 +24,7 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
   final _dataNascimentoController = TextEditingController();
 
   String? _generoSelecionado;
-  String? _grupoSelecionado;
+  String? _modalidadeSelecionada;
   bool _enviarInfoAcesso = false;
   String _anamneseTipo = 'nenhuma'; // 'nenhuma' | 'parq' | 'padrao'
   bool _bloquearInadimplente = false;
@@ -35,7 +35,7 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
   bool _senhaEhNascimento = false;
 
   final List<String> _generos = ['Masculino', 'Feminino', 'Outro'];
-  final List<String> _grupos = ['Presencial', 'Online'];
+  final List<String> _modalidades = ['Presencial', 'Online'];
 
   @override
   void dispose() {
@@ -68,7 +68,7 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
         // `grupo` guardava a modalidade por falta de coluna própria, e
         // com isso o campo de turma não existia na prática. Agora cada
         // um no seu lugar.
-        modalidade: _grupoSelecionado?.toLowerCase(),
+        modalidade: _modalidadeSelecionada?.toLowerCase(),
         anamneseTipo: _anamneseTipo,
       );
       if (mounted) _showCredentialsModal();
@@ -146,13 +146,13 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              _buildLabel(AppStrings.selecioneGrupo),
+              _buildLabel('Como será o atendimento'),
               const SizedBox(height: 6),
               _buildDropdown(
-                hint: 'Selecione um grupo',
-                value: _grupoSelecionado,
-                items: _grupos,
-                onChanged: (v) => setState(() => _grupoSelecionado = v),
+                hint: 'Presencial ou online',
+                value: _modalidadeSelecionada,
+                items: _modalidades,
+                onChanged: (v) => setState(() => _modalidadeSelecionada = v),
               ),
               const SizedBox(height: 16),
               _buildLabel(AppStrings.dataNascimento),
