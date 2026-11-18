@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/layout/desktop.dart';
+import '../../../core/models/checkin.dart';
 import '../../../core/models/periodizacao.dart';
 import '../../../core/services/aluno_detalhe_service.dart';
+import '../../../core/services/checkin_service.dart';
 import '../../../core/services/periodizacao_service.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/services/aluno_service.dart';
@@ -42,6 +44,10 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   late Map<String, dynamic> _aluno = Map<String, dynamic>.from(widget.aluno);
   DetalheAluno _d = const DetalheAluno();
   List<EtapaPeriodizacao> _etapas = const [];
+
+  /// O último check-in nutricional respondido, se houver.
+  CheckinNutricional? _checkin;
+
   bool _carregando = true;
 
   /// O dia aberto em "Como foi o dia" — muda pelas setas ou pela grade.
@@ -101,15 +107,19 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   }
 
   Future<void> _carregar() async {
-    // Periodização à parte: sem a migration 0024 o perfil abre igual.
-    final (d, etapas) = await (
+    // Periodização e check-in à parte, cada um com o seu `catchError`:
+    // sem as migrations 0024 e 0030 o perfil abre igual, só sem a seção.
+    final (d, etapas, checkins) = await (
       AlunoDetalheService.carregar(_id),
       PeriodizacaoService.listar(_id).catchError((_) => <EtapaPeriodizacao>[]),
+      CheckinService.historico(_id, limite: 1)
+          .catchError((_) => <CheckinNutricional>[]),
     ).wait;
     if (!mounted) return;
     setState(() {
       _d = d;
       _etapas = etapas;
+      _checkin = checkins.firstOrNull;
       _carregando = false;
     });
   }
@@ -432,6 +442,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
           aoTocar: _abrirPeriodizacao,
         ),
         _secao('Nutrição', _nutricao()),
+        _secao('Check-in mensal', _checkinMensal()),
         _secao('Avaliação física', _avaliacao()),
         _secao('Consulta', _consulta()),
         if (_d.cobrancas.isNotEmpty) _secao('Mensalidade', _mensalidade()),
@@ -955,6 +966,38 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
         tone: p.assinado ? PhdTone.success : PhdTone.warning,
       ),
       onTap: () => _abrir('/alunos/dieta'),
+    );
+  }
+
+  /// O autorrelato mensal do aluno. Quem responde é ele — daqui só se
+  /// lê, e o resumo mostra o mês mais recente para a pergunta "ele
+  /// respondeu?" se resolver sem abrir a tela.
+  Widget _checkinMensal() {
+    final c = _checkin;
+    if (c == null) {
+      return _linhaResumo(
+        icone: Icons.assignment_outlined,
+        titulo: 'Nenhum check-in ainda',
+        apoio: 'O aluno responde pela casa dele, no cartão abaixo da dieta.',
+        onTap: () => _abrir('/alunos/checkins'),
+      );
+    }
+
+    final atual = c.mes == CheckinNutricional.mesAtual();
+    return _linhaResumo(
+      icone: Icons.assignment_turned_in_outlined,
+      titulo: c.mesNome,
+      apoio: [
+        c.adesaoRotulo,
+        if (c.dificuldades.isNotEmpty)
+          '${c.dificuldades.length} '
+              '${c.dificuldades.length == 1 ? 'dificuldade' : 'dificuldades'}',
+      ].join(' · '),
+      direita: PhdStatusChip(
+        label: atual ? 'em dia' : 'mês anterior',
+        tone: atual ? PhdTone.success : PhdTone.warning,
+      ),
+      onTap: () => _abrir('/alunos/checkins'),
     );
   }
 

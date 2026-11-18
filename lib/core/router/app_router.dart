@@ -44,6 +44,7 @@ import '../../modules/personal/equipe/equipe_screen.dart';
 import '../../modules/personal/financeiro/financeiro_screen.dart';
 import '../../modules/personal/financeiro/ativar_recebimentos_screen.dart';
 import '../../modules/personal/dieta/dieta_screen.dart';
+import '../../modules/personal/dieta/checkins_screen.dart';
 import '../../modules/personal/dieta/plano_metas_screen.dart';
 import '../../modules/personal/dieta/plano_montador_screen.dart';
 import '../../modules/personal/avaliacao/avaliacao_cardio_screen.dart';
@@ -178,6 +179,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => _exigeExtra(
           state,
           (e) => DietaScreen(aluno: e),
+          voltarPara: '/alunos',
+        ),
+      ),
+      GoRoute(
+        path: '/alunos/checkins',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => CheckinsScreen(aluno: e),
           voltarPara: '/alunos',
         ),
       ),

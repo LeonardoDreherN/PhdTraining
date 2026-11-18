@@ -16,6 +16,10 @@
 --  check-in. Elas ficaram de fora em vez de serem ligadas a outra coisa
 --  parecida, o que daria medalha por algo que o aluno não fez.
 --
+--  RESOLVIDO NA 0030: ela cria o registro de check-in mensal e as três
+--  conquistas. Esta migration continua como está — o que vale é a 0030,
+--  que redefine `numeros_do_aluno` e `conceder_conquistas` por cima.
+--
 --  REGRAS QUE A ESPECIFICAÇÃO EXIGE E ESTÃO NO CÓDIGO
 --
 --  A conquista de peso conta REGULARIDADE do registro, nunca redução:

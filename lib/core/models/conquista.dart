@@ -22,6 +22,8 @@ class NumerosDoAluno {
     this.fotosDiario = 0,
     this.diasAguaMeta = 0,
     this.mesesAcompanhamento = 0,
+    this.checkins = 0,
+    this.checkinsSeguidos = 0,
   });
 
   final int treinos;
@@ -65,6 +67,14 @@ class NumerosDoAluno {
   /// Meses desde o início do plano ativo.
   final int mesesAcompanhamento;
 
+  /// Check-ins mensais respondidos, ao todo.
+  final int checkins;
+
+  /// Meses seguidos com check-in, contando a corrida que termina neste
+  /// mês OU no anterior. O mês corrente não quebra a sequência — ele
+  /// ainda não acabou, e a medalha de constância não pode cair no dia 1.
+  final int checkinsSeguidos;
+
   double get progressoCatalogo =>
       catalogo <= 0 ? 0 : (exercicios / catalogo).clamp(0.0, 1.0);
 
@@ -84,6 +94,8 @@ class NumerosDoAluno {
         fotosDiario: _i(m['fotos_diario']),
         diasAguaMeta: _i(m['dias_agua_meta']),
         mesesAcompanhamento: _i(m['meses_acompanhamento']),
+        checkins: _i(m['checkins']),
+        checkinsSeguidos: _i(m['checkins_seguidos']),
       );
 
   static int _i(Object? v) => (v as num?)?.toInt() ?? 0;
@@ -262,12 +274,48 @@ class Conquista {
       Conquista(
         codigo: 'meses_$m',
         categoria: CategoriaConquista.nutricao,
-        nome: m == 3 ? 'Evolução constante' : 'Compromisso renovado',
+        // "Compromisso renovado" saiu daqui e foi para `checkin_6`: a
+        // especificação dá esse nome a quem renova o compromisso MÊS A
+        // MÊS, e tempo de plano passa sozinho, sem o aluno fazer nada.
+        nome: m == 3 ? 'Evolução constante' : 'Meio ano de jornada',
         descricao: 'Completar $m meses de acompanhamento nutricional.',
         meta: m,
         icone: Icons.timeline_rounded,
         valorDe: (n) => n.mesesAcompanhamento,
       ),
+
+    // ── Check-in mensal ───────────────────────────────────────
+    // As três que o 0028 deixou de fora por não haver o recurso. A
+    // 0030 criou o registro; aqui elas entram.
+    Conquista(
+      codigo: 'checkin_1',
+      categoria: CategoriaConquista.nutricao,
+      nome: 'Acompanhamento em dia',
+      descricao: 'Responder o check-in nutricional do mês.',
+      meta: 1,
+      icone: Icons.assignment_turned_in_outlined,
+      valorDe: (n) => n.checkins,
+    ),
+    Conquista(
+      codigo: 'checkin_3',
+      categoria: CategoriaConquista.nutricao,
+      nome: 'Mestre da organização',
+      descricao: 'Responder o check-in em três meses seguidos.',
+      meta: 3,
+      icone: Icons.event_available_rounded,
+      // Sequência, não total: organização é não faltar, e somar três
+      // check-ins em dois anos não é isso.
+      valorDe: (n) => n.checkinsSeguidos,
+    ),
+    Conquista(
+      codigo: 'checkin_6',
+      categoria: CategoriaConquista.nutricao,
+      nome: 'Compromisso renovado',
+      descricao: 'Responder o check-in em seis meses seguidos.',
+      meta: 6,
+      icone: Icons.verified_rounded,
+      valorDe: (n) => n.checkinsSeguidos,
+    ),
   ];
 
   static List<Conquista> get todas => [...catalogoTreino, ...catalogoNutricao];

@@ -25,6 +25,7 @@ import '../../../core/utils/whatsapp.dart';
 import '../../../core/widgets/widgets.dart';
 import '../anamnese/aluno_anamnese_screen.dart';
 import '../dieta/cartao_agua.dart';
+import '../dieta/cartao_checkin.dart';
 import '../../chat/chat_screen.dart';
 import '../../personal/mensagens/caixa_screen.dart' show BotaoMensagens;
 import 'cartao_consulta.dart';
@@ -358,6 +359,14 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                           if (_plano != null && !_plano!.vazio) ...[
                             const SizedBox(height: AppSpacing.md),
                             _dieta(_plano!),
+                            // Só para quem tem plano alimentar: sem plano
+                            // não há o que relatar, e o cartão viraria
+                            // tarefa sem motivo.
+                            const SizedBox(height: AppSpacing.md),
+                            CartaoCheckin(
+                              key: ValueKey('checkin$_versao'),
+                              alunoId: _aluno!['id'] as String,
+                            ),
                           ],
                           const SizedBox(height: AppSpacing.md),
                           Padding(

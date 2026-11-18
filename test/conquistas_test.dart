@@ -15,6 +15,8 @@ NumerosDoAluno n({
   int fotosDiario = 0,
   int diasAguaMeta = 0,
   int mesesAcompanhamento = 0,
+  int checkins = 0,
+  int checkinsSeguidos = 0,
 }) =>
     NumerosDoAluno(
       treinos: treinos,
@@ -30,6 +32,8 @@ NumerosDoAluno n({
       fotosDiario: fotosDiario,
       diasAguaMeta: diasAguaMeta,
       mesesAcompanhamento: mesesAcompanhamento,
+      checkins: checkins,
+      checkinsSeguidos: checkinsSeguidos,
     );
 
 Conquista cod(String c) => Conquista.porCodigo(c)!;
@@ -225,6 +229,42 @@ void main() {
         'desbloqueado_em': '2026-03-15T10:00:00Z',
       });
       expect(c.conquista, isNull);
+    });
+  });
+
+  group('Check-in mensal', () {
+    test('as três conquistas da especificação existem', () {
+      for (final c in ['checkin_1', 'checkin_3', 'checkin_6']) {
+        expect(Conquista.porCodigo(c), isNotNull, reason: c);
+      }
+      expect(cod('checkin_1').nome, 'Acompanhamento em dia');
+      expect(cod('checkin_3').nome, 'Mestre da organização');
+      expect(cod('checkin_6').nome, 'Compromisso renovado');
+    });
+
+    test('a primeira conta o acumulado', () {
+      expect(cod('checkin_1').valorDe(n(checkins: 1)), 1);
+      // Mesmo sem sequência: um check-in isolado já põe o aluno em dia.
+      expect(cod('checkin_1').progresso(n(checkins: 1)), 1.0);
+    });
+
+    test('as de constância contam SEQUÊNCIA, não total', () {
+      // Nove check-ins espalhados em dois anos não são organização.
+      final espalhados = n(checkins: 9, checkinsSeguidos: 1);
+      expect(cod('checkin_3').progresso(espalhados), lessThan(1.0));
+      expect(cod('checkin_6').progresso(espalhados), lessThan(1.0));
+
+      final seguidos = n(checkins: 6, checkinsSeguidos: 6);
+      expect(cod('checkin_3').progresso(seguidos), 1.0);
+      expect(cod('checkin_6').progresso(seguidos), 1.0);
+    });
+
+    test('"Compromisso renovado" saiu do tempo de plano', () {
+      // Tempo de plano passa sozinho; o nome foi para quem renova mês a
+      // mês. Se um dia alguém devolver o nome para `meses_6`, as duas
+      // conquistas passam a ter o mesmo nome e este teste avisa.
+      expect(cod('meses_6').nome, isNot(cod('checkin_6').nome));
+      expect(cod('meses_6').valorDe(n(mesesAcompanhamento: 6)), 6);
     });
   });
 }
