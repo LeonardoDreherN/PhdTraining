@@ -4,11 +4,22 @@
 /// nome da coluna de lá (`pesco_co`, `braco_dir`...): assim a medida que o
 /// personal digitou no formulário antigo aparece na sessão sem cópia.
 class Circunferencia {
-  const Circunferencia(this.chave, this.nome, {this.ajuda, this.menorEhMelhor});
+  const Circunferencia(this.chave, this.nome,
+      {this.ajuda, this.ajudaFeminino, this.menorEhMelhor});
 
   final String chave;
   final String nome;
   final String? ajuda;
+
+  /// Quando a referência anatômica muda conforme o sexo. Só o tórax tem:
+  /// a linha dos mamilos não serve em mulher, e medir ali dá um número
+  /// que depende do volume mamário em vez da caixa torácica — além de ser
+  /// constrangedor sem necessidade.
+  final String? ajudaFeminino;
+
+  /// O texto de orientação para este aluno.
+  String? ajudaPara({required bool feminino}) =>
+      feminino ? (ajudaFeminino ?? ajuda) : ajuda;
 
   /// Mesmo sentido de `LinhaComparacao.menorEhMelhor`: só cintura e
   /// abdômen têm direção certa. Braço e coxa crescendo é bom na
@@ -23,7 +34,10 @@ class Circunferencia {
   static const catalogo = [
     Circunferencia('pesco_co', 'Pescoço', ajuda: 'Logo abaixo da proeminência laríngea.'),
     Circunferencia('ombro', 'Ombros', ajuda: 'Na maior circunferência, sobre os deltoides.'),
-    Circunferencia('torax', 'Tórax', ajuda: 'Na linha dos mamilos, ao fim de uma expiração normal.'),
+    Circunferencia('torax', 'Tórax',
+        ajuda: 'Na linha dos mamilos, ao fim de uma expiração normal.',
+        ajudaFeminino: 'Acima da linha das mamas, logo abaixo da axila, '
+            'ao fim de uma expiração normal.'),
     Circunferencia('braco_dir', 'Braço direito relaxado', ajuda: 'No ponto médio entre acrômio e olécrano.'),
     Circunferencia('braco_esq', 'Braço esquerdo relaxado', ajuda: 'No ponto médio entre acrômio e olécrano.'),
     Circunferencia('braco_contraido_dir', 'Braço direito contraído',
@@ -44,6 +58,25 @@ class Circunferencia {
     Circunferencia('coxa_distal_esq', 'Coxa distal esquerda', ajuda: 'Cerca de 5 cm acima da patela.'),
     Circunferencia('perna_dir', 'Panturrilha direita', ajuda: 'Na maior circunferência da panturrilha.'),
     Circunferencia('perna_esq', 'Panturrilha esquerda', ajuda: 'Na maior circunferência da panturrilha.'),
+  ];
+
+  /// As que aparecem já prontas no formulário, na ordem anatômica.
+  ///
+  /// São as oito que cobrem uma avaliação comum. Antes só cintura e
+  /// quadril vinham na tela e o resto saía de um seletor, um por um —
+  /// oito toques e oito buscas numa lista de vinte, toda vez.
+  ///
+  /// Quem não mede alguma simplesmente deixa em branco; quem mede outra
+  /// continua tendo o "Adicionar".
+  static const sugeridas = [
+    'torax',
+    'cintura',
+    'abdomen',
+    'quadril',
+    'braco_dir',
+    'antebraco_dir',
+    'coxa_dir',
+    'perna_dir',
   ];
 
   /// As colunas de perimetria das tabelas de dobra e bioimpedância.

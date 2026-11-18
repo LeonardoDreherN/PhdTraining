@@ -195,6 +195,7 @@ class AvaliacaoCompleta {
     this.cardio = const [],
     this.postural,
     this.estaturaAnterior,
+    this.pesoConhecido,
     this.anterior,
   });
 
@@ -217,6 +218,15 @@ class AvaliacaoCompleta {
   /// Estatura de uma avaliação passada. Adulto não muda de altura; pedir
   /// de novo a cada três meses é só atrito.
   final double? estaturaAnterior;
+
+  /// O último peso que se sabe do aluno — do registro dele ou da
+  /// avaliação anterior, o mais recente dos dois.
+  ///
+  /// Serve de **sugestão**, nunca de medida: [peso] continua devolvendo
+  /// nulo até alguém pesar de verdade hoje. Herdar peso como herdamos
+  /// estatura seria gravar na avaliação de hoje um número de três meses
+  /// atrás, e todo índice calculado em cima sairia errado sem aviso.
+  final double? pesoConhecido;
 
   /// A avaliação anterior, para a comparação. Não carrega a anterior dela.
   final AvaliacaoCompleta? anterior;

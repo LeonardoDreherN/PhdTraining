@@ -194,8 +194,14 @@ class _AvaliacaoSessaoScreenState extends ConsumerState<AvaliacaoSessaoScreen> {
           color: AppColors.surfaceHigh,
           onSelected: (v) {
             if (v == 'excluir') _excluir();
+            if (v == 'peso') _atualizarPesoDoAluno();
           },
           itemBuilder: (_) => [
+            if (_av?.peso != null)
+              PopupMenuItem(
+                value: 'peso',
+                child: Text('Atualizar peso do aluno', style: AppText.body(14)),
+              ),
             PopupMenuItem(
               value: 'excluir',
               child: Text('Excluir avaliação', style: AppText.body(14, color: AppColors.dangerText)),
@@ -307,8 +313,15 @@ class _AvaliacaoSessaoScreenState extends ConsumerState<AvaliacaoSessaoScreen> {
       LinhaMedida(
         rotulo: 'Peso',
         valor: v(av.peso, 'kg'),
-        origem: _origem(s.peso, av.dobras?['peso'], av.bioimpedancia?['peso']),
-        onTap: () => _editar('peso', 'Peso', 'kg', av.peso),
+        // O último peso conhecido aparece como sugestão quando ninguém
+        // pesou hoje — mas não entra como medida. Herdar peso, como
+        // herdamos estatura, gravaria um número de três meses atrás na
+        // avaliação de hoje, e todo índice calculado em cima sairia
+        // errado sem ninguém perceber.
+        origem: av.peso == null && av.pesoConhecido != null
+            ? 'Último: ${numBr(av.pesoConhecido)} kg'
+            : _origem(s.peso, av.dobras?['peso'], av.bioimpedancia?['peso']),
+        onTap: () => _editar('peso', 'Peso', 'kg', av.peso ?? av.pesoConhecido),
       ),
       LinhaMedida(
         rotulo: 'Estatura',
@@ -324,8 +337,10 @@ class _AvaliacaoSessaoScreenState extends ConsumerState<AvaliacaoSessaoScreen> {
   /// foram medidas hoje ou na avaliação anterior. Repetir a lista da
   /// anterior é o que faz o personal medir as mesmas e a evolução fechar.
   List<String> _circunferenciasVisiveis(AvaliacaoCompleta av) => Circunferencia.ordenar([
-        'cintura',
-        'quadril',
+        // As oito comuns já na tela. Antes vinham só cintura e quadril, e
+        // as outras saíam de um seletor uma por uma — oito toques e oito
+        // buscas numa lista de vinte, em toda avaliação.
+        ...Circunferencia.sugeridas,
         ...av.circunferencias.keys,
         ...?av.anterior?.circunferencias.keys,
         ..._adicionadas,
@@ -381,14 +396,87 @@ class _AvaliacaoSessaoScreenState extends ConsumerState<AvaliacaoSessaoScreen> {
     );
   }
 
+  /// Leva o peso medido hoje para o registro do aluno.
+  ///
+  /// Sem isto o número fica preso na avaliação: o gráfico de peso dele, a
+  /// meta de água e o cálculo da dieta continuariam usando o peso antigo
+  /// depois de uma pesagem nova.
+  Future<void> _atualizarPesoDoAluno() async {
+    final peso = _av?.peso;
+    if (peso == null) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceHigh,
+        title: Text('Atualizar o peso para ${numBr(peso)} kg?',
+            style: AppText.title(17)),
+        content: Text(
+          'Passa a valer como o peso atual de $_nome — no gráfico dele, na '
+          'meta de água e no cálculo da dieta.',
+          style: AppText.body(13.5, color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancelar',
+                style:
+                    AppText.bodyStrong(13.5, color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Atualizar',
+                style: AppText.bodyStrong(13.5, color: AppColors.accent)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await AvaliacaoService.atualizarPesoDoAluno(_alunoId, peso, _data);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.surfaceHigh,
+          content: Text('Peso atualizado.', style: AppText.body(13.5)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.surfaceHigh,
+          content:
+              Text('Não consegui atualizar: $e', style: AppText.body(13.5)),
+        ),
+      );
+    }
+  }
+
+  /// A orientação de medida deste aluno. Só o tórax muda com o sexo: em
+  /// mulher a referência não é a linha dos mamilos, e medir ali dá um
+  /// número que depende do volume mamário em vez da caixa torácica.
+  String? _ajudaDe(Circunferencia? circ) {
+    if (circ == null) return null;
+    final g = (_av?.genero ?? widget.aluno['genero'] as String?)
+            ?.trim()
+            .toLowerCase() ??
+        '';
+    return circ.ajudaPara(feminino: g.startsWith('f'));
+  }
+
   Future<void> _editarCircunferencia(String chave, double? atual) async {
     final circ = Circunferencia.porChave(chave);
     if (circ?.temColuna ?? false) {
-      await _editar(chave, circ!.nome, 'cm', atual, ajuda: circ.ajuda);
+      await _editar(chave, circ!.nome, 'cm', atual, ajuda: _ajudaDe(circ));
       return;
     }
     final r = await editarNumero(context,
-        titulo: Circunferencia.nomeDe(chave), unidade: 'cm', atual: atual, ajuda: circ?.ajuda);
+        titulo: Circunferencia.nomeDe(chave),
+        unidade: 'cm',
+        atual: atual,
+        ajuda: _ajudaDe(circ));
     if (r == null) return;
     // O jsonb vai inteiro: o PostgREST não muda uma chave só. Parte do que
     // está na sessão (não do mesclado), para não copiar a medida da dobra.

@@ -189,6 +189,7 @@ class AvaliacaoService {
     }
 
     final estatura = atual.estatura ?? anterior?.estatura ?? await _ultimaEstatura(alunoId, data);
+    final pesoConhecido = anterior?.peso ?? await _ultimoPeso(alunoId, data);
 
     return AvaliacaoCompleta(
       sessao: atual.sessao,
@@ -202,8 +203,51 @@ class AvaliacaoService {
       cardio: atual.cardio,
       postural: atual.postural,
       estaturaAnterior: estatura,
+      pesoConhecido: pesoConhecido,
       anterior: anterior,
     );
+  }
+
+  /// O peso mais recente que se sabe do aluno antes desta data.
+  ///
+  /// Vem do registro de peso dele, que é atualizado tanto pelo próprio
+  /// aluno quanto pelo "Atualizar peso" ao fim de uma avaliação. Serve de
+  /// sugestão no formulário — nunca é gravado sozinho.
+  static Future<double?> _ultimoPeso(String alunoId, DateTime antesDe) async {
+    final linhas = await _db
+        .from('peso_registros')
+        .select('peso_kg')
+        .eq('aluno_id', alunoId)
+        .lte('data', Datas.iso(antesDe))
+        .order('data', ascending: false)
+        .limit(1);
+    return linhas.isEmpty ? null : (linhas.first['peso_kg'] as num?)?.toDouble();
+  }
+
+  /// Leva o peso da avaliação para o registro do aluno.
+  ///
+  /// Sem isto o número fica preso na avaliação: o gráfico de peso do
+  /// aluno, a meta de água e o cálculo da dieta continuariam usando o
+  /// peso antigo depois de uma pesagem nova.
+  ///
+  /// Substitui o registro do mesmo dia em vez de empilhar — pesar duas
+  /// vezes na mesma avaliação é correção, não histórico.
+  static Future<void> atualizarPesoDoAluno(
+    String alunoId,
+    double pesoKg,
+    DateTime data,
+  ) async {
+    final iso = Datas.iso(data);
+    await _db
+        .from('peso_registros')
+        .delete()
+        .eq('aluno_id', alunoId)
+        .eq('data', iso);
+    await _db.from('peso_registros').insert({
+      'aluno_id': alunoId,
+      'data': iso,
+      'peso_kg': pesoKg,
+    });
   }
 
   static Future<AvaliacaoCompleta> _carregarDia(
