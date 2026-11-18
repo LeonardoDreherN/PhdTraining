@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/models/diario.dart';
 import '../../../core/models/dieta.dart';
@@ -406,6 +407,8 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
             )
           else ...[
             _resumoDoDia(p),
+            const SizedBox(height: AppSpacing.lg),
+            _atalhoConquistas(),
             const SizedBox(height: AppSpacing.xl),
             const PhdSectionHeader(label: 'Refeições'),
             const SizedBox(height: AppSpacing.sm),
@@ -529,6 +532,29 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
         DateTime.saturday => 'sáb',
         _ => 'dom',
       };
+
+  /// As conquistas da dieta ficam no menu de dieta, como a especificação
+  /// pede — e não misturadas com as de treino, que medem outra coisa.
+  Widget _atalhoConquistas() {
+    return PhdCard(
+      onTap: () => context.push('/aluno/conquistas-dieta',
+          extra: {'alunoId': widget.alunoId}),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg, vertical: AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.emoji_events_rounded, size: 18, color: AppColors.accent),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text('Suas conquistas', style: AppText.bodyStrong(13.5)),
+          ),
+          Icon(Icons.chevron_right_rounded,
+              size: 19, color: AppColors.textMuted),
+        ],
+      ),
+    );
+  }
 
   // ── Resumo ──────────────────────────────────────────────────
 

@@ -16,9 +16,20 @@ import '../../../core/widgets/widgets.dart';
 /// documento, e é o que impede a medalha de virar prêmio para quem tem
 /// mais tempo livre.
 class RecordesScreen extends StatefulWidget {
-  const RecordesScreen({super.key, required this.alunoId});
+  const RecordesScreen({
+    super.key,
+    required this.alunoId,
+    this.categoria = CategoriaConquista.treino,
+  });
 
   final String alunoId;
+
+  /// Treino ou nutrição. A tela é a mesma de propósito: a especificação
+  /// pede o visual alinhado entre as duas, e duas telas iguais mantidas
+  /// à mão divergem na primeira mudança.
+  final CategoriaConquista categoria;
+
+  bool get _ehTreino => categoria == CategoriaConquista.treino;
 
   @override
   State<RecordesScreen> createState() => _RecordesScreenState();
@@ -74,7 +85,10 @@ class _RecordesScreenState extends State<RecordesScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.bg,
         surfaceTintColor: Colors.transparent,
-        title: Text('Recordes', style: AppText.title(16)),
+        title: Text(
+          widget._ehTreino ? 'Recordes' : 'Conquistas da dieta',
+          style: AppText.title(16),
+        ),
       ),
       body: _corpo(),
     );
@@ -94,7 +108,7 @@ class _RecordesScreenState extends State<RecordesScreen> {
       );
     }
 
-    final catalogo = Conquista.catalogoTreino;
+    final catalogo = Conquista.de(widget.categoria);
     final conquistadas = catalogo.where((c) => _tenho.contains(c.codigo)).toList();
     final proximas = catalogo.where((c) => !_tenho.contains(c.codigo)).toList()
       ..sort((a, b) => b.progresso(_n).compareTo(a.progresso(_n)));
@@ -108,9 +122,11 @@ class _RecordesScreenState extends State<RecordesScreen> {
           AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.huge * 2,
         ),
         children: [
-          _numeros(),
-          const SizedBox(height: AppSpacing.xl),
-          _desbloqueios(),
+          widget._ehTreino ? _numeros() : _numerosNutricao(),
+          if (widget._ehTreino) ...[
+            const SizedBox(height: AppSpacing.xl),
+            _desbloqueios(),
+          ],
 
           const SizedBox(height: AppSpacing.xl),
           PhdSectionHeader(
@@ -205,6 +221,70 @@ class _RecordesScreenState extends State<RecordesScreen> {
               style: AppText.caption(11.5, color: AppColors.textMuted),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  /// Os três indicadores que a especificação pede no menu de dieta:
+  /// dias no plano, registros fotográficos e pesagens semanais.
+  Widget _numerosNutricao() {
+    return PhdCard(
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: PhdStat(
+                  label: 'Dias no plano',
+                  value: '${_n.diasPlanoCompleto}',
+                  valueSize: 30,
+                ),
+              ),
+              Expanded(
+                child: PhdStat(
+                  label: 'Registros com foto',
+                  value: '${_n.fotosDiario}',
+                  valueSize: 30,
+                  valueColor: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Divider(color: AppColors.line, height: 1),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            children: [
+              Expanded(
+                child: PhdStat(
+                  // Semanas com registro, não quilos perdidos: a
+                  // conquista é sobre constância, nunca sobre o número
+                  // da balança.
+                  label: 'Semanas pesando',
+                  value: '${_n.semanasComPeso}',
+                  valueSize: 16,
+                  valueColor: AppColors.textSecondary,
+                ),
+              ),
+              Expanded(
+                child: PhdStat(
+                  label: 'Melhor sequência',
+                  value: _n.sequenciaDiasPlano == 1
+                      ? '1 dia'
+                      : '${_n.sequenciaDiasPlano} dias',
+                  valueSize: 16,
+                  valueColor: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Dias no plano somam, não precisam ser seguidos — um dia fora '
+            'não apaga o que já foi.',
+            style: AppText.caption(11.5, color: AppColors.textMuted),
+          ),
         ],
       ),
     );

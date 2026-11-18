@@ -16,8 +16,12 @@ class NumerosDoAluno {
     this.catalogo = 0,
     this.refeicoesFeitas = 0,
     this.diasPlanoCompleto = 0,
+    this.sequenciaDiasPlano = 0,
     this.pesagens = 0,
+    this.semanasComPeso = 0,
     this.fotosDiario = 0,
+    this.diasAguaMeta = 0,
+    this.mesesAcompanhamento = 0,
   });
 
   final int treinos;
@@ -38,9 +42,28 @@ class NumerosDoAluno {
   final int catalogo;
 
   final int refeicoesFeitas;
+
+  /// Dias em que TODAS as refeições do plano foram marcadas. Acumulado,
+  /// não consecutivo — a especificação pede para não penalizar o aluno
+  /// por uma falha pontual.
   final int diasPlanoCompleto;
+
+  /// A maior sequência de dias 100% no plano. É o que vira "Semana
+  /// consistente"; o acumulado vira os marcos de 1, 7, 15, 30 e 60.
+  final int sequenciaDiasPlano;
+
   final int pesagens;
+
+  /// Semanas seguidas com pelo menos um registro de peso. Mede
+  /// REGULARIDADE, nunca redução: o valor do peso não entra em conta
+  /// nenhuma, e não existe marco diário de propósito.
+  final int semanasComPeso;
+
   final int fotosDiario;
+  final int diasAguaMeta;
+
+  /// Meses desde o início do plano ativo.
+  final int mesesAcompanhamento;
 
   double get progressoCatalogo =>
       catalogo <= 0 ? 0 : (exercicios / catalogo).clamp(0.0, 1.0);
@@ -55,8 +78,12 @@ class NumerosDoAluno {
         catalogo: _i(m['catalogo']),
         refeicoesFeitas: _i(m['refeicoes_feitas']),
         diasPlanoCompleto: _i(m['dias_plano_completo']),
+        sequenciaDiasPlano: _i(m['sequencia_dias_plano']),
         pesagens: _i(m['pesagens']),
+        semanasComPeso: _i(m['semanas_com_peso']),
         fotosDiario: _i(m['fotos_diario']),
+        diasAguaMeta: _i(m['dias_agua_meta']),
+        mesesAcompanhamento: _i(m['meses_acompanhamento']),
       );
 
   static int _i(Object? v) => (v as num?)?.toInt() ?? 0;
@@ -145,11 +172,111 @@ class Conquista {
       ),
   ];
 
+  static const _diasNoPlano = [1, 7, 15, 30, 60];
+
+  /// Catálogo de nutrição.
+  ///
+  /// Duas regras da especificação viraram decisão de código aqui:
+  ///
+  /// A conquista de peso premia a REGULARIDADE do registro, nunca a
+  /// redução — o valor do peso não aparece em nenhum critério. E a
+  /// frequência é semanal: não existe marco diário, porque empurrar o
+  /// aluno à balança todo dia é o oposto do que o documento pede.
+  static final catalogoNutricao = <Conquista>[
+    for (final m in _diasNoPlano)
+      Conquista(
+        codigo: 'plano_$m',
+        categoria: CategoriaConquista.nutricao,
+        nome: m == 1 ? 'Primeiro dia' : '$m dias no plano',
+        descricao: m == 1
+            ? 'Concluir todas as refeições de um dia.'
+            : 'Somar $m dias com todas as refeições concluídas.',
+        meta: m,
+        icone: Icons.restaurant_rounded,
+        // Acumulado, não seguido: um dia fora não zera o que já foi.
+        valorDe: (n) => n.diasPlanoCompleto,
+      ),
+    Conquista(
+      codigo: 'plano_semana',
+      categoria: CategoriaConquista.nutricao,
+      nome: 'Semana consistente',
+      descricao: 'Sete dias seguidos com o plano completo.',
+      meta: 7,
+      icone: Icons.calendar_month_rounded,
+      valorDe: (n) => n.sequenciaDiasPlano,
+    ),
+    Conquista(
+      codigo: 'peso_1',
+      categoria: CategoriaConquista.nutricao,
+      nome: 'Primeiro passo',
+      descricao: 'Registrar o primeiro peso.',
+      meta: 1,
+      icone: Icons.monitor_weight_outlined,
+      valorDe: (n) => n.pesagens,
+    ),
+    for (final m in [4, 12])
+      Conquista(
+        codigo: 'peso_$m',
+        categoria: CategoriaConquista.nutricao,
+        nome: m == 4 ? 'Amigo da balança' : 'Constância na balança',
+        descricao: 'Registrar o peso em $m semanas seguidas.',
+        meta: m,
+        icone: Icons.monitor_weight_rounded,
+        valorDe: (n) => n.semanasComPeso,
+      ),
+    Conquista(
+      codigo: 'fotos_1',
+      categoria: CategoriaConquista.nutricao,
+      nome: 'Primeira foto',
+      descricao: 'Enviar o primeiro registro fotográfico.',
+      meta: 1,
+      icone: Icons.photo_camera_outlined,
+      valorDe: (n) => n.fotosDiario,
+    ),
+    Conquista(
+      codigo: 'fotos_3',
+      categoria: CategoriaConquista.nutricao,
+      nome: 'Fotografia da evolução',
+      descricao: 'Completar três registros fotográficos.',
+      meta: 3,
+      icone: Icons.photo_library_rounded,
+      valorDe: (n) => n.fotosDiario,
+    ),
+    for (final m in [1, 7, 30])
+      Conquista(
+        codigo: 'agua_$m',
+        categoria: CategoriaConquista.nutricao,
+        nome: switch (m) {
+          1 => 'Hidratação em dia',
+          7 => 'Semana hidratada',
+          _ => 'Mês hidratado',
+        },
+        descricao: m == 1
+            ? 'Bater a meta de água em um dia.'
+            : 'Bater a meta de água em $m dias.',
+        meta: m,
+        icone: Icons.water_drop_rounded,
+        valorDe: (n) => n.diasAguaMeta,
+      ),
+    for (final m in [3, 6])
+      Conquista(
+        codigo: 'meses_$m',
+        categoria: CategoriaConquista.nutricao,
+        nome: m == 3 ? 'Evolução constante' : 'Compromisso renovado',
+        descricao: 'Completar $m meses de acompanhamento nutricional.',
+        meta: m,
+        icone: Icons.timeline_rounded,
+        valorDe: (n) => n.mesesAcompanhamento,
+      ),
+  ];
+
+  static List<Conquista> get todas => [...catalogoTreino, ...catalogoNutricao];
+
   static List<Conquista> de(CategoriaConquista c) =>
-      [...catalogoTreino].where((x) => x.categoria == c).toList();
+      todas.where((x) => x.categoria == c).toList();
 
   static Conquista? porCodigo(String codigo) {
-    for (final c in catalogoTreino) {
+    for (final c in todas) {
       if (c.codigo == codigo) return c;
     }
     return null;

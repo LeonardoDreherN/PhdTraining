@@ -8,6 +8,13 @@ NumerosDoAluno n({
   int sequenciaSemanas = 0,
   int exercicios = 0,
   int catalogo = 0,
+  int diasPlanoCompleto = 0,
+  int sequenciaDiasPlano = 0,
+  int pesagens = 0,
+  int semanasComPeso = 0,
+  int fotosDiario = 0,
+  int diasAguaMeta = 0,
+  int mesesAcompanhamento = 0,
 }) =>
     NumerosDoAluno(
       treinos: treinos,
@@ -16,6 +23,13 @@ NumerosDoAluno n({
       sequenciaSemanas: sequenciaSemanas,
       exercicios: exercicios,
       catalogo: catalogo,
+      diasPlanoCompleto: diasPlanoCompleto,
+      sequenciaDiasPlano: sequenciaDiasPlano,
+      pesagens: pesagens,
+      semanasComPeso: semanasComPeso,
+      fotosDiario: fotosDiario,
+      diasAguaMeta: diasAguaMeta,
+      mesesAcompanhamento: mesesAcompanhamento,
     );
 
 Conquista cod(String c) => Conquista.porCodigo(c)!;
@@ -108,6 +122,78 @@ void main() {
       // Acontece se o personal prescreveu exercícios próprios, que não
       // entram no denominador oficial.
       expect(n(exercicios: 600, catalogo: 500).progressoCatalogo, 1);
+    });
+  });
+
+  group('Catálogo de nutrição', () {
+    test('tem os marcos de dias no plano da especificação', () {
+      for (final m in [1, 7, 15, 30, 60]) {
+        expect(Conquista.porCodigo('plano_$m'), isNotNull,
+            reason: 'falta o marco de $m dias no plano');
+      }
+    });
+
+    test('treino e nutrição não compartilham código', () {
+      final treino = {for (final c in Conquista.catalogoTreino) c.codigo};
+      final nutri = {for (final c in Conquista.catalogoNutricao) c.codigo};
+      expect(treino.intersection(nutri), isEmpty);
+    });
+
+    test('cada catálogo devolve só a própria categoria', () {
+      expect(
+        Conquista.de(CategoriaConquista.nutricao)
+            .every((c) => c.categoria == CategoriaConquista.nutricao),
+        isTrue,
+      );
+      expect(
+        Conquista.de(CategoriaConquista.treino)
+            .every((c) => c.categoria == CategoriaConquista.treino),
+        isTrue,
+      );
+    });
+  });
+
+  group('Regras que a especificação exige', () {
+    test('dias no plano somam, não precisam ser seguidos', () {
+      // "Distinguir dias acumulados de sequências consecutivas, para não
+      // penalizar o aluno por situações pontuais."
+      final caiuUmDia = n(diasPlanoCompleto: 30, sequenciaDiasPlano: 3);
+      expect(cod('plano_30').progresso(caiuUmDia), 1);
+    });
+
+    test('semana consistente exige os sete dias seguidos', () {
+      final acumuladoAlto = n(diasPlanoCompleto: 60, sequenciaDiasPlano: 3);
+      expect(cod('plano_semana').progresso(acumuladoAlto), lessThan(1));
+
+      final seteSeguidos = n(diasPlanoCompleto: 7, sequenciaDiasPlano: 7);
+      expect(cod('plano_semana').progresso(seteSeguidos), 1);
+    });
+
+    test('a conquista de peso mede registro, não quilo perdido', () {
+      // Nenhum critério do catálogo olha o VALOR do peso. Se alguém um
+      // dia adicionar uma medalha por emagrecer, este teste cai — e é
+      // para cair: a especificação proíbe.
+      for (final c in Conquista.catalogoNutricao) {
+        if (!c.codigo.startsWith('peso_')) continue;
+        final soRegistrou = n(pesagens: 99, semanasComPeso: 99);
+        final naoRegistrou = n(pesagens: 0, semanasComPeso: 0);
+        expect(c.progresso(soRegistrou), 1);
+        expect(c.progresso(naoRegistrou), 0);
+      }
+    });
+
+    test('não existe marco diário de pesagem', () {
+      // "A frequência de pesagem deve ser semanal; não criar lembretes ou
+      // metas de pesagem diária." Os marcos acima do primeiro registro
+      // contam SEMANAS.
+      final acimaDoPrimeiro = Conquista.catalogoNutricao
+          .where((c) => c.codigo.startsWith('peso_') && c.codigo != 'peso_1');
+      expect(acimaDoPrimeiro, isNotEmpty);
+      for (final c in acimaDoPrimeiro) {
+        // Pesou 50 vezes em duas semanas: não basta, porque o critério
+        // é semana com registro, não quantidade de pesagens.
+        expect(c.progresso(n(pesagens: 50, semanasComPeso: 2)), lessThan(1));
+      }
     });
   });
 
