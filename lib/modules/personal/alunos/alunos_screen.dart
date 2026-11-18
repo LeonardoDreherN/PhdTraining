@@ -52,7 +52,19 @@ class _AlunosScreenState extends ConsumerState<AlunosScreen> {
             _campoBusca(),
             const SizedBox(height: AppSpacing.md),
             _filtros(filtro, emAtencao),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.sm),
+            // Modalidade e serviço só aparecem quando há o que separar.
+            // Numa carteira em que ninguém tem modalidade informada, a
+            // linha de filtros seria enfeite que não filtra nada.
+            if (_temModalidade(estado.valueOrNull)) ...[
+              _filtrosModalidade(ref.watch(filtroModalidadeProvider)),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            if (_temServico(estado.valueOrNull)) ...[
+              _filtrosServico(ref.watch(filtroServicoProvider)),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            const SizedBox(height: AppSpacing.sm),
             Expanded(
               child: estado.when(
                 loading: () => Center(
@@ -143,6 +155,39 @@ class _AlunosScreenState extends ConsumerState<AlunosScreen> {
             count: f == FiltroAluno.atencao && emAtencao > 0 ? emAtencao : null,
             tone: f == FiltroAluno.atencao ? PhdTone.danger : PhdTone.accent,
             onTap: () => ref.read(filtroAlunoProvider.notifier).state = f,
+          ),
+      ],
+    );
+  }
+
+  /// Só mostra o recorte quando ele de fato separa a carteira.
+  bool _temModalidade(List<Aluno>? todos) =>
+      todos != null && todos.any((a) => a.modalidade != null);
+
+  bool _temServico(List<Aluno>? todos) =>
+      todos != null && todos.any((a) => a.contratouTreino || a.contratouDieta);
+
+  Widget _filtrosModalidade(FiltroModalidade atual) {
+    return PhdFilterBar(
+      children: [
+        for (final f in FiltroModalidade.values)
+          PhdFilterChip(
+            label: f.rotulo,
+            selected: atual == f,
+            onTap: () => ref.read(filtroModalidadeProvider.notifier).state = f,
+          ),
+      ],
+    );
+  }
+
+  Widget _filtrosServico(FiltroServico atual) {
+    return PhdFilterBar(
+      children: [
+        for (final f in FiltroServico.values)
+          PhdFilterChip(
+            label: f.rotulo,
+            selected: atual == f,
+            onTap: () => ref.read(filtroServicoProvider.notifier).state = f,
           ),
       ],
     );

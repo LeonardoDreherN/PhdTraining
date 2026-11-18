@@ -40,17 +40,32 @@ final alunosProvider = FutureProvider<List<Aluno>>((ref) async {
 /// trocar de aba não deve disparar consulta nova, só filtrar o que já veio.
 final filtroAlunoProvider = StateProvider<FiltroAluno>((ref) => FiltroAluno.todos);
 
+/// Online ou presencial.
+final filtroModalidadeProvider =
+    StateProvider<FiltroModalidade>((ref) => FiltroModalidade.todas);
+
+/// Treino, dieta ou os dois — segundo o plano contratado.
+final filtroServicoProvider =
+    StateProvider<FiltroServico>((ref) => FiltroServico.todos);
+
 /// Texto da busca.
 final buscaAlunoProvider = StateProvider<String>((ref) => '');
 
 /// A lista já filtrada e buscada — é isto que a tela desenha.
+///
+/// Os três recortes se somam: dá para querer "ativos, presenciais e com
+/// dieta" de uma vez, que é como o personal pensa a carteira dele.
 final alunosVisiveisProvider = Provider<List<Aluno>>((ref) {
   final todos = ref.watch(alunosProvider).valueOrNull ?? const <Aluno>[];
   final filtro = ref.watch(filtroAlunoProvider);
+  final modalidade = ref.watch(filtroModalidadeProvider);
+  final servico = ref.watch(filtroServicoProvider);
   final busca = ref.watch(buscaAlunoProvider).trim().toLowerCase();
 
   return todos.where((a) {
     if (!filtro.aceita(a)) return false;
+    if (!modalidade.aceita(a)) return false;
+    if (!servico.aceita(a)) return false;
     if (busca.isEmpty) return true;
     return a.nome.toLowerCase().contains(busca) ||
         (a.email?.toLowerCase().contains(busca) ?? false);

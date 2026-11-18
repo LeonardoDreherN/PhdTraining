@@ -65,7 +65,10 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
         whatsapp: _whatsappController.text.trim(),
         dataNascimento: _converterData(_dataNascimentoController.text),
         genero: _generoSelecionado,
-        grupo: _grupoSelecionado,
+        // `grupo` guardava a modalidade por falta de coluna própria, e
+        // com isso o campo de turma não existia na prática. Agora cada
+        // um no seu lugar.
+        modalidade: _grupoSelecionado?.toLowerCase(),
         anamneseTipo: _anamneseTipo,
       );
       if (mounted) _showCredentialsModal();

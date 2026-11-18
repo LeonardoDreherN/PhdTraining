@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/supabase_config.dart';
 import '../models/aluno.dart';
+import '../utils/midia.dart';
 
 class AlunoService {
   static final _db = Supabase.instance.client;
@@ -41,11 +43,31 @@ class AlunoService {
           .select('aluno_id, executado_em')
           .eq('personal_id', _personalId)
           .gte('executado_em', desde.toIso8601String()),
+      // O serviço contratado sai do plano, não de uma coluna em `alunos`:
+      // guardar de novo criaria duas verdades que divergem na primeira
+      // troca de plano.
+      _db
+          .from('aluno_assinaturas')
+          .select('aluno_id, personal_planos(inclui_treino, inclui_dieta)')
+          .eq('personal_id', _personalId)
+          .inFilter('status', ['ativa', 'inadimplente']),
     ]);
 
     final linhas = List<Map<String, dynamic>>.from(resultados[0]);
     final fichas = List<Map<String, dynamic>>.from(resultados[1]);
     final execucoes = List<Map<String, dynamic>>.from(resultados[2]);
+    final assinaturas = List<Map<String, dynamic>>.from(resultados[3]);
+
+    final servico = <String, ({bool treino, bool dieta})>{};
+    for (final a in assinaturas) {
+      final id = a['aluno_id'] as String?;
+      final p = a['personal_planos'] as Map<String, dynamic>?;
+      if (id == null || p == null) continue;
+      servico[id] = (
+        treino: p['inclui_treino'] as bool? ?? false,
+        dieta: p['inclui_dieta'] as bool? ?? false,
+      );
+    }
 
     // Quantos treinos por semana cada aluno deveria fazer, somando os dias
     // de todas as fichas ativas dele.
@@ -79,11 +101,14 @@ class AlunoService {
         adesao = ((contagem[id] ?? 0) / esperado).clamp(0.0, 1.0);
       }
 
+      final s = servico[id];
       return Aluno.doMapa(
         m,
         ultimoTreino: ultimo[id],
         temFicha: porSemana > 0 || diasPorSemana.containsKey(id),
         adesao: adesao,
+        contratouTreino: s?.treino ?? false,
+        contratouDieta: s?.dieta ?? false,
       );
     }).toList();
   }
@@ -109,6 +134,7 @@ class AlunoService {
     String? dataNascimento,
     String? genero,
     String? grupo,
+    String? modalidade,
     String anamneseTipo = 'nenhuma',
   }) async {
     // Cria o usuário auth via HTTP sem afetar a sessão do personal
@@ -154,6 +180,7 @@ class AlunoService {
       'data_nascimento': dataNascimento,
       'genero': genero,
       'grupo': grupo,
+      'modalidade': modalidade,
       'ativo': true,
       'anamnese_tipo': anamneseTipo,
       'anamnese_preenchida': false,
@@ -164,6 +191,41 @@ class AlunoService {
 
   static Future<void> atualizar(String id, Map<String, dynamic> dados) async {
     await _db.from('alunos').update(dados).eq('id', id);
+  }
+
+  /// O personal põe a foto do aluno, sem depender de o aluno enviar.
+  ///
+  /// Vai na pasta do PERSONAL, com o id do aluno no nome. A policy do
+  /// bucket exige que a primeira pasta seja de quem envia — guardar na
+  /// pasta do aluno exigiria afrouxar isso para todo mundo. Assim o
+  /// arquivo é do personal, que é quem está enviando mesmo.
+  ///
+  /// Devolve a URL já gravada em `alunos.foto_url`.
+  static Future<String> enviarFotoDoAluno(
+    String alunoId,
+    String nomeArquivo,
+    Uint8List bytes,
+  ) async {
+    final tipo = Midia.tipoDe(nomeArquivo);
+    if (tipo == null || !tipo.startsWith('image/')) {
+      throw Exception(Midia.recusa(nomeArquivo, video: false));
+    }
+    final caminho =
+        '$_personalId/aluno-$alunoId.${Midia.extensaoDe(nomeArquivo)}';
+
+    await _db.storage.from('avatars').uploadBinary(
+          caminho,
+          bytes,
+          fileOptions: FileOptions(upsert: true, contentType: tipo),
+        );
+
+    // O caminho é sempre o mesmo, então a URL também seria: sem o `v`, o
+    // navegador e o CDN continuariam servindo a foto antiga.
+    final url = '${_db.storage.from('avatars').getPublicUrl(caminho)}'
+        '?v=${DateTime.now().millisecondsSinceEpoch}';
+
+    await atualizar(alunoId, {'foto_url': url});
+    return url;
   }
 
   static Future<void> alterarStatus(String id, bool ativo) async {

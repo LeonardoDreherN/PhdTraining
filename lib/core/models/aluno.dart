@@ -20,9 +20,12 @@ class Aluno {
     this.ativo = true,
     this.anamneseTipo = 'nenhuma',
     this.anamnesePreenchida = false,
+    this.modalidade,
     this.ultimoTreino,
     this.temFicha = false,
     this.adesao,
+    this.contratouTreino = false,
+    this.contratouDieta = false,
   });
 
   final String id;
@@ -40,8 +43,18 @@ class Aluno {
   final String anamneseTipo;
   final bool anamnesePreenchida;
 
+  /// online, presencial, ou nulo quando ninguém informou. Nulo não é um
+  /// terceiro tipo: é a ausência de resposta.
+  final String? modalidade;
+
   final DateTime? ultimoTreino;
   final bool temFicha;
+
+  /// O que o aluno contratou, segundo o plano da assinatura viva dele.
+  /// Não é coluna em `alunos`: sai de `personal_planos`, senão seriam
+  /// duas verdades que divergem na primeira troca de plano.
+  final bool contratouTreino;
+  final bool contratouDieta;
 
   /// 0 a 1 nos últimos 30 dias. `null` quando o aluno não tem ficha — aí
   /// não existe denominador, e mostrar "0%" culparia o aluno por algo que
@@ -84,6 +97,8 @@ class Aluno {
     DateTime? ultimoTreino,
     bool temFicha = false,
     double? adesao,
+    bool contratouTreino = false,
+    bool contratouDieta = false,
   }) {
     return Aluno(
       id: m['id'] as String,
@@ -100,9 +115,12 @@ class Aluno {
       ativo: m['ativo'] as bool? ?? true,
       anamneseTipo: m['anamnese_tipo'] as String? ?? 'nenhuma',
       anamnesePreenchida: m['anamnese_preenchida'] as bool? ?? false,
+      modalidade: m['modalidade'] as String?,
       ultimoTreino: ultimoTreino,
       temFicha: temFicha,
       adesao: adesao,
+      contratouTreino: contratouTreino,
+      contratouDieta: contratouDieta,
     );
   }
 
@@ -126,6 +144,7 @@ class Aluno {
       };
 }
 
+/// Situação do aluno na carteira.
 enum FiltroAluno { todos, ativos, atencao, inativos }
 
 extension FiltroAlunoRotulo on FiltroAluno {
@@ -141,5 +160,46 @@ extension FiltroAlunoRotulo on FiltroAluno {
         FiltroAluno.ativos => a.ativo,
         FiltroAluno.atencao => a.precisaAtencao,
         FiltroAluno.inativos => !a.ativo,
+      };
+}
+
+/// Como o aluno é atendido. Recorte independente da situação: dá para
+/// querer "ativos e presenciais" ao mesmo tempo.
+enum FiltroModalidade { todas, online, presencial }
+
+extension FiltroModalidadeRotulo on FiltroModalidade {
+  String get rotulo => switch (this) {
+        FiltroModalidade.todas => 'Todas',
+        FiltroModalidade.online => 'Online',
+        FiltroModalidade.presencial => 'Presencial',
+      };
+
+  bool aceita(Aluno a) => switch (this) {
+        FiltroModalidade.todas => true,
+        FiltroModalidade.online => a.modalidade == 'online',
+        FiltroModalidade.presencial => a.modalidade == 'presencial',
+      };
+}
+
+/// O que o aluno contratou. Vem do plano da assinatura, não de uma
+/// marcação à mão — trocou de plano, o filtro acompanha.
+enum FiltroServico { todos, treino, dieta, ambos }
+
+extension FiltroServicoRotulo on FiltroServico {
+  String get rotulo => switch (this) {
+        FiltroServico.todos => 'Todos',
+        FiltroServico.treino => 'Treino',
+        FiltroServico.dieta => 'Dieta',
+        FiltroServico.ambos => 'Treino + dieta',
+      };
+
+  bool aceita(Aluno a) => switch (this) {
+        FiltroServico.todos => true,
+        // "Treino" é quem tem treino e não tem dieta: senão o aluno de
+        // Performance apareceria nos três filtros e o recorte não
+        // separaria nada.
+        FiltroServico.treino => a.contratouTreino && !a.contratouDieta,
+        FiltroServico.dieta => a.contratouDieta && !a.contratouTreino,
+        FiltroServico.ambos => a.contratouTreino && a.contratouDieta,
       };
 }

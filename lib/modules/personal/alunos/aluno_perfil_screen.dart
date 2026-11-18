@@ -5,6 +5,7 @@ import '../../../core/layout/desktop.dart';
 import '../../../core/models/periodizacao.dart';
 import '../../../core/services/aluno_detalhe_service.dart';
 import '../../../core/services/periodizacao_service.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/services/aluno_service.dart';
 import '../../../core/services/ficha_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -48,6 +49,39 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
 
   late final _notas = TextEditingController(text: _aluno['notas'] as String? ?? '');
   bool _salvandoNota = false;
+  bool _enviandoFoto = false;
+
+  /// O personal põe a foto do aluno sem depender de ele enviar. A maioria
+  /// nunca envia, e sem rosto na lista o reconhecimento rápido se perde.
+  Future<void> _trocarFotoDoAluno() async {
+    final img = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 75,
+      maxWidth: 512,
+    );
+    if (img == null) return;
+
+    setState(() => _enviandoFoto = true);
+    try {
+      final url = await AlunoService.enviarFotoDoAluno(
+        _aluno['id'].toString(),
+        img.name,
+        await img.readAsBytes(),
+      );
+      if (!mounted) return;
+      setState(() => _aluno['foto_url'] = url);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.surfaceHigh,
+          content: Text('Não consegui enviar: $e', style: AppText.body(13.5)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _enviandoFoto = false);
+    }
+  }
 
   String get _id => _aluno['id'].toString();
   String get _nome => (_aluno['nome'] as String?)?.trim() ?? 'Aluno';
@@ -488,11 +522,39 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
       children: [
         // A foto vem de `alunos.foto_url` — antes o perfil desenhava sempre
         // a inicial, mesmo com a foto ali do lado na lista.
-        PhdAvatar(
-          name: _nome,
-          imageUrl: _aluno['foto_url'] as String?,
-          size: 96,
-          ringColor: recente ? AppColors.accent : null,
+        //
+        // Tocar troca: a maioria dos alunos nunca envia foto, e sem rosto
+        // na lista o personal perde o reconhecimento rápido de quem é quem.
+        GestureDetector(
+          onTap: _enviandoFoto ? null : _trocarFotoDoAluno,
+          child: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              PhdAvatar(
+                name: _nome,
+                imageUrl: _aluno['foto_url'] as String?,
+                size: 96,
+                ringColor: recente ? AppColors.accent : null,
+              ),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.bg, width: 2),
+                ),
+                child: _enviandoFoto
+                    ? Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.onAccent),
+                      )
+                    : Icon(Icons.photo_camera_rounded,
+                        size: 15, color: AppColors.onAccent),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
         Text(_nome, textAlign: TextAlign.center, style: AppText.display(24)),
