@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/formatadores.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/services/aluno_service.dart';
 import '../home/widgets/phd_logo.dart';
@@ -152,12 +154,28 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
               const SizedBox(height: 16),
               _buildLabel(AppStrings.dataNascimento),
               const SizedBox(height: 6),
+              // Digitável, com máscara: `15061999` vira `15/06/1999`
+              // sozinho. Era `readOnly` com calendário, e escolher 1999
+              // no seletor é rolar vinte e seis anos de uma vez.
+              // O calendário continua no ícone, para quem preferir.
               _buildTextField(
                 controller: _dataNascimentoController,
                 hint: 'DD/MM/AAAA',
-                keyboardType: TextInputType.datetime,
-                onTap: () => _selectDate(),
-                readOnly: true,
+                keyboardType: TextInputType.number,
+                inputFormatters: const [MascaraData()],
+                sufixo: IconButton(
+                  icon: Icon(Icons.calendar_today_outlined,
+                      size: 18, color: AppColors.textSecondary),
+                  tooltip: 'Escolher no calendário',
+                  onPressed: _selectDate,
+                ),
+                validator: (v) {
+                  final t = (v ?? '').trim();
+                  if (t.isEmpty) return null;
+                  // Avisa aqui em vez de salvar nulo em silêncio, que era
+                  // o que acontecia antes.
+                  return dataParaBanco(t) == null ? 'Data inválida' : null;
+                },
               ),
               const SizedBox(height: 16),
               _buildLabel(AppStrings.whatsapp),
@@ -247,6 +265,9 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
     String? Function(String?)? validator,
     bool readOnly = false,
     VoidCallback? onTap,
+    List<TextInputFormatter>? inputFormatters,
+    Widget? sufixo,
+    TextCapitalization capitalizacao = TextCapitalization.sentences,
   }) {
     return TextFormField(
       controller: controller,
@@ -254,8 +275,12 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
       readOnly: readOnly,
       onTap: onTap,
       validator: validator,
-      style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
-      decoration: InputDecoration(hintText: hint),
+      inputFormatters: inputFormatters,
+      textCapitalization: capitalizacao,
+      // 16, não 14: abaixo de 16px o Safari do iPhone dá zoom ao focar o
+      // campo e não volta sozinho — era o zoom que obrigava a reabrir o app.
+      style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+      decoration: InputDecoration(hintText: hint, suffixIcon: sufixo),
     );
   }
 
@@ -370,12 +395,10 @@ class _AddAlunoScreenState extends State<AddAlunoScreen> {
     return List.generate(6, (_) => rand.nextInt(10)).join();
   }
 
-  String? _converterData(String data) {
-    if (data.isEmpty) return null;
-    final partes = data.split('/');
-    if (partes.length != 3) return null;
-    return '${partes[2]}-${partes[1]}-${partes[0]}';
-  }
+  /// Aceita com ou sem barras e valida a data. A versão anterior exigia
+  /// as barras e devolvia `null` em silêncio sem elas — a data de
+  /// nascimento do aluno simplesmente não era salva.
+  String? _converterData(String data) => dataParaBanco(data);
 
   Future<void> _selectDate() async {
     final picked = await showDatePicker(

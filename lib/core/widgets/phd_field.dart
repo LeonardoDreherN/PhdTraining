@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text.dart';
 import '../theme/app_tokens.dart';
@@ -26,7 +27,8 @@ class PhdField extends StatefulWidget {
     this.onSubmitted,
     this.onChanged,
     this.maxLines = 1,
-    this.textCapitalization = TextCapitalization.none,
+    this.textCapitalization,
+    this.inputFormatters,
   });
 
   final String label;
@@ -55,7 +57,14 @@ class PhdField extends StatefulWidget {
 
   /// Mais de 1 vira campo de texto livre — observação, descrição.
   final int maxLines;
-  final TextCapitalization textCapitalization;
+
+  /// Nulo deixa o campo decidir pelo teclado: e-mail, senha, número e
+  /// telefone sem capitalização, o resto começando com maiúscula. Quem
+  /// precisa de outra coisa — nome próprio, por exemplo — informa.
+  final TextCapitalization? textCapitalization;
+
+  /// Máscara. Data de nascimento usa [MascaraData].
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   State<PhdField> createState() => _PhdFieldState();
@@ -64,6 +73,30 @@ class PhdField extends StatefulWidget {
 class _PhdFieldState extends State<PhdField> {
   late bool _escondido = widget.obscure;
   String? _erro;
+
+  /// Teclados em que maiúscula automática atrapalha. E-mail é o caso que
+  /// mais dói: "Joao@..." não existe como endereço, e quem digitou só
+  /// descobre quando o login falha.
+  bool get _semMaiuscula {
+    if (widget.obscure) return true;
+    final t = widget.keyboardType;
+    if (t == null) return false;
+    // Comparação por `index` porque `TextInputType` com opções (decimal,
+    // signed) não é igual à constante, mas tem o mesmo índice.
+    return t.index == TextInputType.emailAddress.index ||
+        t.index == TextInputType.url.index ||
+        t.index == TextInputType.number.index ||
+        t.index == TextInputType.phone.index ||
+        t.index == TextInputType.datetime.index ||
+        t.index == TextInputType.visiblePassword.index;
+  }
+
+  /// Maiúscula no começo da frase por padrão. Nome de aluno, de ficha e
+  /// de exercício sempre começam com maiúscula, e corrigir isso à mão em
+  /// cada cadastro é desgaste que o teclado resolve.
+  TextCapitalization get _capitalizacao =>
+      widget.textCapitalization ??
+      (_semMaiuscula ? TextCapitalization.none : TextCapitalization.sentences);
 
   @override
   Widget build(BuildContext context) {
@@ -80,9 +113,19 @@ class _PhdFieldState extends State<PhdField> {
           textInputAction: widget.textInputAction,
           maxLines: widget.obscure ? 1 : widget.maxLines,
           minLines: 1,
-          textCapitalization: widget.textCapitalization,
+          textCapitalization: _capitalizacao,
+          inputFormatters: widget.inputFormatters,
+          // Corretor e sugestão ligados, menos onde atrapalham: o teclado
+          // sugerindo palavra dentro de um e-mail ou de uma senha é como
+          // se digita o endereço errado sem perceber.
+          autocorrect: !_semMaiuscula,
+          enableSuggestions: !_semMaiuscula,
           autofillHints: widget.autofillHints,
-          style: AppText.body(15),
+          // 16 e não 15: abaixo de 16px o Safari do iPhone dá zoom ao
+          // focar o campo, ignora o `user-scalable=no` (a Apple
+          // descontinuou) e não volta sozinho. Era o "zoom inesperado"
+          // que obrigava a fechar e reabrir o app.
+          style: AppText.body(16),
           cursorColor: AppColors.accent,
           onFieldSubmitted: widget.onSubmitted == null ? null : (_) => widget.onSubmitted!(),
           onChanged: widget.onChanged,
