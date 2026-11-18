@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_text.dart';
 
+part 'landing_planos.dart';
+
 // A landing tem paleta própria, sempre escura: é vitrine, não ferramenta.
 // Seguir o tema claro do aparelho aqui deixaria a primeira impressão com
 // cara de formulário. As cores são as do app (mesmo vermelho, mesmo verde).
@@ -49,6 +51,10 @@ class LandingScreen extends StatelessWidget {
             _Secao(child: _DoisLados(desktop: desktop)),
             _Secao(child: _Notebook(desktop: desktop)),
             _Secao(child: _Passos(desktop: desktop)),
+            // Preço depois de ver o produto funcionando, e antes da
+            // chamada final: quem rolou até aqui já sabe o que está
+            // comprando, e quem só queria o preço encontra sem ler tudo.
+            _Secao(child: _Planos(desktop: desktop)),
             _Secao(child: _Chamada(desktop: desktop)),
             const _Rodape(),
           ],
