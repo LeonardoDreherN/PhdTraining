@@ -26,7 +26,17 @@
 --  Depende do 0027, do 0014 e do 0010. Seguro rodar mais de uma vez.
 -- ════════════════════════════════════════════════════════════
 
-create or replace function public.numeros_do_aluno(p_aluno_id uuid)
+-- `create or replace` não troca o tipo de retorno: as colunas de saída
+-- fazem parte da assinatura, e o Postgres recusa com 42P13. Como o 0027
+-- já criou a função com onze colunas e aqui ela passa a ter quinze, o
+-- jeito é derrubar antes.
+--
+-- Derrubar é seguro: `conceder_conquistas` chama esta por nome, e corpo
+-- de plpgsql só é resolvido na execução — ela volta a funcionar assim
+-- que a nova existe, logo abaixo. Nenhum dado mora em função.
+drop function if exists public.numeros_do_aluno(uuid);
+
+create function public.numeros_do_aluno(p_aluno_id uuid)
 returns table (
   treinos              integer,
   dias_previstos       integer,
@@ -164,7 +174,11 @@ end $$;
 --  CONCEDER — agora com nutrição
 -- ════════════════════════════════════════════════════════════
 
-create or replace function public.conceder_conquistas(p_aluno_id uuid)
+-- Esta mantém a assinatura do 0027, mas vai pelo mesmo caminho: se um
+-- dia as colunas de saída mudarem, o `replace` falharia do mesmo jeito.
+drop function if exists public.conceder_conquistas(uuid);
+
+create function public.conceder_conquistas(p_aluno_id uuid)
 returns table (conquista text, atingiu integer)
 language plpgsql security definer set search_path = public as $$
 declare n record;
