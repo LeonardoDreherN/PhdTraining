@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/services/ficha_service.dart';
 import '../../../core/services/treino_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -82,6 +83,54 @@ class _AlunoTreinosScreenState extends State<AlunoTreinosScreen> {
     if (await iniciarTreino(context, ficha, dia: _hoje) && mounted) _carregar();
   }
 
+  /// Recordes e desbloqueios ficam no topo da aba de treino, não
+  /// escondidos no perfil: é o que o aluno abre para ver o que ganhou, e
+  /// medalha que não se acha não motiva ninguém.
+  Widget _atalhosConquistas() {
+    return Row(
+      children: [
+        Expanded(
+          child: _atalho(
+            Icons.emoji_events_rounded,
+            'Recordes',
+            () => context.push('/aluno/recordes',
+                extra: {'alunoId': widget.alunoId}),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _atalho(
+            Icons.auto_awesome_rounded,
+            'Desbloqueios',
+            () => context.push('/aluno/desbloqueios',
+                extra: {'alunoId': widget.alunoId}),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _atalho(IconData icone, String titulo, VoidCallback onTap) {
+    return PhdCard(
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg, vertical: AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          Icon(icone, size: 18, color: AppColors.accent),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(titulo,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.bodyStrong(13.5)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -107,6 +156,8 @@ class _AlunoTreinosScreenState extends State<AlunoTreinosScreen> {
                         Text('TREINO', style: AppText.label()),
                         const SizedBox(height: 6),
                         Text('Seus treinos', style: AppText.display(26)),
+                        const SizedBox(height: AppSpacing.lg),
+                        _atalhosConquistas(),
                         const SizedBox(height: AppSpacing.xl),
                         if (_fichas.isEmpty)
                           const PhdEmptyState(

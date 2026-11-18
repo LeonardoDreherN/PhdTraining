@@ -21,6 +21,8 @@ import '../../modules/aluno/treino/aluno_treinos_screen.dart';
 import '../../modules/aluno/home/aluno_home_screen.dart';
 import '../../modules/aluno/treino/executar_treino_screen.dart';
 import '../../modules/aluno/treino/preview_treino_screen.dart';
+import '../../modules/aluno/conquistas/recordes_screen.dart';
+import '../../modules/aluno/conquistas/desbloqueios_screen.dart';
 import '../../modules/aluno/progresso/progresso_screen.dart';
 import '../../modules/aluno/dieta/aluno_dieta_screen.dart';
 import '../../modules/auth/cadastro_screen.dart';
@@ -347,6 +349,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       // O treino inteiro antes de começar. É por aqui que o aluno entra:
       // consulta tudo, e de lá decide começar.
+      GoRoute(
+        path: '/aluno/recordes',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => RecordesScreen(alunoId: e['alunoId'] as String),
+          voltarPara: '/aluno/home',
+        ),
+      ),
+      GoRoute(
+        path: '/aluno/desbloqueios',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => DesbloqueiosScreen(alunoId: e['alunoId'] as String),
+          voltarPara: '/aluno/home',
+        ),
+      ),
       GoRoute(
         path: '/aluno/treino/ver',
         builder: (context, state) => _exigeExtra(
