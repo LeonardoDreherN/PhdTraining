@@ -352,7 +352,16 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
     final obs = item.observacoes?.trim();
     final temVideo = (item.videoUrl ?? '').trim().isNotEmpty;
 
+    // Quem está combinado com o seguinte ganha faixa lateral: o personal
+    // precisa ver o bloco que montou sem abrir exercício por exercício.
+    final proximo = index + 1 < _itens.length ? _itens[index + 1] : null;
+    final ligadoAoProximo =
+        item.emGrupo && proximo != null && proximo.grupoId == item.grupoId;
+
     return PhdCard(
+      accentBar: ligadoAoProximo || (item.emGrupo && !ligadoAoProximo)
+          ? AppColors.accent
+          : null,
       onTap: () => _editarExercicio(item),
       padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.xs, AppSpacing.sm),
       child: Row(
@@ -403,6 +412,10 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
                     _pilula(Icons.repeat_rounded, item.prescricao, destaque: true),
                     if (item.cargaFormatada != null) _pilula(Icons.fitness_center_rounded, item.cargaFormatada!),
                     if (item.descansoFormatado != null) _pilula(Icons.timer_outlined, item.descansoFormatado!),
+                    if (item.metodoRotulo != null)
+                      _pilula(Icons.bolt_rounded, item.metodoRotulo!, destaque: true),
+                    if (ligadoAoProximo)
+                      _pilula(Icons.link_rounded, 'com o próximo'),
                   ],
                 ),
                 if (obs != null && obs.isNotEmpty) ...[
@@ -575,12 +588,50 @@ class _FichaDetalheScreenState extends ConsumerState<FichaDetalheScreen> {
         'carga': dados.carga,
         'descanso_segundos': dados.descanso,
         'observacoes': dados.observacoes,
+        'metodo': dados.metodo,
       });
+      await _aplicarCombinacao(item, dados.combinarComProximo);
       _avisarMudanca();
       await _carregar();
     } catch (e) {
       if (mounted) _avisar('Não consegui salvar: $e', erro: true);
     }
+  }
+
+  /// Liga ou desliga a combinação deste exercício com o seguinte.
+  ///
+  /// O grupo mora nos dois: `grupo_id` igual é o que o aluno vê como
+  /// bloco. Usa o id do primeiro como identificador — já é único, e
+  /// gerar outro à toa só daria mais uma coisa para desencontrar.
+  Future<void> _aplicarCombinacao(FichaExercicio item, bool combinar) async {
+    final i = _itens.indexWhere((e) => e.id == item.id);
+    if (i < 0) return;
+
+    final proximo = i + 1 < _itens.length ? _itens[i + 1] : null;
+
+    if (!combinar) {
+      if (!item.emGrupo) return;
+      // Desfaz o grupo inteiro: deixar um exercício sozinho com grupo
+      // desenharia um bloco de um item, que não é combinação nenhuma.
+      final grupo = item.grupoId;
+      for (final e in _itens.where((e) => e.grupoId == grupo)) {
+        await FichaService.atualizarExercicio(e.id, {'grupo_id': null});
+      }
+      return;
+    }
+
+    if (proximo == null) {
+      if (mounted) {
+        _avisar('Este é o último exercício: não há com quem combinar.');
+      }
+      return;
+    }
+
+    // Se o seguinte já está num grupo, entra nele em vez de criar outro —
+    // é assim que um bi-set vira tri-set.
+    final grupo = proximo.grupoId ?? item.grupoId ?? item.id;
+    await FichaService.atualizarExercicio(item.id, {'grupo_id': grupo});
+    await FichaService.atualizarExercicio(proximo.id, {'grupo_id': grupo});
   }
 
   Future<void> _removerExercicio(FichaExercicio item) async {
@@ -870,6 +921,20 @@ class _DialogoNomeState extends State<_DialogoNome> {
 }
 
 /// O que a folha de configuração devolve.
+/// Os métodos que o montador oferece.
+///
+/// `normal` não vira etiqueta na tela do aluno: escrever "normal" em todo
+/// exercício só tiraria a atenção dos que não são.
+const _metodos = <({String valor, String rotulo})>[
+  (valor: 'normal', rotulo: 'Normal'),
+  (valor: 'piramide', rotulo: 'Pirâmide'),
+  (valor: 'drop_set', rotulo: 'Drop-set'),
+  (valor: 'back_off', rotulo: 'Back-off'),
+  (valor: 'bi_set', rotulo: 'Bi-set'),
+  (valor: 'super_set', rotulo: 'Super-set'),
+  (valor: 'circuito', rotulo: 'Circuito'),
+];
+
 class _ConfigExercicio {
   const _ConfigExercicio({
     required this.series,
@@ -877,6 +942,8 @@ class _ConfigExercicio {
     this.carga,
     this.descanso,
     this.observacoes,
+    this.metodo = 'normal',
+    this.combinarComProximo = false,
   }) : remover = false;
 
   const _ConfigExercicio.remover()
@@ -885,6 +952,8 @@ class _ConfigExercicio {
         carga = null,
         descanso = null,
         observacoes = null,
+        metodo = 'normal',
+        combinarComProximo = false,
         remover = true;
 
   final int series;
@@ -892,6 +961,14 @@ class _ConfigExercicio {
   final String? carga;
   final int? descanso;
   final String? observacoes;
+
+  /// O rótulo que o aluno lê — pirâmide, drop-set, back-off.
+  final String metodo;
+
+  /// Junta este exercício ao seguinte num bloco executado sem descanso
+  /// entre eles. É isso que o aluno vê como bi-set.
+  final bool combinarComProximo;
+
   final bool remover;
 }
 
@@ -919,6 +996,8 @@ class _FolhaConfigState extends State<_FolhaConfig> {
   late final _reps = TextEditingController(text: widget.atual?.repeticoes ?? '12');
   late final _carga = TextEditingController(text: widget.atual?.carga ?? '');
   late final _obs = TextEditingController(text: widget.atual?.observacoes ?? '');
+  late String _metodo = widget.atual?.metodo ?? 'normal';
+  late bool _combinar = widget.atual?.emGrupo ?? false;
   bool _verVideo = false;
 
   static const _descansos = [30, 45, 60, 90, 120, 180];
@@ -945,6 +1024,8 @@ class _FolhaConfigState extends State<_FolhaConfig> {
         carga: carga.isEmpty ? null : carga,
         descanso: _descanso,
         observacoes: obs.isEmpty ? null : obs,
+        metodo: _metodo,
+        combinarComProximo: _combinar,
       ),
     );
   }
@@ -1016,12 +1097,75 @@ class _FolhaConfigState extends State<_FolhaConfig> {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
+          Text('Método', style: AppText.caption(12.5)),
+          const SizedBox(height: 7),
+          PhdFilterBar(
+            children: [
+              for (final m in _metodos)
+                PhdFilterChip(
+                  label: m.rotulo,
+                  selected: _metodo == m.valor,
+                  onTap: () => setState(() => _metodo = m.valor),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            // O método vira etiqueta na tela do aluno; a progressão em si
+            // ele lê na observação. "Pirâmide" sozinho não diz as cargas.
+            _metodo == 'normal'
+                ? 'O aluno não vê etiqueta nenhuma.'
+                : 'O aluno vê "${_metodos.firstWhere((m) => m.valor == _metodo).rotulo}" '
+                    'no exercício. Descreva a progressão na observação.',
+            style: AppText.caption(11.5, color: AppColors.textMuted),
+          ),
+
+          const SizedBox(height: AppSpacing.lg),
+          // Bi-set é combinação, não método: são dois exercícios ligados.
+          // Por isso é interruptor e não mais um chip na lista acima.
+          PhdCard(
+            color: AppColors.surfaceHigh,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg, vertical: AppSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.link_rounded,
+                    size: 18,
+                    color: _combinar ? AppColors.accent : AppColors.textMuted),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Combinar com o próximo',
+                          style: AppText.bodyStrong(13.5)),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Os dois saem juntos, sem descanso entre eles.',
+                        style:
+                            AppText.caption(11.5, color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _combinar,
+                  activeThumbColor: AppColors.accent,
+                  onChanged: (v) => setState(() => _combinar = v),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.lg),
           PhdField(
             label: 'Observação',
             controller: _obs,
             hint: 'Opcional — o aluno lê durante o treino',
-            textInputAction: TextInputAction.done,
-            onSubmitted: _salvar,
+            maxLines: 3,
+            textInputAction: TextInputAction.newline,
           ),
           const SizedBox(height: AppSpacing.xl),
           PhdButton(
