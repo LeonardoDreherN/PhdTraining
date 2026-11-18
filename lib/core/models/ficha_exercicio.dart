@@ -20,6 +20,8 @@ class FichaExercicio {
     this.descansoSegundos,
     this.observacoes,
     this.metodo = 'normal',
+    this.grupoId,
+    this.thumbUrl,
     this.ordem = 0,
   });
 
@@ -46,11 +48,45 @@ class FichaExercicio {
   final int? descansoSegundos;
   final String? observacoes;
 
-  /// 'normal', 'bi_set', 'drop_set', 'piramide' — a coluna existe desde o
-  /// 0001. A interface ainda só escreve 'normal'.
+  /// 'normal', 'bi_set', 'drop_set', 'piramide'.
   final String metodo;
 
+  /// Exercícios com o mesmo `grupoId` são executados juntos — bi-set,
+  /// tri-set, circuito. Nulo é exercício solto.
+  final String? grupoId;
+
+  /// Capa do vídeo. Serve de miniatura: a imagem aparece parada e o vídeo
+  /// só roda se o aluno tocar, em vez de carregar vídeo de todo exercício
+  /// ao abrir a lista.
+  final String? thumbUrl;
+
   final int ordem;
+
+  bool get emGrupo => grupoId != null && grupoId!.isNotEmpty;
+
+  /// O rótulo do método, para a tela do aluno. 'normal' não vira etiqueta:
+  /// escrever "normal" em todo exercício só tira a atenção dos que não são.
+  String? get metodoRotulo => switch (metodo) {
+        'bi_set' => 'Bi-set',
+        'tri_set' => 'Tri-set',
+        'drop_set' => 'Drop-set',
+        'piramide' => 'Pirâmide',
+        'circuito' => 'Circuito',
+        'back_off' => 'Back-off',
+        'super_set' => 'Super-set',
+        _ => null,
+      };
+
+  /// A imagem que representa o exercício: a capa do vídeo quando há,
+  /// senão a foto cadastrada.
+  String? get capa {
+    final t = thumbUrl?.trim();
+    if (t != null && t.isNotEmpty) return t;
+    final m = midiaUrl?.trim();
+    return (m == null || m.isEmpty) ? null : m;
+  }
+
+  bool get temVideo => (videoUrl?.trim().isNotEmpty ?? false);
 
   /// "3 × 12" — o que o personal lê primeiro no cartão.
   String get prescricao {
@@ -97,6 +133,8 @@ class FichaExercicio {
       descansoSegundos: (m['descanso_segundos'] as num?)?.toInt(),
       observacoes: m['observacoes'] as String?,
       metodo: m['metodo'] as String? ?? 'normal',
+      grupoId: m['grupo_id'] as String?,
+      thumbUrl: ex['thumb_url'] as String?,
       ordem: (m['ordem'] as num?)?.toInt() ?? 0,
     );
   }
@@ -117,6 +155,8 @@ class FichaExercicio {
         descansoSegundos: descansoSegundos,
         observacoes: observacoes,
         metodo: metodo,
+        grupoId: grupoId,
+        thumbUrl: thumbUrl,
         ordem: ordem ?? this.ordem,
       );
 }

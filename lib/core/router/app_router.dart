@@ -20,7 +20,7 @@ import '../../modules/aluno/shell/aluno_shell.dart';
 import '../../modules/aluno/treino/aluno_treinos_screen.dart';
 import '../../modules/aluno/home/aluno_home_screen.dart';
 import '../../modules/aluno/treino/executar_treino_screen.dart';
-import '../../modules/aluno/treino/treino_simples_screen.dart';
+import '../../modules/aluno/treino/preview_treino_screen.dart';
 import '../../modules/aluno/progresso/progresso_screen.dart';
 import '../../modules/aluno/dieta/aluno_dieta_screen.dart';
 import '../../modules/auth/cadastro_screen.dart';
@@ -338,19 +338,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(
-        path: '/aluno/treino-simples',
-        builder: (context, state) => _exigeExtra(
-          state,
-          (e) => TreinoSimplesScreen(ficha: e),
-          voltarPara: '/aluno/home',
-        ),
-      ),
-
-      GoRoute(
         path: '/aluno/dieta',
         builder: (context, state) => _exigeExtra(
           state,
           (e) => AlunoDietaScreen(alunoId: e['alunoId'] as String),
+          voltarPara: '/aluno/home',
+        ),
+      ),
+      // O treino inteiro antes de começar. É por aqui que o aluno entra:
+      // consulta tudo, e de lá decide começar.
+      GoRoute(
+        path: '/aluno/treino/ver',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => PreviewTreinoScreen(
+            ficha: e['ficha'] as Map<String, dynamic>,
+            dia: e['dia'] as int? ?? DateTime.now().weekday % 7,
+          ),
           voltarPara: '/aluno/home',
         ),
       ),
@@ -360,7 +364,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           state,
           (e) => ExecutarTreinoScreen(
             ficha: e['ficha'] as Map<String, dynamic>,
-            modoVideo: e['modoVideo'] as bool? ?? false,
+            // O vídeo deixou de ser um modo separado: agora está em todo
+            // exercício, na visualização e durante a execução.
+            modoVideo: e['modoVideo'] as bool? ?? true,
             diaSelecionado:
                 e['diaSelecionado'] as int? ?? DateTime.now().weekday % 7,
           ),
