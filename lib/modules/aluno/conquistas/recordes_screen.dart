@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/models/conquista.dart';
 import '../../../core/services/conquista_service.dart';
+import '../../../core/services/feed_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -43,6 +44,10 @@ class _RecordesScreenState extends State<RecordesScreen> {
   bool _carregando = true;
   Object? _erro;
 
+  /// Opt-in: nasce falso e só vira verdadeiro se o aluno disser.
+  bool _compartilha = false;
+  bool _mudandoCompartilhamento = false;
+
   @override
   void initState() {
     super.initState();
@@ -65,11 +70,15 @@ class _RecordesScreenState extends State<RecordesScreen> {
         ConquistaService.doAluno(widget.alunoId),
       ).wait;
 
+      final compartilha =
+          await FeedService.compartilhaConquistas(widget.alunoId);
+
       if (!mounted) return;
       setState(() {
         _n = numeros;
         _tenho = {for (final c in minhas) c.codigo};
         _quando = {for (final c in minhas) c.codigo: c.desbloqueadoEm};
+        _compartilha = compartilha;
       });
     } catch (e) {
       if (mounted) setState(() => _erro = e);
@@ -149,6 +158,9 @@ class _RecordesScreenState extends State<RecordesScreen> {
                 for (final c in conquistadas) _medalha(c, _quando[c.codigo]),
               ],
             ),
+
+          const SizedBox(height: AppSpacing.xl),
+          _compartilhamento(),
 
           if (proximas.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.xl),
@@ -324,6 +336,80 @@ class _RecordesScreenState extends State<RecordesScreen> {
         ],
       ),
     );
+  }
+
+  /// O consentimento do aluno para o feed.
+  ///
+  /// Começa desligado e fica desligado até ele ligar. A especificação
+  /// exige escolha explícita, e o jeito de respeitar isso é não publicar
+  /// nada até o sim — não publicar e oferecer um botão de parar.
+  ///
+  /// Fica aqui, junto das medalhas, porque é aqui que a pergunta faz
+  /// sentido: ele acabou de ver o que conquistou.
+  Widget _compartilhamento() {
+    return PhdCard(
+      color: AppColors.surfaceHigh,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg, vertical: AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            _compartilha ? Icons.visibility_rounded : Icons.lock_outline_rounded,
+            size: 18,
+            color: _compartilha ? AppColors.accent : AppColors.textMuted,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Mostrar na comunidade',
+                    style: AppText.bodyStrong(13.5)),
+                const SizedBox(height: 2),
+                Text(
+                  _compartilha
+                      ? 'Suas medalhas aparecem no feed. Peso, medidas e '
+                          'fotos nunca aparecem.'
+                      : 'Suas conquistas ficam só para você.',
+                  style: AppText.caption(11.5, color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _compartilha,
+            activeThumbColor: AppColors.accent,
+            onChanged: _mudandoCompartilhamento ? null : _mudarCompartilhamento,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _mudarCompartilhamento(bool valor) async {
+    final antes = _compartilha;
+    setState(() {
+      _compartilha = valor;
+      _mudandoCompartilhamento = true;
+    });
+    try {
+      await FeedService.definirCompartilhamento(widget.alunoId, valor);
+    } catch (e) {
+      if (!mounted) return;
+      // Desfaz: deixar marcado o que não gravou faria o aluno achar que
+      // autorizou — ou que parou de autorizar — sem ter acontecido.
+      setState(() => _compartilha = antes);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.surfaceHigh,
+          content: Text('Não consegui salvar: $e', style: AppText.body(13.5)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _mudandoCompartilhamento = false);
+    }
   }
 
   // ── Medalhas ────────────────────────────────────────────────

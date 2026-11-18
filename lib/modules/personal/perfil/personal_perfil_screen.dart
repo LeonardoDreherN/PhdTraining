@@ -174,6 +174,24 @@ class _PersonalPerfilScreenState extends ConsumerState<PersonalPerfilScreen> {
                         const SizedBox(height: 10),
                         const PhdSeletorTema(),
                         const SizedBox(height: 28),
+                        _rotulo('COMUNIDADE'),
+                        const SizedBox(height: 10),
+                        _buildBotaoOutline(
+                          'Feed da comunidade',
+                          Icons.forum_outlined,
+                          () => context.push('/comunidade', extra: {
+                            'personalId': _perfil?['id'],
+                            'souProfissional': true,
+                          }),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildBotaoOutline(
+                          'Configurar comunidade',
+                          Icons.tune_rounded,
+                          () => context.push('/comunidade/config',
+                              extra: {'personalId': _perfil?['id']}),
+                        ),
+                        const SizedBox(height: 28),
                         _rotulo('EQUIPE'),
                         const SizedBox(height: 10),
                         _buildBotaoOutline(

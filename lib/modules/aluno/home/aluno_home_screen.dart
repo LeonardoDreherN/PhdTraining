@@ -386,8 +386,10 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                               somenteAbertas: true,
                             ),
                           ),
+                          const SizedBox(height: AppSpacing.xxl),
+                          _atalhoComunidade(),
                           if (_personal != null) ...[
-                            const SizedBox(height: AppSpacing.xxl),
+                            const SizedBox(height: AppSpacing.md),
                             _cartaoPersonal(_personal!),
                           ],
                         ],
@@ -1393,6 +1395,41 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     final h = m ~/ 60;
     final resto = m % 60;
     return resto == 0 ? '${h}h' : '${h}h$resto';
+  }
+
+  /// Entrada da comunidade.
+  ///
+  /// A tela do feed decide sozinha o que mostrar quando o profissional
+  /// não ligou a comunidade — não dá para saber isso aqui sem mais uma
+  /// consulta na home, que já faz cinco.
+  Widget _atalhoComunidade() {
+    final personalId = _aluno?['personal_id'] as String?;
+    final alunoId = _aluno?['id']?.toString();
+    if (personalId == null || alunoId == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: AppSpacing.screen,
+      child: PhdCard(
+        onTap: () => context.push('/comunidade', extra: {
+          'personalId': personalId,
+          'alunoId': alunoId,
+        }),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg, vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.forum_rounded, size: 18, color: AppColors.accent),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text('Comunidade', style: AppText.bodyStrong(13.5)),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                size: 19, color: AppColors.textMuted),
+          ],
+        ),
+      ),
+    );
   }
 
   // ── Personal ────────────────────────────────────────────────

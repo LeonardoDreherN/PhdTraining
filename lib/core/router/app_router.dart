@@ -22,6 +22,8 @@ import '../../modules/aluno/home/aluno_home_screen.dart';
 import '../../modules/aluno/treino/executar_treino_screen.dart';
 import '../../modules/aluno/treino/preview_treino_screen.dart';
 import '../models/conquista.dart';
+import '../../modules/feed/feed_screen.dart';
+import '../../modules/feed/comunidade_config_screen.dart';
 import '../../modules/aluno/conquistas/recordes_screen.dart';
 import '../../modules/aluno/conquistas/desbloqueios_screen.dart';
 import '../../modules/aluno/progresso/progresso_screen.dart';
@@ -350,6 +352,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       // O treino inteiro antes de começar. É por aqui que o aluno entra:
       // consulta tudo, e de lá decide começar.
+      GoRoute(
+        path: '/comunidade',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => FeedScreen(
+            personalId: e['personalId'] as String,
+            alunoId: e['alunoId'] as String?,
+            souProfissional: e['souProfissional'] as bool? ?? false,
+          ),
+          voltarPara: '/home',
+        ),
+      ),
+      GoRoute(
+        path: '/comunidade/config',
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => ComunidadeConfigScreen(personalId: e['personalId'] as String),
+          voltarPara: '/perfil',
+        ),
+      ),
       GoRoute(
         path: '/aluno/recordes',
         builder: (context, state) => _exigeExtra(
