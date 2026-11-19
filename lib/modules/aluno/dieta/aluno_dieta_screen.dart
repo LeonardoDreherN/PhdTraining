@@ -7,7 +7,9 @@ import '../../../core/models/dieta.dart';
 import '../../../core/models/perfil.dart';
 import '../../../core/models/recursos_aluno.dart';
 import '../../../core/services/diario_service.dart';
+import '../../../core/services/conquista_service.dart';
 import '../../../core/services/dieta_service.dart';
+import '../../../core/services/feed_service.dart';
 import '../../../core/services/lembretes_service.dart';
 import '../../../core/services/metas_service.dart';
 import '../../../core/services/profile_service.dart';
@@ -18,6 +20,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/dieta_calculos.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../personal/dieta/plano_pdf.dart';
+import '../conquistas/festa_conquista.dart';
 import 'cartao_agua.dart';
 import 'editar_refeicao_sheet.dart';
 import 'folhas_registro.dart';
@@ -286,6 +289,24 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
         dia: _dia,
         feita: feita,
       );
+
+      // Marcar refeição é o que move quase toda conquista de nutrição.
+      // Só ao MARCAR: desmarcar não desbloqueia nada, e pedir a conta ao
+      // banco nos dois casos seria uma ida a mais por toque.
+      //
+      // Num `try` próprio: a refeição já está gravada, e falhar na
+      // medalha não pode desfazer o check na tela.
+      if (feita) {
+        try {
+          final novas = await ConquistaService.conceder(widget.alunoId);
+          if (novas.isNotEmpty) {
+            await FeedService.publicarConquistas(widget.alunoId);
+            if (mounted) await celebrarConquistas(context, novas);
+          }
+        } catch (_) {
+          // A tela de conquistas concede de novo quando o aluno abrir.
+        }
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

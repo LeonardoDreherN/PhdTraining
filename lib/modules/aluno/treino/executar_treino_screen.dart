@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
 import '../../../core/models/ficha_exercicio.dart';
+import '../../../core/services/conquista_service.dart';
 import '../../../core/services/execucao_service.dart';
+import '../../../core/services/feed_service.dart';
 import '../../../core/services/ficha_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
@@ -258,14 +260,33 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
     final minutos = DateTime.now().difference(_inicio).inMinutes;
 
     String? falha;
+    var novas = <String>[];
     try {
-      await ExecucaoService.salvar(
+      final alunoId = await ExecucaoService.salvar(
         fichaId: widget.ficha['id'].toString(),
         fichaNome: widget.ficha['nome'] as String? ?? '',
         detalhes: _log,
         duracaoMinutos: minutos,
         totalExercicios: _itens.length,
       );
+
+      // A medalha pertence a este instante. Antes daqui, `conceder` só
+      // rodava quando o aluno abria a tela de recordes — ele descobria
+      // dias depois que tinha batido 50 treinos.
+      //
+      // Num `try` próprio: conquista é bônus, e falhar aqui não pode
+      // fazer o treino parecer não salvo. O treino já está gravado.
+      try {
+        novas = await ConquistaService.conceder(alunoId);
+        // Publica no feed o que o aluno autorizou. A função do banco
+        // confere as três portas (feed ativo, conquistas automáticas,
+        // consentimento do aluno) e não publica nada se alguma fechar.
+        if (novas.isNotEmpty) {
+          await FeedService.publicarConquistas(alunoId);
+        }
+      } catch (_) {
+        // Sem festa desta vez. A tela de recordes concede de novo.
+      }
     } catch (e) {
       // A versão anterior fazia `debugPrint` e seguia para a tela de
       // parabéns. O aluno treinava, lia "concluído", e nada tinha sido
@@ -281,6 +302,7 @@ class _ExecutarTreinoScreenState extends State<ExecutarTreinoScreen>
       minutos: minutos,
       series: _log.fold<int>(0, (s, e) => s + (e['series'] as List).length),
       falha: falha,
+      conquistasNovas: novas,
     );
     if (mounted) context.pop();
   }

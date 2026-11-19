@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/checkin.dart';
 import '../../../core/services/checkin_service.dart';
+import '../../../core/services/feed_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/datas.dart';
 import '../../../core/widgets/widgets.dart';
+import '../conquistas/festa_conquista.dart';
 import 'checkin_sheet.dart';
 
 /// O cartão do check-in mensal na casa do aluno.
@@ -51,12 +53,23 @@ class _CartaoCheckinState extends State<CartaoCheckin> {
   }
 
   Future<void> _abrir() async {
-    final enviou = await abrirCheckin(
+    final novas = await abrirCheckin(
       context,
       alunoId: widget.alunoId,
       existente: _c,
     );
-    if (enviou) await _carregar();
+    if (novas == null) return;
+
+    await _carregar();
+
+    if (novas.isNotEmpty) {
+      try {
+        await FeedService.publicarConquistas(widget.alunoId);
+      } catch (_) {
+        // O feed publica na próxima abertura; a medalha já é do aluno.
+      }
+      if (mounted) await celebrarConquistas(context, novas);
+    }
   }
 
   @override

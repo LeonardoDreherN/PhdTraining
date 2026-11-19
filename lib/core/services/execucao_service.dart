@@ -3,7 +3,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class ExecucaoService {
   static final _db = Supabase.instance.client;
 
-  static Future<void> salvar({
+  /// Grava a execução e devolve o `alunos.id`.
+  ///
+  /// Devolve porque quem chama precisa dele em seguida, para conceder as
+  /// conquistas: a execução é o fato que desbloqueia a medalha, e quem
+  /// resolveu quem é o aluno foi esta função.
+  static Future<String> salvar({
     required String fichaId,
     required String fichaNome,
     required List<Map<String, dynamic>> detalhes,
@@ -50,6 +55,8 @@ class ExecucaoService {
       'total_exercicios': totalExercicios,
       'detalhes': detalhes,
     });
+
+    return aluno['id'] as String;
   }
 
   static Future<List<Map<String, dynamic>>> listarParaPersonal() async {

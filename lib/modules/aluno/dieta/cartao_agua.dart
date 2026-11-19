@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/conquista_service.dart';
 import '../../../core/services/diario_service.dart';
+import '../../../core/services/feed_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/datas.dart';
 import '../../../core/widgets/widgets.dart';
+import '../conquistas/festa_conquista.dart';
 
 /// Azul-céu da água. Fora de `AppColors` pelo mesmo motivo dos macros: é
 /// categoria, não estado — e precisa se distinguir do azul da marca.
@@ -90,6 +94,27 @@ class _CartaoAguaState extends State<CartaoAgua> {
         final i = _copos.lastIndexWhere((c) => c.id == temp);
         if (i >= 0) _copos[i] = (id: id, ml: ml);
       });
+
+      // Só no copo que CRUZA a meta, e só hoje.
+      //
+      // Conceder a cada copo custaria uma ida ao banco por toque e a
+      // medalha chegaria no mesmo instante de qualquer jeito — o marco é
+      // o dia que bateu a meta. E corrigir a água de anteontem não é um
+      // momento de festa: é correção.
+      final total = _total;
+      final antes = total - ml;
+      final ehHoje = Datas.dia(widget.dia) == Datas.dia(DateTime.now());
+      if (ehHoje && antes < widget.metaMl && total >= widget.metaMl) {
+        try {
+          final novas = await ConquistaService.conceder(widget.alunoId);
+          if (novas.isNotEmpty) {
+            await FeedService.publicarConquistas(widget.alunoId);
+            if (mounted) await celebrarConquistas(context, novas);
+          }
+        } catch (_) {
+          // A tela de conquistas concede de novo quando o aluno abrir.
+        }
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _copos = _copos.where((c) => c.id != temp).toList());

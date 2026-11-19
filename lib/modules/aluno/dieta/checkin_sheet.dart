@@ -8,19 +8,23 @@ import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/widgets.dart';
 
-/// Abre o check-in do mês. Devolve `true` se o aluno enviou.
-Future<bool> abrirCheckin(
+/// Abre o check-in do mês.
+///
+/// Devolve os códigos das conquistas que o envio desbloqueou, ou nulo se
+/// o aluno saiu sem enviar. A festa é de quem chamou, não da folha: a
+/// folha se fecha no mesmo instante, e uma comemoração que nasce dentro
+/// de um `Navigator` que está saindo não chega a aparecer.
+Future<List<String>?> abrirCheckin(
   BuildContext context, {
   required String alunoId,
   CheckinNutricional? existente,
-}) async {
-  final enviou = await showModalBottomSheet<bool>(
+}) {
+  return showModalBottomSheet<List<String>>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (_) => _CheckinSheet(alunoId: alunoId, existente: existente),
   );
-  return enviou ?? false;
 }
 
 class _CheckinSheet extends StatefulWidget {
@@ -63,9 +67,17 @@ class _CheckinSheetState extends State<_CheckinSheet> {
       // O check-in é critério de três conquistas. Conceder aqui faz a
       // medalha aparecer na hora, e não na próxima vez que o aluno
       // abrir a tela de recordes.
-      await ConquistaService.conceder(widget.alunoId);
+      //
+      // Num `try` próprio: o check-in já está gravado, e falhar na
+      // medalha não pode fazer o envio parecer perdido.
+      var novas = <String>[];
+      try {
+        novas = await ConquistaService.conceder(widget.alunoId);
+      } catch (_) {
+        // A tela de conquistas concede de novo quando o aluno abrir.
+      }
       if (!mounted) return;
-      Navigator.pop(context, true);
+      Navigator.pop(context, novas);
     } catch (e) {
       if (!mounted) return;
       setState(() => _enviando = false);
