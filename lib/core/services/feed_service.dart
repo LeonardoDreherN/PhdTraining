@@ -229,6 +229,57 @@ class FeedService {
   }
 
   // ── Moderação ───────────────────────────────────────────────
+  /// As publicações que o profissional tirou do feed.
+  ///
+  /// Até a 0033 ele não conseguia nem ver o que ocultou — a policy de
+  /// leitura abria exceção só para o autor, e o autor de uma publicação
+  /// de aluno é o aluno. Ocultar era apagar com outro nome.
+  static Future<List<PostFeed>> postsOcultos(String personalId) async {
+    final linhas = await _db
+        .from('feed_posts')
+        .select(_campos)
+        .eq('personal_id', personalId)
+        .eq('oculto', true)
+        .order('criado_em', ascending: false)
+        .limit(100);
+
+    return [
+      for (final l in List<Map<String, dynamic>>.from(linhas))
+        PostFeed.doMapa(
+          {
+            ...l,
+            'comentarios_contagem':
+                ((l['feed_comentarios'] as List?)?.firstOrNull
+                        as Map?)?['count'] ??
+                    0,
+          },
+          meuId: _uid,
+        ),
+    ];
+  }
+
+  /// Os alunos silenciados agora. Sem isto o silêncio de sete dias não
+  /// teria como ser interrompido antes da hora — e punição sem perdão é
+  /// defeito, não política.
+  static Future<List<({String alunoId, String nome, DateTime ate})>>
+      alunosSilenciados() async {
+    final linhas = await _db
+        .from('aluno_feed_prefs')
+        .select('aluno_id, bloqueado_ate, alunos(nome)')
+        .gt('bloqueado_ate', DateTime.now().toUtc().toIso8601String())
+        .order('bloqueado_ate', ascending: true);
+
+    return [
+      for (final l in List<Map<String, dynamic>>.from(linhas))
+        (
+          alunoId: l['aluno_id'] as String,
+          nome: (l['alunos'] as Map?)?['nome'] as String? ?? 'Aluno',
+          ate: DateTime.tryParse(l['bloqueado_ate'] as String? ?? '') ??
+              DateTime.now(),
+        ),
+    ];
+  }
+
 
   /// Quantas denúncias esperam o profissional. Zero some da tela.
   static Future<int> denunciasPendentes(String personalId) async {

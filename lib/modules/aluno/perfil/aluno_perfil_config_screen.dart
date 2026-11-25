@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../../core/services/equipe_service.dart';
 import '../../../core/services/profile_service.dart';
 import '../../../core/services/auth_service.dart';
 
@@ -25,6 +26,11 @@ class _AlunoPerfilConfigScreenState extends State<AlunoPerfilConfigScreen> {
   final _db = Supabase.instance.client;
   Map<String, dynamic>? _perfil;
   Map<String, dynamic>? _aluno;
+
+  /// Quem enxerga os dados dele: o profissional e a equipe com alcance
+  /// sobre ele.
+  List<({String nome, String papel})> _acompanham = const [];
+
   bool _carregando = true;
   bool _uploadando = false;
 
@@ -41,10 +47,24 @@ class _AlunoPerfilConfigScreenState extends State<AlunoPerfilConfigScreen> {
       ProfileService.getPerfil(),
       _db.from('alunos').select().eq('user_id', user.id).maybeSingle(),
     ]);
+    final aluno = resultados[1];
+
+    // Num `try` à parte: sem a 0025 a função não existe, e o perfil
+    // precisa abrir do mesmo jeito.
+    var acompanham = <({String nome, String papel})>[];
+    if (aluno != null) {
+      try {
+        acompanham = await EquipeService.quemAcompanha(aluno['id'] as String);
+      } catch (_) {
+        // Sem a lista, a seção não aparece.
+      }
+    }
+
     if (mounted) {
       setState(() {
         _perfil = resultados[0];
-        _aluno = resultados[1];
+        _aluno = aluno;
+        _acompanham = acompanham;
         _carregando = false;
       });
     }
@@ -158,6 +178,32 @@ class _AlunoPerfilConfigScreenState extends State<AlunoPerfilConfigScreen> {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text('Para mudar algum dado, fale com seu personal.', style: AppText.caption(12.5)),
+                  ],
+                  if (_acompanham.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xxl),
+                    const PhdSectionHeader(label: 'Quem acompanha você'),
+                    const SizedBox(height: AppSpacing.md),
+                    PhdCard(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg),
+                      child: Column(
+                        children: [
+                          for (final (i, q) in _acompanham.indexed) ...[
+                            if (i > 0)
+                              Divider(height: 1, color: AppColors.line),
+                            _infoLinha(q.nome, q.papel),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      // São dados de saúde dele. Saber quem os vê não é
+                      // um extra: é o mínimo.
+                      'Só estas pessoas veem seus treinos, sua dieta e suas '
+                      'medidas.',
+                      style: AppText.caption(12.5),
+                    ),
                   ],
                   const SizedBox(height: AppSpacing.xxl),
                   const PhdSectionHeader(label: 'Aparência'),

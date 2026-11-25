@@ -195,7 +195,8 @@ class _PersonalPerfilScreenState extends ConsumerState<PersonalPerfilScreen> {
                         _buildBotaoOutline(
                           'Denúncias',
                           Icons.flag_outlined,
-                          () => context.push('/comunidade/denuncias'),
+                          () => context.push('/comunidade/denuncias',
+                              extra: {'personalId': _perfil?['id']}),
                         ),
                         const SizedBox(height: 28),
                         _rotulo('EQUIPE'),

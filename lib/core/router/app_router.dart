@@ -384,7 +384,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/comunidade/denuncias',
-        builder: (context, state) => const ModeracaoScreen(),
+        builder: (context, state) => _exigeExtra(
+          state,
+          (e) => ModeracaoScreen(personalId: e['personalId'] as String),
+          voltarPara: '/perfil',
+        ),
       ),
       GoRoute(
         path: '/aluno/recordes',

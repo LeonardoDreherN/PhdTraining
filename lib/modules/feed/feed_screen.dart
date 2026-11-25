@@ -107,7 +107,8 @@ class _FeedScreenState extends State<FeedScreen> {
               padding: const EdgeInsets.only(right: AppSpacing.sm),
               child: TextButton.icon(
                 onPressed: () async {
-                  await context.push('/comunidade/denuncias');
+                  await context.push('/comunidade/denuncias',
+                      extra: {'personalId': widget.personalId});
                   if (mounted) await _carregar();
                 },
                 icon: Icon(Icons.flag_rounded,
@@ -398,6 +399,14 @@ class _FeedScreenState extends State<FeedScreen> {
             // do aluno, como a especificação pede.
             child: Text('Tirar do feed', style: AppText.body(14)),
           ),
+        // Editar só o que é texto escrito por alguém. Conquista e
+        // destaque são montados na leitura, a partir do catálogo: não
+        // existe texto guardado para editar.
+        if (meuPost && !p.ehAutomatico)
+          PopupMenuItem(
+            value: 'editar',
+            child: Text('Editar', style: AppText.body(14)),
+          ),
         if (meuPost && !p.ehAutomatico)
           PopupMenuItem(
             value: 'excluir',
@@ -421,6 +430,15 @@ class _FeedScreenState extends State<FeedScreen> {
           await FeedService.fixar(p.id, !p.fixado);
         case 'ocultar':
           await FeedService.ocultar(p.id, true);
+          if (mounted) {
+            // Sem este aviso, o post simplesmente some e não há pista
+            // de que dá para trazer de volta.
+            _avisar('Tirado do feed. Dá para devolver em Denúncias › Ocultas.');
+          }
+        case 'editar':
+          final novo = await _editarTexto(p.texto ?? '');
+          if (novo == null) return;
+          await FeedService.editar(p.id, novo);
         case 'excluir':
           final ok = await _confirmar(
             'Excluir publicação?',
@@ -456,6 +474,47 @@ class _FeedScreenState extends State<FeedScreen> {
   Future<void> _abrirComentarios(PostFeed p) async {
     await abrirComentarios(context, p, podeComentar: _config.comentarios);
     if (mounted) await _carregar();
+  }
+
+  /// Devolve o texto novo, ou nulo se desistiu. Vazio também é nulo:
+  /// esvaziar uma publicação é apagá-la pela metade, e para apagar
+  /// existe "Excluir".
+  Future<String?> _editarTexto(String atual) async {
+    final ctrl = TextEditingController(text: atual);
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceHigh,
+        title: Text('Editar publicação', style: AppText.title(17)),
+        content: SizedBox(
+          width: 420,
+          child: PhdField(
+            label: 'Texto',
+            controller: ctrl,
+            maxLines: 5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancelar',
+                style:
+                    AppText.bodyStrong(13.5, color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Salvar',
+                style: AppText.bodyStrong(13.5, color: AppColors.accent)),
+          ),
+        ],
+      ),
+    );
+
+    final texto = ctrl.text.trim();
+    ctrl.dispose();
+    if (ok != true || texto.isEmpty || texto == atual.trim()) return null;
+    return texto;
   }
 
   Future<void> _publicar() async {

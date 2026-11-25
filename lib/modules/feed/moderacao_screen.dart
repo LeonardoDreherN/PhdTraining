@@ -8,6 +8,17 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/datas.dart';
 import '../../core/widgets/widgets.dart';
 
+/// O que a tela de moderação mostra de cada vez.
+enum _Aba {
+  pendentes('Pendentes'),
+  resolvidas('Resolvidas'),
+  ocultas('Ocultas'),
+  silenciados('Silenciados');
+
+  const _Aba(this.rotulo);
+  final String rotulo;
+}
+
 /// As denúncias que esperam o profissional.
 ///
 /// Até aqui elas entravam na tabela e paravam ali: o app dizia ao aluno
@@ -19,7 +30,11 @@ import '../../core/widgets/widgets.dart';
 /// aperta de novo — e o profissional julga o conteúdo, não a pessoa que
 /// reportou.
 class ModeracaoScreen extends StatefulWidget {
-  const ModeracaoScreen({super.key});
+  const ModeracaoScreen({super.key, required this.personalId});
+
+  /// Necessário para listar as publicações ocultas: elas são buscadas
+  /// pelo feed, não pela denúncia.
+  final String personalId;
 
   @override
   State<ModeracaoScreen> createState() => _ModeracaoScreenState();
@@ -27,7 +42,10 @@ class ModeracaoScreen extends StatefulWidget {
 
 class _ModeracaoScreenState extends State<ModeracaoScreen> {
   List<DenunciaFeed> _itens = const [];
-  bool _pendentes = true;
+  List<PostFeed> _ocultos = const [];
+  List<({String alunoId, String nome, DateTime ate})> _silenciados = const [];
+
+  _Aba _aba = _Aba.pendentes;
   bool _carregando = true;
   Object? _erro;
 
@@ -43,8 +61,20 @@ class _ModeracaoScreenState extends State<ModeracaoScreen> {
       _erro = null;
     });
     try {
-      final l = await FeedService.denuncias(pendentes: _pendentes);
-      if (mounted) setState(() => _itens = l);
+      switch (_aba) {
+        case _Aba.pendentes:
+        case _Aba.resolvidas:
+          final l = await FeedService.denuncias(
+            pendentes: _aba == _Aba.pendentes,
+          );
+          if (mounted) setState(() => _itens = l);
+        case _Aba.ocultas:
+          final l = await FeedService.postsOcultos(widget.personalId);
+          if (mounted) setState(() => _ocultos = l);
+        case _Aba.silenciados:
+          final l = await FeedService.alunosSilenciados();
+          if (mounted) setState(() => _silenciados = l);
+      }
     } catch (e) {
       if (mounted) setState(() => _erro = e);
     } finally {
@@ -180,28 +210,24 @@ class _ModeracaoScreenState extends State<ModeracaoScreen> {
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.md,
             ),
-            child: Row(
-              children: [
-                PhdFilterChip(
-                  label: 'Pendentes',
-                  selected: _pendentes,
-                  onTap: () {
-                    if (_pendentes) return;
-                    setState(() => _pendentes = true);
-                    _carregar();
-                  },
-                ),
-                const SizedBox(width: 7),
-                PhdFilterChip(
-                  label: 'Todas',
-                  selected: !_pendentes,
-                  onTap: () {
-                    if (!_pendentes) return;
-                    setState(() => _pendentes = false);
-                    _carregar();
-                  },
-                ),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final a in _Aba.values) ...[
+                    if (a != _Aba.values.first) const SizedBox(width: 7),
+                    PhdFilterChip(
+                      label: a.rotulo,
+                      selected: _aba == a,
+                      onTap: () {
+                        if (_aba == a) return;
+                        setState(() => _aba = a);
+                        _carregar();
+                      },
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           Expanded(child: _corpo()),
@@ -223,19 +249,14 @@ class _ModeracaoScreenState extends State<ModeracaoScreen> {
         onAction: _carregar,
       );
     }
-    if (_itens.isEmpty) {
-      return PhdEmptyState(
-        icon: _pendentes
-            ? Icons.verified_user_outlined
-            : Icons.inbox_outlined,
-        title: _pendentes ? 'Nada pendente' : 'Nenhuma denúncia',
-        message: _pendentes
-            ? 'Quando um aluno denunciar uma publicação ou um comentário, '
-                'ele aparece aqui.'
-            : 'Ninguém denunciou nada no seu feed até agora.',
-      );
-    }
+    return switch (_aba) {
+      _Aba.pendentes || _Aba.resolvidas => _listaDenuncias(),
+      _Aba.ocultas => _listaOcultas(),
+      _Aba.silenciados => _listaSilenciados(),
+    };
+  }
 
+  Widget _lista(int total, Widget Function(int) item) {
     return RefreshIndicator(
       color: AppColors.accent,
       onRefresh: _carregar,
@@ -243,9 +264,181 @@ class _ModeracaoScreenState extends State<ModeracaoScreen> {
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.huge,
         ),
-        itemCount: _itens.length,
+        itemCount: total,
         separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-        itemBuilder: (_, i) => _cartao(_itens[i]),
+        itemBuilder: (_, i) => item(i),
+      ),
+    );
+  }
+
+  Widget _vazio(IconData icone, String titulo, String mensagem) =>
+      PhdEmptyState(icon: icone, title: titulo, message: mensagem);
+
+  Widget _listaDenuncias() {
+    if (_itens.isEmpty) {
+      return _aba == _Aba.pendentes
+          ? _vazio(
+              Icons.verified_user_outlined,
+              'Nada pendente',
+              'Quando um aluno denunciar uma publicação ou um comentário, '
+                  'ele aparece aqui.',
+            )
+          : _vazio(
+              Icons.inbox_outlined,
+              'Nenhuma resolvida',
+              'O que você arquivar, ocultar ou apagar fica guardado aqui.',
+            );
+    }
+    return _lista(_itens.length, (i) => _cartao(_itens[i]));
+  }
+
+  // ── Ocultas ─────────────────────────────────────────────────
+
+  Widget _listaOcultas() {
+    if (_ocultos.isEmpty) {
+      return _vazio(
+        Icons.visibility_off_outlined,
+        'Nada oculto',
+        'O que você tirar do feed fica aqui, e daqui você pode devolver.',
+      );
+    }
+    return _lista(_ocultos.length, (i) => _cartaoOculto(_ocultos[i]));
+  }
+
+  Widget _cartaoOculto(PostFeed p) {
+    return PhdCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.visibility_off_outlined,
+                  size: 16, color: AppColors.textMuted),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(p.alunoNome ?? p.autorNome ?? 'Publicação',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.bodyStrong(13.5)),
+              ),
+              Text(Datas.curta(p.criadoEm),
+                  style: AppText.caption(10.5, color: AppColors.textMuted)),
+            ],
+          ),
+          if ((p.texto ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceHigh,
+                borderRadius: AppRadius.rMd,
+              ),
+              child: Text(p.texto!.trim(),
+                  style: AppText.body(13.5).copyWith(height: 1.45)),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              PhdButton(
+                label: 'Devolver ao feed',
+                size: PhdButtonSize.small,
+                variant: PhdButtonVariant.secondary,
+                expand: false,
+                onPressed: () async {
+                  try {
+                    await FeedService.ocultar(p.id, false);
+                    await _carregar();
+                  } catch (e) {
+                    _avisar('Não consegui devolver: $e');
+                  }
+                },
+              ),
+              PhdButton(
+                label: 'Apagar de vez',
+                size: PhdButtonSize.small,
+                variant: PhdButtonVariant.danger,
+                expand: false,
+                onPressed: () async {
+                  final ok = await _confirmar(
+                    'Apagar a publicação?',
+                    'Isso não tem volta. Oculta, ela continua guardada e '
+                        'você pode devolver quando quiser.',
+                    'Apagar',
+                  );
+                  if (ok != true) return;
+                  try {
+                    await FeedService.excluir(p.id);
+                    await _carregar();
+                  } catch (e) {
+                    _avisar('Não consegui apagar: $e');
+                  }
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Silenciados ─────────────────────────────────────────────
+
+  Widget _listaSilenciados() {
+    if (_silenciados.isEmpty) {
+      return _vazio(
+        Icons.volume_up_outlined,
+        'Ninguém silenciado',
+        'Todo mundo pode publicar na sua comunidade agora.',
+      );
+    }
+    return _lista(_silenciados.length, (i) => _cartaoSilenciado(_silenciados[i]));
+  }
+
+  Widget _cartaoSilenciado(({String alunoId, String nome, DateTime ate}) s) {
+    final dias = s.ate.difference(DateTime.now()).inDays;
+
+    return PhdCard(
+      child: Row(
+        children: [
+          PhdAvatar(name: s.nome, size: 38),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(s.nome, style: AppText.bodyStrong(13.5)),
+                const SizedBox(height: 2),
+                Text(
+                  dias <= 0
+                      ? 'Volta a publicar hoje'
+                      : 'Volta em $dias ${dias == 1 ? 'dia' : 'dias'} '
+                          '· ${Datas.curta(s.ate)}',
+                  style: AppText.caption(11.5, color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          PhdButton(
+            label: 'Liberar',
+            size: PhdButtonSize.small,
+            variant: PhdButtonVariant.secondary,
+            expand: false,
+            onPressed: () async {
+              try {
+                await FeedService.desbloquearAluno(s.alunoId);
+                await _carregar();
+              } catch (e) {
+                _avisar('Não consegui liberar: $e');
+              }
+            },
+          ),
+        ],
       ),
     );
   }

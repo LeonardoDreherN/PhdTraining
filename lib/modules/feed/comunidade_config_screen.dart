@@ -25,6 +25,7 @@ class _ComunidadeConfigScreenState extends State<ComunidadeConfigScreen> {
   ConfigComunidade _c = const ConfigComunidade();
   bool _carregando = true;
   bool _salvando = false;
+  bool _gerando = false;
   Object? _erro;
 
   @override
@@ -168,6 +169,8 @@ class _ComunidadeConfigScreenState extends State<ComunidadeConfigScreen> {
           if (_c.destaquesAtivos) ...[
             const SizedBox(height: AppSpacing.md),
             _quando(),
+            const SizedBox(height: AppSpacing.sm),
+            _gerarAgora(),
           ],
 
           const SizedBox(height: AppSpacing.xl),
@@ -228,6 +231,58 @@ class _ComunidadeConfigScreenState extends State<ComunidadeConfigScreen> {
         ),
       ),
     );
+  }
+
+  /// Gera os destaques da semana passada na hora.
+  ///
+  /// O automático depende do agendador do banco, que roda no dia e na
+  /// hora configurados. Sem este botão, a única forma de ver como o
+  /// destaque fica seria esperar a semana virar — e quem está montando
+  /// a comunidade precisa ver antes de confiar.
+  ///
+  /// É idempotente: há índice único por profissional, semana e tipo, e
+  /// apertar de novo não duplica nada.
+  Widget _gerarAgora() {
+    return PhdButton(
+      label: _gerando ? 'Gerando...' : 'Gerar destaques da semana passada',
+      icon: Icons.auto_awesome_rounded,
+      variant: PhdButtonVariant.secondary,
+      size: PhdButtonSize.medium,
+      loading: _gerando,
+      onPressed: _gerando ? null : _gerarDestaques,
+    );
+  }
+
+  Future<void> _gerarDestaques() async {
+    setState(() => _gerando = true);
+    try {
+      final n = await FeedService.gerarDestaques(widget.personalId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.surfaceHigh,
+          content: Text(
+            switch (n) {
+              0 => 'Nenhum destaque: ninguém cumpriu a programação na '
+                  'semana passada, ou ela já tinha sido publicada.',
+              1 => 'Um destaque publicado no feed.',
+              _ => '$n destaques publicados no feed.',
+            },
+            style: AppText.body(13.5),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.surfaceHigh,
+          content: Text('Não consegui gerar: $e', style: AppText.body(13.5)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _gerando = false);
+    }
   }
 
   Widget _quando() {
