@@ -28,6 +28,7 @@ class NumerosDoAluno {
     this.fotosProgresso = 0,
     this.mesesComFoto = 0,
     this.mesesFotoCumpridos = 0,
+    this.semanasPlanejadas = 0,
   });
 
   final int treinos;
@@ -103,6 +104,10 @@ class NumerosDoAluno {
   /// pedido não há o que atender.
   final int mesesFotoCumpridos;
 
+  /// Semanas que o aluno marcou como planejadas. É o número de "Mestre
+  /// da organização" — o recurso que a especificação condicionava.
+  final int semanasPlanejadas;
+
   double get progressoCatalogo =>
       catalogo <= 0 ? 0 : (exercicios / catalogo).clamp(0.0, 1.0);
 
@@ -128,6 +133,7 @@ class NumerosDoAluno {
         fotosProgresso: _i(m['fotos_progresso']),
         mesesComFoto: _i(m['meses_com_foto']),
         mesesFotoCumpridos: _i(m['meses_foto_cumpridos']),
+        semanasPlanejadas: _i(m['semanas_planejadas']),
       );
 
   static int _i(Object? v) => (v as num?)?.toInt() ?? 0;
@@ -329,6 +335,18 @@ class Conquista {
         icone: Icons.water_drop_rounded,
         valorDe: (n) => n.diasAguaMeta,
       ),
+    Conquista(
+      codigo: 'organizacao_1',
+      categoria: CategoriaConquista.nutricao,
+      nome: 'Mestre da organização',
+      descricao: 'Planejar a semana: olhar o plano, ver o que comprar e '
+          'o que preparar.',
+      // Sem contagem na especificação — é um registro, como "Aluno
+      // disciplinado". O nome esperou a 0035 para existir de verdade.
+      meta: 1,
+      icone: Icons.fact_check_outlined,
+      valorDe: (n) => n.semanasPlanejadas,
+    ),
     for (final m in [3, 6])
       Conquista(
         codigo: 'meses_$m',

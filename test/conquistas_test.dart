@@ -21,6 +21,7 @@ NumerosDoAluno n({
   int fotosProgresso = 0,
   int mesesComFoto = 0,
   int mesesFotoCumpridos = 0,
+  int semanasPlanejadas = 0,
 }) =>
     NumerosDoAluno(
       treinos: treinos,
@@ -42,6 +43,7 @@ NumerosDoAluno n({
       fotosProgresso: fotosProgresso,
       mesesComFoto: mesesComFoto,
       mesesFotoCumpridos: mesesFotoCumpridos,
+      semanasPlanejadas: semanasPlanejadas,
     );
 
 Conquista cod(String c) => Conquista.porCodigo(c)!;
@@ -318,14 +320,25 @@ void main() {
       expect(cod('disciplinado').progresso(n(mesesFotoCumpridos: 1)), 1.0);
     });
 
-    test('nenhuma conquista se chama "Mestre da organização"', () {
+    test('"Mestre da organização" é o planejamento da semana', () {
       // A especificação a define como registrar o planejamento
       // alimentar da semana, "quando esse recurso estiver disponível".
-      // O recurso não existe; enquanto não existir, o nome não pode
-      // estar pendurado em outra coisa.
-      for (final c in Conquista.todas) {
-        expect(c.nome, isNot('Mestre da organização'), reason: c.codigo);
-      }
+      // O recurso nasceu no 0035; o nome voltou para o lugar dele.
+      final c = cod('organizacao_1');
+      expect(c.nome, 'Mestre da organização');
+      expect(c.progresso(n(semanasPlanejadas: 1)), 1.0);
+
+      // E não pode estar pendurado em mais nada: já esteve no
+      // `checkin_3`, dando medalha de organização por outra coisa.
+      final comONome =
+          Conquista.todas.where((x) => x.nome == 'Mestre da organização');
+      expect(comONome.length, 1);
+      expect(comONome.single.codigo, 'organizacao_1');
+    });
+
+    test('planejar não vem de check-in nem de dia no plano', () {
+      final semPlanejar = n(checkinsSeguidos: 12, diasPlanoCompleto: 60);
+      expect(cod('organizacao_1').progresso(semPlanejar), 0);
     });
 
     test('os marcos de dia 100% são 1, 7, 15, 30 e 60', () {

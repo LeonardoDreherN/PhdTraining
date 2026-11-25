@@ -10,6 +10,7 @@ import '../../../core/services/diario_service.dart';
 import '../../../core/services/conquista_service.dart';
 import '../../../core/services/dieta_service.dart';
 import '../../../core/services/feed_service.dart';
+import '../../../core/services/planejamento_service.dart';
 import '../../../core/services/lembretes_service.dart';
 import '../../../core/services/metas_service.dart';
 import '../../../core/services/profile_service.dart';
@@ -49,6 +50,10 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
   PlanoAlimentar? _plano;
   Set<String> _feitas = const {};
 
+  /// As semanas que o aluno marcou como planejadas.
+  Set<DateTime> _semanasPlanejadas = const {};
+  bool _planejandoSemana = false;
+
   /// O que foi registrado em cada refeição do dia — inclusive o que o aluno
   /// comeu no lugar do plano.
   Map<String, RegistroRefeicao> _registros = const {};
@@ -81,13 +86,17 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
       _erro = null;
     });
     try {
-      final (plano, registros, diario, pesos, recursos) = await (
+      final (plano, registros, diario, pesos, recursos, planejadas) = await (
         DietaService.planoAtivo(widget.alunoId),
         DietaService.registrosDoDia(alunoId: widget.alunoId, dia: _dia),
         _talvez(
             DiarioService.listar(alunoId: widget.alunoId, de: _dia, ate: _dia)),
         _talvez(DiarioService.pesos(widget.alunoId, limite: 1)),
         MetasService.recursos(widget.alunoId),
+        // Sem a 0035 a tabela não existe, e o cartão aparece como não
+        // planejado — o pior caso é um toque que falha com aviso.
+        PlanejamentoService.semanas(widget.alunoId)
+            .catchError((_) => <DateTime>{}),
       ).wait;
       if (!mounted) return;
       setState(() {
@@ -96,6 +105,7 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
         _diario = diario ?? const [];
         _peso = pesos?.lastOrNull?.pesoKg;
         _recursos = recursos;
+        _semanasPlanejadas = planejadas;
       });
       // Se o profissional mudou o horário de uma refeição, o lembrete
       // acompanha na próxima vez que o aluno abre a dieta.
@@ -429,6 +439,8 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
           else ...[
             _resumoDoDia(p),
             const SizedBox(height: AppSpacing.lg),
+            _planejamento(),
+            const SizedBox(height: AppSpacing.md),
             _atalhoConquistas(),
             const SizedBox(height: AppSpacing.xl),
             const PhdSectionHeader(label: 'Refeições'),
@@ -553,6 +565,111 @@ class _AlunoDietaScreenState extends State<AlunoDietaScreen> {
         DateTime.saturday => 'sáb',
         _ => 'dom',
       };
+
+  /// Planejar a semana.
+  ///
+  /// O aluno confirma que se organizou: olhou o plano, viu o que falta
+  /// comprar, separou o que precisa preparar. Quem marca é ele porque
+  /// organização é dele — não há como o app medir isso por fora.
+  ///
+  /// Só a semana atual e a próxima podem ser marcadas (o banco garante).
+  /// Deixar marcar março em novembro transformaria a conquista num
+  /// botão de apertar sete vezes.
+  Widget _planejamento() {
+    final atual = PlanejamentoService.semanaAtual;
+    final feito = _semanasPlanejadas.contains(atual);
+
+    return PhdCard(
+      onTap: _planejandoSemana ? null : () => _marcarSemana(atual, !feito),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.tint(
+                  feito ? AppColors.success : AppColors.accent),
+              borderRadius: AppRadius.rMd,
+            ),
+            child: _planejandoSemana
+                ? Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.accent),
+                  )
+                : Icon(
+                    feito
+                        ? Icons.fact_check_rounded
+                        : Icons.fact_check_outlined,
+                    size: 21,
+                    color:
+                        feito ? AppColors.successText : AppColors.accent,
+                  ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  feito ? 'Semana planejada' : 'Planejar a semana',
+                  style: AppText.bodyStrong(13.5),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  feito
+                      ? 'Toque para desmarcar, se marcou sem querer.'
+                      : 'Marque quando tiver visto o plano e separado as '
+                          'compras da semana.',
+                  style: AppText.caption(11.5, color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+          if (!feito)
+            Icon(Icons.chevron_right_rounded,
+                size: 19, color: AppColors.textMuted),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _marcarSemana(DateTime semana, bool planejar) async {
+    setState(() => _planejandoSemana = true);
+    try {
+      if (planejar) {
+        await PlanejamentoService.planejar(widget.alunoId, semana);
+        if (mounted) setState(() => _semanasPlanejadas = {..._semanasPlanejadas, semana});
+
+        try {
+          final novas = await ConquistaService.conceder(widget.alunoId);
+          if (novas.isNotEmpty) {
+            await FeedService.publicarConquistas(widget.alunoId);
+            if (mounted) await celebrarConquistas(context, novas);
+          }
+        } catch (_) {
+          // A tela de conquistas concede de novo quando o aluno abrir.
+        }
+      } else {
+        await PlanejamentoService.desmarcar(widget.alunoId, semana);
+        if (mounted) {
+          setState(() =>
+              _semanasPlanejadas = _semanasPlanejadas.toSet()..remove(semana));
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.surfaceHigh,
+          content: Text('Não deu certo: $e', style: AppText.body(13.5)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _planejandoSemana = false);
+    }
+  }
 
   /// As conquistas da dieta ficam no menu de dieta, como a especificação
   /// pede — e não misturadas com as de treino, que medem outra coisa.
