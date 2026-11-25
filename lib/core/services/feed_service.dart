@@ -1,4 +1,7 @@
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../utils/midia.dart';
 import '../models/feed.dart';
 
 /// O feed da comunidade.
@@ -89,11 +92,30 @@ class FeedService {
         .order('criado_em', ascending: false)
         .limit(limite);
 
+    return _montar(linhas);
+  }
+
+  /// Monta os posts já com a mídia assinada.
+  ///
+  /// A assinatura acontece aqui, na leitura, e a tela recebe `midiaUrl`
+  /// pronta para um `Image.network` — sem saber que o bucket é privado.
+  static Future<List<PostFeed>> _montar(dynamic linhas) async {
+    final lista = List<Map<String, dynamic>>.from(linhas as List);
+
+    final urls = await assinarMidia([
+      for (final l in lista)
+        if (l['midia_url'] case final String c) c,
+    ]).catchError((_) => <String, String>{});
+
     return [
-      for (final l in List<Map<String, dynamic>>.from(linhas))
+      for (final l in lista)
         PostFeed.doMapa(
           {
             ...l,
+            'midia_url': switch (l['midia_url']) {
+              final String c => urls[c] ?? (c.startsWith('http') ? c : null),
+              _ => null,
+            },
             'comentarios_contagem':
                 ((l['feed_comentarios'] as List?)?.firstOrNull
                         as Map?)?['count'] ??
@@ -150,6 +172,67 @@ class FeedService {
       'texto': texto.trim(),
       'midia_url': midiaUrl,
     });
+  }
+
+  // ── Mídia ───────────────────────────────────────────────────
+
+  static const _bucket = 'feed-midia';
+
+  /// Envia a foto e devolve o CAMINHO dentro do bucket.
+  ///
+  /// Caminho, não URL: o bucket é privado e a URL assinada expira. Uma
+  /// URL vencida gravada na linha seria inútil no dia seguinte, e a
+  /// publicação ficaria com um retângulo quebrado para sempre.
+  ///
+  /// A pasta É a permissão. `<personal_id>/<user_id>/<arquivo>`: a
+  /// primeira diz de que comunidade é a foto, e é o que a policy
+  /// confere na leitura; a segunda impede sobrescrever a foto de outra
+  /// pessoa.
+  static Future<String> enviarMidia({
+    required String personalId,
+    required XFile foto,
+  }) async {
+    final bytes = await foto.readAsBytes();
+    final nome = foto.name.isNotEmpty ? foto.name : foto.path;
+
+    final contentType = Midia.tipoDe(nome);
+    if (contentType == null || !contentType.startsWith('image/')) {
+      throw Exception(Midia.recusa(nome, video: false));
+    }
+
+    final caminho = '$personalId/$_uid/'
+        '${DateTime.now().millisecondsSinceEpoch}.${Midia.extensaoDe(nome)}';
+
+    await _db.storage.from(_bucket).uploadBinary(
+          caminho,
+          bytes,
+          fileOptions: FileOptions(contentType: contentType, upsert: false),
+        );
+
+    return caminho;
+  }
+
+  /// Assina os caminhos de mídia de uma leva de posts.
+  ///
+  /// Numa chamada só: uma assinatura por publicação deixaria o feed
+  /// esperando trinta idas ao servidor para desenhar a primeira tela.
+  static Future<Map<String, String>> assinarMidia(List<String> caminhos) async {
+    final pendentes =
+        caminhos.where((c) => c.isNotEmpty && !c.startsWith('http')).toList();
+    if (pendentes.isEmpty) return const {};
+
+    // `createSignedUrlsResult` e não `createSignedUrls`: a versão antiga
+    // engolia os caminhos que falharam, e uma foto apagada do bucket
+    // sumia da lista sem deixar rastro. Aqui o que falhou simplesmente
+    // não entra no mapa, e a publicação aparece sem imagem — que é o
+    // certo quando o arquivo não existe mais.
+    final assinadas =
+        await _db.storage.from(_bucket).createSignedUrlsResult(pendentes, 3600);
+
+    return {
+      for (final a in assinadas)
+        if (a is SignedUrlSuccess) a.path: a.signedUrl,
+    };
   }
 
   /// Publica as conquistas que o aluno autorizou.
@@ -243,19 +326,7 @@ class FeedService {
         .order('criado_em', ascending: false)
         .limit(100);
 
-    return [
-      for (final l in List<Map<String, dynamic>>.from(linhas))
-        PostFeed.doMapa(
-          {
-            ...l,
-            'comentarios_contagem':
-                ((l['feed_comentarios'] as List?)?.firstOrNull
-                        as Map?)?['count'] ??
-                    0,
-          },
-          meuId: _uid,
-        ),
-    ];
+    return _montar(linhas);
   }
 
   /// Os alunos silenciados agora. Sem isto o silêncio de sete dias não

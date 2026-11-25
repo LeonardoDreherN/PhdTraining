@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/models/feed.dart';
 import '../../core/services/feed_service.dart';
@@ -520,6 +521,7 @@ class _FeedScreenState extends State<FeedScreen> {
   Future<void> _publicar() async {
     final ctrl = TextEditingController();
     var fixar = false;
+    XFile? foto;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -543,6 +545,46 @@ class _FeedScreenState extends State<FeedScreen> {
                   hint: widget.souProfissional
                       ? 'Comunicado, orientação, novidade...'
                       : 'Compartilhe com a comunidade',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                // A legenda é o próprio texto acima: a especificação
+                // pede "adicionar uma legenda à foto", e um segundo
+                // campo só para legenda faria a pessoa escolher onde
+                // escrever a mesma frase.
+                Row(
+                  children: [
+                    PhdButton(
+                      label: foto == null ? 'Adicionar foto' : 'Trocar foto',
+                      icon: Icons.photo_camera_outlined,
+                      variant: PhdButtonVariant.ghost,
+                      size: PhdButtonSize.small,
+                      expand: false,
+                      onPressed: () async {
+                        final escolhida = await ImagePicker().pickImage(
+                          source: ImageSource.gallery,
+                          imageQuality: 80,
+                          maxWidth: 1600,
+                        );
+                        if (escolhida != null) setLocal(() => foto = escolhida);
+                      },
+                    ),
+                    if (foto != null) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(foto!.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.caption(11.5,
+                                color: AppColors.textMuted)),
+                      ),
+                      IconButton(
+                        tooltip: 'Tirar a foto',
+                        onPressed: () => setLocal(() => foto = null),
+                        icon: Icon(Icons.close_rounded,
+                            size: 17, color: AppColors.textMuted),
+                      ),
+                    ],
+                  ],
                 ),
                 if (widget.souProfissional) ...[
                   const SizedBox(height: AppSpacing.md),
@@ -583,16 +625,33 @@ class _FeedScreenState extends State<FeedScreen> {
 
     final texto = ctrl.text.trim();
     ctrl.dispose();
-    if (ok != true || texto.isEmpty) return;
+    // Foto sozinha vale: uma imagem sem legenda é uma publicação.
+    if (ok != true || (texto.isEmpty && foto == null)) return;
 
     try {
+      // A foto sobe primeiro. Se o envio falhar, nada é publicado — uma
+      // publicação que deveria ter imagem e saiu sem ela é pior do que
+      // nenhuma, porque a pessoa só descobre depois de todo mundo ver.
+      String? caminho;
+      if (foto != null) {
+        caminho = await FeedService.enviarMidia(
+          personalId: widget.personalId,
+          foto: foto!,
+        );
+      }
+
       if (widget.souProfissional) {
-        await FeedService.publicarAviso(texto: texto, fixado: fixar);
+        await FeedService.publicarAviso(
+          texto: texto,
+          midiaUrl: caminho,
+          fixado: fixar,
+        );
       } else {
         await FeedService.publicarDoAluno(
           alunoId: widget.alunoId!,
           personalId: widget.personalId,
           texto: texto,
+          midiaUrl: caminho,
         );
       }
       await _carregar();
