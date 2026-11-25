@@ -10,6 +10,7 @@ import '../../../core/widgets/widgets.dart';
 import 'acompanhamento_aluno.dart';
 import 'metas_recursos.dart';
 import 'receitas_screen.dart';
+import 'acompanhamento_config.dart';
 import 'plano_metas_screen.dart';
 
 /// Planos alimentares de um aluno: o que vale hoje e o histórico.
@@ -169,6 +170,11 @@ class _DietaScreenState extends State<DietaScreen> {
             alunoId: _alunoId,
             metaAguaMl: ativo?.aguaMl?.round(),
           ),
+
+          const SizedBox(height: AppSpacing.xl),
+          const PhdSectionHeader(label: 'O que você pede a ele'),
+          const SizedBox(height: AppSpacing.sm),
+          AcompanhamentoConfig(alunoId: _alunoId),
 
           const SizedBox(height: AppSpacing.xl),
           const PhdSectionHeader(label: 'O que o aluno vê'),

@@ -255,8 +255,11 @@ class _RecordesScreenState extends State<RecordesScreen> {
               ),
               Expanded(
                 child: PhdStat(
-                  label: 'Registros com foto',
-                  value: '${_n.fotosDiario}',
+                  // Fotos de ACOMPANHAMENTO, não as do diário de
+                  // refeição: é o indicador que a especificação pede, e
+                  // é a mesma fonte das conquistas de foto.
+                  label: 'Meses com foto',
+                  value: '${_n.mesesComFoto}',
                   valueSize: 30,
                   valueColor: AppColors.textSecondary,
                 ),

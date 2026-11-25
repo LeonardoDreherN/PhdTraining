@@ -17,6 +17,10 @@ NumerosDoAluno n({
   int mesesAcompanhamento = 0,
   int checkins = 0,
   int checkinsSeguidos = 0,
+  int diasComRegistro = 0,
+  int fotosProgresso = 0,
+  int mesesComFoto = 0,
+  int mesesFotoCumpridos = 0,
 }) =>
     NumerosDoAluno(
       treinos: treinos,
@@ -34,6 +38,10 @@ NumerosDoAluno n({
       mesesAcompanhamento: mesesAcompanhamento,
       checkins: checkins,
       checkinsSeguidos: checkinsSeguidos,
+      diasComRegistro: diasComRegistro,
+      fotosProgresso: fotosProgresso,
+      mesesComFoto: mesesComFoto,
+      mesesFotoCumpridos: mesesFotoCumpridos,
     );
 
 Conquista cod(String c) => Conquista.porCodigo(c)!;
@@ -238,7 +246,10 @@ void main() {
         expect(Conquista.porCodigo(c), isNotNull, reason: c);
       }
       expect(cod('checkin_1').nome, 'Acompanhamento em dia');
-      expect(cod('checkin_3').nome, 'Mestre da organização');
+      // "Mestre da organização" saiu daqui no 0034: a especificação dá
+      // esse nome a quem registra o planejamento da semana, recurso que
+      // o app não tem.
+      expect(cod('checkin_3').nome, 'Três meses em dia');
       expect(cod('checkin_6').nome, 'Compromisso renovado');
     });
 
@@ -265,6 +276,71 @@ void main() {
       // conquistas passam a ter o mesmo nome e este teste avisa.
       expect(cod('meses_6').nome, isNot(cod('checkin_6').nome));
       expect(cod('meses_6').valorDe(n(mesesAcompanhamento: 6)), 6);
+    });
+  });
+
+  group('Especificação de nutrição', () {
+    test('"30 dias de dedicação" conta participação, não perfeição', () {
+      // A especificação é explícita: reconhecer a participação
+      // consistente, NÃO exigir perfeição alimentar. Trinta dias com
+      // registro bastam, mesmo sem nenhum dia 100%.
+      final participou = n(diasComRegistro: 30, diasPlanoCompleto: 2);
+      expect(cod('dedicacao_30').progresso(participou), 1.0);
+
+      // E são conquistas diferentes: o marco dos 30 dias perfeitos
+      // continua exigindo perfeição.
+      expect(cod('plano_30').progresso(participou), lessThan(1.0));
+    });
+
+    test('as conquistas de foto olham a foto de acompanhamento', () {
+      // Um aluno que fotografa o almoço todo dia não ganha medalha de
+      // evolução: `fotosDiario` é a foto do prato e não entra em
+      // conta nenhuma aqui.
+      final sofotoDoPrato = n(fotosDiario: 90);
+      expect(cod('fotos_1').progresso(sofotoDoPrato), 0);
+      expect(cod('fotos_3').progresso(sofotoDoPrato), 0);
+
+      expect(cod('fotos_1').progresso(n(fotosProgresso: 1)), 1.0);
+    });
+
+    test('"Fotografia da evolução" é MENSAL, não três fotos no mesmo dia', () {
+      expect(cod('fotos_3').progresso(n(fotosProgresso: 9, mesesComFoto: 1)),
+          lessThan(1.0));
+      expect(cod('fotos_3').progresso(n(fotosProgresso: 3, mesesComFoto: 3)),
+          1.0);
+    });
+
+    test('"Aluno disciplinado" só existe se o profissional pediu', () {
+      // O evento que a libera, na especificação, é "fotos mensais
+      // SOLICITADAS são anexadas". Sem pedido não há o que atender, e
+      // o banco devolve zero.
+      expect(cod('disciplinado').progresso(n(mesesComFoto: 5)), 0);
+      expect(cod('disciplinado').progresso(n(mesesFotoCumpridos: 1)), 1.0);
+    });
+
+    test('nenhuma conquista se chama "Mestre da organização"', () {
+      // A especificação a define como registrar o planejamento
+      // alimentar da semana, "quando esse recurso estiver disponível".
+      // O recurso não existe; enquanto não existir, o nome não pode
+      // estar pendurado em outra coisa.
+      for (final c in Conquista.todas) {
+        expect(c.nome, isNot('Mestre da organização'), reason: c.codigo);
+      }
+    });
+
+    test('os marcos de dia 100% são 1, 7, 15, 30 e 60', () {
+      for (final m in [1, 7, 15, 30, 60]) {
+        expect(Conquista.porCodigo('plano_$m'), isNotNull, reason: 'plano_$m');
+      }
+    });
+
+    test('não existe marco de pesagem diária', () {
+      // A especificação proíbe pedir ou incentivar pesagem diária.
+      // Toda conquista de peso sai de pesagens ou de semanas com peso.
+      final diario = n(pesagens: 1, semanasComPeso: 1);
+      final semanal = n(pesagens: 1, semanasComPeso: 12);
+      expect(cod('peso_12').progresso(diario), lessThan(1.0));
+      expect(cod('peso_12').progresso(semanal), 1.0);
     });
   });
 }

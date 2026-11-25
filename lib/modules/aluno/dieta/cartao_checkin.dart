@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/models/checkin.dart';
+import '../../../core/services/acompanhamento_service.dart';
 import '../../../core/services/checkin_service.dart';
+import '../../../core/services/progresso_service.dart';
 import '../../../core/services/feed_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
@@ -31,6 +34,13 @@ class CartaoCheckin extends StatefulWidget {
 
 class _CartaoCheckinState extends State<CartaoCheckin> {
   CheckinNutricional? _c;
+
+  /// O que o profissional pede a este aluno. Sem a 0034, os padrões.
+  ConfigAcompanhamento _config = const ConfigAcompanhamento();
+
+  /// Já enviou foto de acompanhamento neste mês?
+  bool _fotoDoMes = false;
+
   bool _carregando = true;
 
   @override
@@ -41,8 +51,36 @@ class _CartaoCheckinState extends State<CartaoCheckin> {
 
   Future<void> _carregar() async {
     try {
-      final c = await CheckinService.doMes(widget.alunoId);
-      if (mounted) setState(() => _c = c);
+      final (c, config) = await (
+        CheckinService.doMes(widget.alunoId),
+        AcompanhamentoService.doAluno(widget.alunoId)
+            .catchError((_) => const ConfigAcompanhamento()),
+      ).wait;
+
+      // A lista de fotos só é buscada se o profissional pediu — não há
+      // motivo para uma ida ao servidor por um cartão que não aparece.
+      var temFoto = false;
+      if (config.fotosMensais) {
+        try {
+          final fotos = await ProgressoService.listarFotos(widget.alunoId);
+          final agora = DateTime.now();
+          temFoto = fotos.any((f) {
+            final d = DateTime.tryParse(f['registrado_em'] as String? ?? '');
+            return d != null && d.year == agora.year && d.month == agora.month;
+          });
+        } catch (_) {
+          // Sem a lista, o cartão aparece como pendente: pior caso, o
+          // aluno abre a tela de progresso e vê que já enviou.
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _c = c;
+          _config = config;
+          _fotoDoMes = temFoto;
+        });
+      }
     } catch (_) {
       // Sem check-in carregado o cartão se oferece como pendente, que é
       // o estado menos errado dos dois: o pior caso é o aluno abrir o
@@ -78,6 +116,80 @@ class _CartaoCheckinState extends State<CartaoCheckin> {
     // meio segundo depois é melhor do que a tela pular duas vezes.
     if (_carregando) return const SizedBox.shrink();
 
+    final mostraCheckin = _config.checkinMensal;
+    final mostraFoto = _config.fotosMensais;
+    if (!mostraCheckin && !mostraFoto) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        if (mostraCheckin) _cartaoCheckin(),
+        if (mostraCheckin && mostraFoto) const SizedBox(height: AppSpacing.md),
+        if (mostraFoto) _cartaoFoto(),
+      ],
+    );
+  }
+
+  /// O pedido de fotos do mês.
+  ///
+  /// Só existe quando o profissional pediu — é o pedido que a conquista
+  /// "Aluno disciplinado" atende, e sem ele na tela do aluno a medalha
+  /// seria por algo que ninguém falou que precisava fazer.
+  Widget _cartaoFoto() {
+    return Padding(
+      padding: AppSpacing.screen,
+      child: PhdCard(
+        onTap: () => context.push('/aluno/progresso'),
+        accentBar: _fotoDoMes ? null : AppColors.accent,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.tint(
+                    _fotoDoMes ? AppColors.success : AppColors.accent),
+                borderRadius: AppRadius.rMd,
+              ),
+              child: Icon(
+                _fotoDoMes
+                    ? Icons.photo_library_rounded
+                    : Icons.photo_camera_outlined,
+                size: 21,
+                color: _fotoDoMes ? AppColors.successText : AppColors.accent,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _fotoDoMes
+                        ? 'Fotos do mês enviadas'
+                        : 'Fotos de acompanhamento',
+                    style: AppText.bodyStrong(13.5),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _fotoDoMes
+                        ? 'Toque para ver ou enviar outra.'
+                        : 'Seu profissional pede as fotos deste mês.',
+                    style: AppText.caption(11.5, color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                size: 19, color: AppColors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cartaoCheckin() {
     final feito = _c != null;
 
     return Padding(

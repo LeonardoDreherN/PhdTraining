@@ -24,6 +24,10 @@ class NumerosDoAluno {
     this.mesesAcompanhamento = 0,
     this.checkins = 0,
     this.checkinsSeguidos = 0,
+    this.diasComRegistro = 0,
+    this.fotosProgresso = 0,
+    this.mesesComFoto = 0,
+    this.mesesFotoCumpridos = 0,
   });
 
   final int treinos;
@@ -79,6 +83,26 @@ class NumerosDoAluno {
   /// ainda não acabou, e a medalha de constância não pode cair no dia 1.
   final int checkinsSeguidos;
 
+  /// Dias em que o aluno registrou ALGUMA coisa — perfeitos ou não.
+  ///
+  /// É o número de "30 dias de dedicação". A especificação manda
+  /// reconhecer "a participação consistente, não exigir perfeição
+  /// alimentar", e [diasPlanoCompleto] exige exatamente perfeição.
+  final int diasComRegistro;
+
+  /// Fotos de ACOMPANHAMENTO — a foto do corpo, de `fotos_progresso`.
+  /// Não confundir com [fotosDiario], que é a foto do prato.
+  final int fotosProgresso;
+
+  /// Meses distintos com ao menos uma foto de acompanhamento. É o
+  /// número de "três registros fotográficos mensais".
+  final int mesesComFoto;
+
+  /// O mesmo, mas zero quando o profissional não pediu as fotos
+  /// mensais. "Aluno disciplinado" é sobre atender a um pedido — sem
+  /// pedido não há o que atender.
+  final int mesesFotoCumpridos;
+
   double get progressoCatalogo =>
       catalogo <= 0 ? 0 : (exercicios / catalogo).clamp(0.0, 1.0);
 
@@ -100,6 +124,10 @@ class NumerosDoAluno {
         mesesAcompanhamento: _i(m['meses_acompanhamento']),
         checkins: _i(m['checkins']),
         checkinsSeguidos: _i(m['checkins_seguidos']),
+        diasComRegistro: _i(m['dias_com_registro']),
+        fotosProgresso: _i(m['fotos_progresso']),
+        mesesComFoto: _i(m['meses_com_foto']),
+        mesesFotoCumpridos: _i(m['meses_foto_cumpridos']),
       );
 
   static int _i(Object? v) => (v as num?)?.toInt() ?? 0;
@@ -222,6 +250,19 @@ class Conquista {
       valorDe: (n) => n.sequenciaDiasPlano,
     ),
     Conquista(
+      codigo: 'dedicacao_30',
+      categoria: CategoriaConquista.nutricao,
+      nome: '30 dias de dedicação',
+      // "Participação", e não "plano completo", de propósito: a
+      // especificação manda reconhecer a participação consistente e
+      // NÃO exigir perfeição alimentar. Os 30 dias perfeitos são o
+      // marco `plano_30`, que é outra conquista.
+      descricao: 'Registrar o acompanhamento em 30 dias, perfeitos ou não.',
+      meta: 30,
+      icone: Icons.event_repeat_rounded,
+      valorDe: (n) => n.diasComRegistro,
+    ),
+    Conquista(
       codigo: 'peso_1',
       categoria: CategoriaConquista.nutricao,
       nome: 'Primeiro passo',
@@ -240,23 +281,37 @@ class Conquista {
         icone: Icons.monitor_weight_rounded,
         valorDe: (n) => n.semanasComPeso,
       ),
+    // As três de foto olham `fotos_progresso` — a foto do corpo —, não
+    // a foto do prato do diário. Contavam o diário até o 0034, e aí um
+    // aluno que fotografa o almoço todo dia ganhava a medalha de
+    // evolução sem nunca ter tirado uma foto de acompanhamento.
     Conquista(
       codigo: 'fotos_1',
       categoria: CategoriaConquista.nutricao,
       nome: 'Primeira foto',
-      descricao: 'Enviar o primeiro registro fotográfico.',
+      descricao: 'Enviar o primeiro registro fotográfico de acompanhamento.',
       meta: 1,
       icone: Icons.photo_camera_outlined,
-      valorDe: (n) => n.fotosDiario,
+      valorDe: (n) => n.fotosProgresso,
     ),
     Conquista(
       codigo: 'fotos_3',
       categoria: CategoriaConquista.nutricao,
       nome: 'Fotografia da evolução',
-      descricao: 'Completar três registros fotográficos.',
+      // MENSAIS: três meses com foto, não três fotos no mesmo dia.
+      descricao: 'Registrar fotos de acompanhamento em três meses.',
       meta: 3,
       icone: Icons.photo_library_rounded,
-      valorDe: (n) => n.fotosDiario,
+      valorDe: (n) => n.mesesComFoto,
+    ),
+    Conquista(
+      codigo: 'disciplinado',
+      categoria: CategoriaConquista.nutricao,
+      nome: 'Aluno disciplinado',
+      descricao: 'Enviar as fotos do mês quando o profissional pedir.',
+      meta: 1,
+      icone: Icons.task_alt_rounded,
+      valorDe: (n) => n.mesesFotoCumpridos,
     ),
     for (final m in [1, 7, 30])
       Conquista(
@@ -303,11 +358,21 @@ class Conquista {
     Conquista(
       codigo: 'checkin_3',
       categoria: CategoriaConquista.nutricao,
-      nome: 'Mestre da organização',
+      // Chamava-se "Mestre da organização" e não era isso.
+      //
+      // A especificação define esse nome como "registrar o planejamento
+      // alimentar da semana, QUANDO ESSE RECURSO ESTIVER DISPONÍVEL". O
+      // recurso não existe no app, e o nome tinha sido pendurado aqui
+      // por falta de lugar melhor — o que daria ao aluno uma medalha de
+      // organização por ter feito outra coisa.
+      //
+      // Esta conquista continua valendo: três check-ins seguidos é um
+      // marco real. Só não é aquele.
+      nome: 'Três meses em dia',
       descricao: 'Responder o check-in em três meses seguidos.',
       meta: 3,
       icone: Icons.event_available_rounded,
-      // Sequência, não total: organização é não faltar, e somar três
+      // Sequência, não total: constância é não faltar, e somar três
       // check-ins em dois anos não é isso.
       valorDe: (n) => n.checkinsSeguidos,
     ),
