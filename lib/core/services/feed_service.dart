@@ -311,6 +311,80 @@ class FeedService {
     });
   }
 
+  // ── Avisos ──────────────────────────────────────────────────
+
+  /// O número do sino. Zero não desenha nada.
+  static Future<int> avisosNaoLidos() async {
+    final r = await _db.rpc('avisos_nao_lidos');
+    return (r as num?)?.toInt() ?? 0;
+  }
+
+  /// A caixa de avisos de quem está logado.
+  ///
+  /// A RLS limita a quem é — não há filtro por usuário aqui, porque
+  /// filtrar no cliente o que a RLS já resolve dá a ilusão de que a
+  /// proteção mora no app.
+  static Future<List<AvisoFeed>> avisos({int limite = 50}) async {
+    final linhas = await _db
+        .from('feed_notificacoes')
+        .select(
+          'id, tipo, criado_em, lida_em, post_id, '
+          'origem:profiles!feed_notificacoes_origem_id_fkey(nome, avatar_url), '
+          'feed_posts(texto, conquista_codigo)',
+        )
+        .order('criado_em', ascending: false)
+        .limit(limite);
+
+    return [
+      for (final l in List<Map<String, dynamic>>.from(linhas))
+        AvisoFeed.doMapa(l),
+    ];
+  }
+
+  /// Marca tudo como lido. Devolve quantos eram.
+  ///
+  /// Tudo de uma vez, e não um a um ao tocar: a pessoa abriu a caixa e
+  /// leu. Obrigar a tocar em cada linha para zerar o sino é trabalho
+  /// que o app inventa para ela.
+  static Future<int> marcarAvisosLidos() async {
+    final r = await _db.rpc('marcar_avisos_lidos');
+    return (r as num?)?.toInt() ?? 0;
+  }
+
+  /// As três chaves de aviso do aluno (§5: "permitir que o aluno ajuste
+  /// as notificações do feed").
+  static Future<({bool conquista, bool interacao, bool aviso})>
+      prefsDeAviso(String alunoId) async {
+    final linha = await _db
+        .from('aluno_feed_prefs')
+        .select('avisa_conquista, avisa_interacao, avisa_aviso')
+        .eq('aluno_id', alunoId)
+        .maybeSingle();
+
+    // Sem linha, tudo ligado: a ausência significa "nunca mexeu", e o
+    // padrão do banco é true.
+    return (
+      conquista: linha?['avisa_conquista'] as bool? ?? true,
+      interacao: linha?['avisa_interacao'] as bool? ?? true,
+      aviso: linha?['avisa_aviso'] as bool? ?? true,
+    );
+  }
+
+  static Future<void> definirPrefsDeAviso(
+    String alunoId, {
+    bool? conquista,
+    bool? interacao,
+    bool? aviso,
+  }) async {
+    await _db.from('aluno_feed_prefs').upsert({
+      'aluno_id': alunoId,
+      if (conquista != null) 'avisa_conquista': conquista,
+      if (interacao != null) 'avisa_interacao': interacao,
+      if (aviso != null) 'avisa_aviso': aviso,
+      'atualizado_em': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'aluno_id');
+  }
+
   // ── Moderação ───────────────────────────────────────────────
   /// As publicações que o profissional tirou do feed.
   ///

@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import 'conquista.dart';
 
 /// O que o profissional habilitou na comunidade dele.
@@ -322,6 +324,90 @@ class DenunciaFeed {
       ocultoAgora: fonte?['oculto'] as bool? ?? false,
       resolvidaEm: DateTime.tryParse(m['resolvida_em'] as String? ?? ''),
       resolucao: m['resolucao'] as String?,
+    );
+  }
+}
+
+/// Um aviso da caixa do aluno.
+class AvisoFeed {
+  const AvisoFeed({
+    required this.id,
+    required this.tipo,
+    required this.criadoEm,
+    this.lida,
+    this.postId,
+    this.origemNome,
+    this.origemFoto,
+    this.postTexto,
+    this.conquistaCodigo,
+  });
+
+  final String id;
+
+  /// 'conquista', 'destaque', 'reacao', 'comentario' ou 'aviso'.
+  final String tipo;
+
+  final DateTime criadoEm;
+  final DateTime? lida;
+
+  final String? postId;
+  final String? origemNome;
+  final String? origemFoto;
+
+  /// O começo do texto da publicação, para o aviso dizer de qual se
+  /// trata sem o aluno precisar abrir.
+  final String? postTexto;
+
+  final String? conquistaCodigo;
+
+  bool get naoLida => lida == null;
+
+  /// O que o aviso diz.
+  ///
+  /// Montado na leitura, como o cartão automático do feed: a linha
+  /// guarda o tipo e o vínculo, nunca uma frase pronta que envelhece
+  /// quando o nome da medalha muda.
+  String get texto {
+    final quem = (origemNome ?? '').trim().split(' ').first;
+    return switch (tipo) {
+      'conquista' => switch (Conquista.porCodigo(conquistaCodigo ?? '')) {
+          final c? => 'Sua conquista "${c.nome}" foi publicada na comunidade.',
+          _ => 'Uma conquista sua foi publicada na comunidade.',
+        },
+      'destaque' => 'Você foi destaque da semana na comunidade.',
+      'reacao' => quem.isEmpty
+          ? 'Alguém reagiu à sua publicação.'
+          : '$quem reagiu à sua publicação.',
+      'comentario' => quem.isEmpty
+          ? 'Alguém comentou na sua publicação.'
+          : '$quem comentou na sua publicação.',
+      _ => 'Novo aviso do seu profissional.',
+    };
+  }
+
+  IconData get icone => switch (tipo) {
+        'conquista' => Icons.emoji_events_rounded,
+        'destaque' => Icons.auto_awesome_rounded,
+        'reacao' => Icons.favorite_rounded,
+        'comentario' => Icons.mode_comment_rounded,
+        _ => Icons.campaign_rounded,
+      };
+
+  factory AvisoFeed.doMapa(Map<String, dynamic> m) {
+    final origem = m['origem'] as Map<String, dynamic>?;
+    final post = m['feed_posts'] as Map<String, dynamic>?;
+
+    return AvisoFeed(
+      id: m['id'] as String,
+      tipo: m['tipo'] as String? ?? 'aviso',
+      criadoEm:
+          DateTime.tryParse(m['criado_em'] as String? ?? '') ?? DateTime.now(),
+      lida: DateTime.tryParse(m['lida_em'] as String? ?? ''),
+      postId: m['post_id'] as String?,
+      origemNome: origem?['nome'] as String?,
+      origemFoto: origem?['avatar_url'] as String?,
+      postTexto: post?['texto'] as String?,
+      conquistaCodigo: post?['conquista_codigo'] as String?,
     );
   }
 }

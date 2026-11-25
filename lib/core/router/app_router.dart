@@ -24,6 +24,7 @@ import '../../modules/aluno/treino/preview_treino_screen.dart';
 import '../models/conquista.dart';
 import '../../modules/feed/feed_screen.dart';
 import '../../modules/feed/comunidade_config_screen.dart';
+import '../../modules/feed/avisos_screen.dart';
 import '../../modules/feed/moderacao_screen.dart';
 import '../../modules/aluno/conquistas/recordes_screen.dart';
 import '../../modules/aluno/conquistas/desbloqueios_screen.dart';
@@ -380,6 +381,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           state,
           (e) => ComunidadeConfigScreen(personalId: e['personalId'] as String),
           voltarPara: '/perfil',
+        ),
+      ),
+      GoRoute(
+        path: '/comunidade/avisos',
+        builder: (context, state) => AvisosScreen(
+          // Sem `_exigeExtra`: a caixa é de quem está logado, e a RLS
+          // resolve isso. Recarregar a página no navegador tem de
+          // continuar funcionando — o `extra` se perde no reload.
+          alunoId: (state.extra as Map<String, dynamic>?)?['alunoId'] as String?,
         ),
       ),
       GoRoute(

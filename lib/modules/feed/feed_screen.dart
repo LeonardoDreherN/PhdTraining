@@ -43,6 +43,9 @@ class _FeedScreenState extends State<FeedScreen> {
   /// Denúncias esperando o profissional. Só ele vê este número.
   int _denuncias = 0;
 
+  /// Avisos não lidos de quem está vendo a tela — aluno ou profissional.
+  int _avisos = 0;
+
   @override
   void initState() {
     super.initState();
@@ -74,6 +77,16 @@ class _FeedScreenState extends State<FeedScreen> {
       final posts = await FeedService.posts(widget.personalId);
       if (mounted) setState(() => _posts = posts);
 
+      // O sino. Num `try` próprio e depois dos posts, pelo mesmo motivo
+      // da contagem de denúncias: sem a 0037 a função não existe, e o
+      // feed tem de abrir do mesmo jeito.
+      try {
+        final n = await FeedService.avisosNaoLidos();
+        if (mounted) setState(() => _avisos = n);
+      } catch (_) {
+        // Sem número, sem sino.
+      }
+
       // O aviso de moderação. Num `try` próprio e depois dos posts: o
       // feed não pode deixar de abrir porque a contagem falhou, e sem a
       // 0032 esta função ainda não existe.
@@ -101,6 +114,20 @@ class _FeedScreenState extends State<FeedScreen> {
         surfaceTintColor: Colors.transparent,
         title: Text('Comunidade', style: AppText.title(16)),
         actions: [
+          // O sino só aparece com algo dentro, como a bandeira de
+          // moderação: ícone sempre aceso vira cenário.
+          if (_avisos > 0)
+            TextButton.icon(
+              onPressed: () async {
+                await context.push('/comunidade/avisos',
+                    extra: {'alunoId': widget.alunoId});
+                if (mounted) await _carregar();
+              },
+              icon: Icon(Icons.notifications_active_rounded,
+                  size: 17, color: AppColors.accent),
+              label: Text('$_avisos',
+                  style: AppText.bodyStrong(13, color: AppColors.accent)),
+            ),
           // Só aparece quando há o que moderar. Um ícone de denúncia
           // sempre aceso vira parte do cenário e para de ser aviso.
           if (widget.souProfissional && _denuncias > 0)

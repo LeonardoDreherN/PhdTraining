@@ -7,6 +7,7 @@ import '../../../core/models/avaliacao.dart';
 import '../../../core/models/diario.dart';
 import '../../../core/models/recursos_aluno.dart';
 import '../../../core/models/dieta.dart';
+import '../../../core/services/feed_service.dart';
 import '../../../core/services/avaliacao_service.dart';
 import '../../../core/services/diario_service.dart';
 import '../../../core/services/dieta_service.dart';
@@ -98,6 +99,9 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   /// número antigo.
   int _versao = 0;
 
+  /// Avisos do feed ainda não lidos. Vira o contador do atalho.
+  int _avisosFeed = 0;
+
   /// Água de hoje, informada pelo cartão de água (que carrega sozinho).
   int _aguaMl = 0;
 
@@ -145,6 +149,15 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         _feitoPorDia = r[2] as Map<int, Set<String>>;
         _execucoes = r[3] as List<({DateTime quando, int minutos})>;
       });
+
+      // O contador do sino, depois do resto e num `try` próprio: sem a
+      // 0037 a função não existe, e a casa do aluno tem de abrir igual.
+      try {
+        final n = await FeedService.avisosNaoLidos();
+        if (mounted) setState(() => _avisosFeed = n);
+      } catch (_) {
+        // Sem número, sem contador.
+      }
 
       NotificationService.agendarTreinos(_fichas);
       // Lembretes da dieta seguem o plano: reagendar aqui acompanha o
@@ -1433,6 +1446,20 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
             Expanded(
               child: Text('Comunidade', style: AppText.bodyStrong(13.5)),
             ),
+            // O sino mora aqui, e não só dentro do feed: um aviso que
+            // o aluno só vê depois de entrar no feed não avisa nada.
+            if (_avisosFeed > 0) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
+                  borderRadius: AppRadius.rPill,
+                ),
+                child: Text('$_avisosFeed',
+                    style: AppText.bodyStrong(11, color: AppColors.onAccent)),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+            ],
             Icon(Icons.chevron_right_rounded,
                 size: 19, color: AppColors.textMuted),
           ],
