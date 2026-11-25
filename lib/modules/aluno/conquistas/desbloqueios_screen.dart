@@ -138,6 +138,14 @@ class _DesbloqueiosScreenState extends State<DesbloqueiosScreen> {
     );
   }
 
+  /// Quantos da biblioteca o professor criou — não estão no catálogo
+  /// oficial e por isso não entram na barra. Aparecem na lista: o
+  /// exercício é do aluno, e sumir com ele seria pior do que explicar.
+  int get _personalizados {
+    final extras = _itens.length - _n.exercicios;
+    return extras > 0 ? extras : 0;
+  }
+
   Widget _progresso() {
     final pct = (_n.progressoCatalogo * 100).round();
     return PhdCard(
@@ -166,7 +174,13 @@ class _DesbloqueiosScreenState extends State<DesbloqueiosScreen> {
             // O denominador é o catálogo oficial da plataforma, não o
             // acervo do professor: senão o percentual do aluno mudaria
             // toda vez que o professor cadastrasse um exercício novo.
-            'Sobre o catálogo oficial do PHD.',
+            // E o numerador conta o mesmo catálogo — contar aqui os
+            // personalizados daria "40 de 32".
+            _personalizados == 0
+                ? 'Sobre o catálogo oficial do PHD.'
+                : 'Sobre o catálogo oficial do PHD. Seu professor também '
+                    'criou ${_personalizados == 1 ? '1 exercício' : '$_personalizados exercícios'} '
+                    'para você — na lista abaixo, fora da barra.',
             style: AppText.caption(11, color: AppColors.textMuted),
           ),
         ],

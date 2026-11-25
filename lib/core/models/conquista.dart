@@ -36,6 +36,10 @@ class NumerosDoAluno {
   final int sequenciaSemanas;
   final int sequenciaDias;
 
+  /// Exercícios desbloqueados que são do catálogo OFICIAL — é o
+  /// numerador da barra. Os que o professor criou ficam de fora desta
+  /// conta (mas aparecem na biblioteca): o denominador é o catálogo
+  /// oficial, e misturar os dois dava "40 de 32".
   final int exercicios;
 
   /// O catálogo oficial da plataforma. É o denominador da barra de
