@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/models/feed.dart';
 import '../../core/services/feed_service.dart';
@@ -38,6 +39,9 @@ class _FeedScreenState extends State<FeedScreen> {
   Object? _erro;
   final _ocupado = <String>{};
 
+  /// Denúncias esperando o profissional. Só ele vê este número.
+  int _denuncias = 0;
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +72,18 @@ class _FeedScreenState extends State<FeedScreen> {
 
       final posts = await FeedService.posts(widget.personalId);
       if (mounted) setState(() => _posts = posts);
+
+      // O aviso de moderação. Num `try` próprio e depois dos posts: o
+      // feed não pode deixar de abrir porque a contagem falhou, e sem a
+      // 0032 esta função ainda não existe.
+      if (widget.souProfissional) {
+        try {
+          final n = await FeedService.denunciasPendentes(widget.personalId);
+          if (mounted) setState(() => _denuncias = n);
+        } catch (_) {
+          // Sem número, sem aviso. O botão continua no perfil.
+        }
+      }
     } catch (e) {
       if (mounted) setState(() => _erro = e);
     } finally {
@@ -83,6 +99,25 @@ class _FeedScreenState extends State<FeedScreen> {
         backgroundColor: AppColors.bg,
         surfaceTintColor: Colors.transparent,
         title: Text('Comunidade', style: AppText.title(16)),
+        actions: [
+          // Só aparece quando há o que moderar. Um ícone de denúncia
+          // sempre aceso vira parte do cenário e para de ser aviso.
+          if (widget.souProfissional && _denuncias > 0)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: TextButton.icon(
+                onPressed: () async {
+                  await context.push('/comunidade/denuncias');
+                  if (mounted) await _carregar();
+                },
+                icon: Icon(Icons.flag_rounded,
+                    size: 17, color: AppColors.dangerText),
+                label: Text('$_denuncias',
+                    style:
+                        AppText.bodyStrong(13, color: AppColors.dangerText)),
+              ),
+            ),
+        ],
       ),
       body: _corpo(),
       floatingActionButton: _podePublicar

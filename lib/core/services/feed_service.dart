@@ -228,6 +228,63 @@ class FeedService {
     });
   }
 
+  // ── Moderação ───────────────────────────────────────────────
+
+  /// Quantas denúncias esperam o profissional. Zero some da tela.
+  static Future<int> denunciasPendentes(String personalId) async {
+    final r = await _db
+        .rpc('denuncias_pendentes', params: {'p_personal_id': personalId});
+    return (r as num?)?.toInt() ?? 0;
+  }
+
+  /// As denúncias do feed, com o conteúdo junto.
+  ///
+  /// A RLS já limita ao que é do profissional — a 0029 dá leitura ao
+  /// dono do post e a quem denunciou, e nada mais. Por isso aqui não há
+  /// filtro por `personal_id`: filtrar no cliente o que a RLS já
+  /// resolve dá a ilusão de que a proteção mora aqui.
+  ///
+  /// Quem denunciou não é lido de propósito: o profissional julga o
+  /// conteúdo, e o nome de quem apertou o botão não entra nisso.
+  static Future<List<DenunciaFeed>> denuncias({bool pendentes = true}) async {
+    var q = _db.from('feed_denuncias').select(
+          'id, motivo, criado_em, resolvida_em, resolucao, '
+          'post_id, comentario_id, '
+          'feed_posts(id, texto, midia_url, oculto, aluno_id, '
+          'autor:profiles!feed_posts_autor_id_fkey(nome), alunos(nome)), '
+          'feed_comentarios(id, texto, oculto, '
+          'autor:profiles!feed_comentarios_autor_id_fkey(nome))',
+        );
+
+    if (pendentes) q = q.isFilter('resolvida_em', null);
+
+    final linhas = await q.order('criado_em', ascending: false).limit(100);
+    return [
+      for (final l in List<Map<String, dynamic>>.from(linhas))
+        DenunciaFeed.doMapa(l),
+    ];
+  }
+
+  /// Marca o desfecho. `arquivada`, `ocultada` ou `removida`.
+  ///
+  /// Separada das ações sobre o conteúdo porque são decisões
+  /// diferentes: ocultar o post é moderação, encerrar a denúncia é
+  /// administração. Encerrar sem agir é um desfecho legítimo — a maior
+  /// parte das denúncias de qualquer comunidade é improcedente.
+  static Future<void> resolverDenuncia(String id, String resolucao) async {
+    await _db.from('feed_denuncias').update({
+      'resolvida_em': DateTime.now().toUtc().toIso8601String(),
+      'resolucao': resolucao,
+      'resolvida_por': _uid,
+    }).eq('id', id);
+  }
+
+  /// Tira o comentário do feed sem apagar. A publicação já tinha
+  /// `ocultar`; o comentário não tinha, e a moderação precisa dos dois.
+  static Future<void> ocultarComentario(String id, {bool oculto = true}) async {
+    await _db.from('feed_comentarios').update({'oculto': oculto}).eq('id', id);
+  }
+
   /// Gera os destaques da semana na hora. O agendado roda sozinho; isto
   /// é para o profissional ver antes, ou refazer.
   static Future<int> gerarDestaques(String personalId) async {

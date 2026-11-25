@@ -191,6 +191,12 @@ class _PersonalPerfilScreenState extends ConsumerState<PersonalPerfilScreen> {
                           () => context.push('/comunidade/config',
                               extra: {'personalId': _perfil?['id']}),
                         ),
+                        const SizedBox(height: 8),
+                        _buildBotaoOutline(
+                          'Denúncias',
+                          Icons.flag_outlined,
+                          () => context.push('/comunidade/denuncias'),
+                        ),
                         const SizedBox(height: 28),
                         _rotulo('EQUIPE'),
                         const SizedBox(height: 10),

@@ -24,6 +24,7 @@ import '../../modules/aluno/treino/preview_treino_screen.dart';
 import '../models/conquista.dart';
 import '../../modules/feed/feed_screen.dart';
 import '../../modules/feed/comunidade_config_screen.dart';
+import '../../modules/feed/moderacao_screen.dart';
 import '../../modules/aluno/conquistas/recordes_screen.dart';
 import '../../modules/aluno/conquistas/desbloqueios_screen.dart';
 import '../../modules/aluno/progresso/progresso_screen.dart';
@@ -380,6 +381,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           (e) => ComunidadeConfigScreen(personalId: e['personalId'] as String),
           voltarPara: '/perfil',
         ),
+      ),
+      GoRoute(
+        path: '/comunidade/denuncias',
+        builder: (context, state) => const ModeracaoScreen(),
       ),
       GoRoute(
         path: '/aluno/recordes',

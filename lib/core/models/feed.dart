@@ -235,6 +235,97 @@ class ComentarioFeed {
   }
 }
 
+/// Uma denúncia, do jeito que o profissional precisa ler: o conteúdo
+/// junto, não só o id.
+///
+/// Quem denunciou NÃO aparece. Uma denúncia em que o denunciado — ou
+/// qualquer um — descobre quem apertou o botão é uma denúncia que
+/// ninguém vai apertar de novo. O profissional precisa julgar o
+/// conteúdo, e para isso o nome de quem reportou não acrescenta nada.
+class DenunciaFeed {
+  const DenunciaFeed({
+    required this.id,
+    required this.criadoEm,
+    required this.ehComentario,
+    this.motivo,
+    this.postId,
+    this.comentarioId,
+    this.texto,
+    this.midiaUrl,
+    this.autorConteudo,
+    this.alunoId,
+    this.ocultoAgora = false,
+    this.resolvidaEm,
+    this.resolucao,
+  });
+
+  final String id;
+  final DateTime criadoEm;
+
+  /// Denúncia de comentário ou de publicação. O banco garante que é um
+  /// ou outro, nunca os dois.
+  final bool ehComentario;
+
+  final String? motivo;
+  final String? postId;
+  final String? comentarioId;
+
+  /// O conteúdo denunciado, para o profissional julgar sem sair da
+  /// tela. Nulo se o conteúdo já foi apagado por alguém.
+  final String? texto;
+  final String? midiaUrl;
+  final String? autorConteudo;
+
+  /// O aluno dono do conteúdo, quando é publicação de aluno. É por ele
+  /// que o bloqueio temporário é aplicado.
+  final String? alunoId;
+
+  final bool ocultoAgora;
+  final DateTime? resolvidaEm;
+  final String? resolucao;
+
+  bool get pendente => resolvidaEm == null;
+
+  /// Nulo quando o conteúdo sumiu entre a denúncia e a leitura. A tela
+  /// precisa saber: julgar o que não existe mais é impossível, e a
+  /// denúncia só pode ser arquivada.
+  bool get conteudoSumiu => texto == null && midiaUrl == null;
+
+  String get resolucaoRotulo => switch (resolucao) {
+        'arquivada' => 'Arquivada',
+        'ocultada' => 'Ocultada do feed',
+        'removida' => 'Conteúdo removido',
+        _ => 'Pendente',
+      };
+
+  factory DenunciaFeed.doMapa(Map<String, dynamic> m) {
+    final post = m['feed_posts'] as Map<String, dynamic>?;
+    final comentario = m['feed_comentarios'] as Map<String, dynamic>?;
+    final ehComentario = m['comentario_id'] != null;
+
+    final fonte = ehComentario ? comentario : post;
+    final autor = fonte?['autor'] as Map<String, dynamic>?;
+    final aluno = post?['alunos'] as Map<String, dynamic>?;
+
+    return DenunciaFeed(
+      id: m['id'] as String,
+      criadoEm:
+          DateTime.tryParse(m['criado_em'] as String? ?? '') ?? DateTime.now(),
+      ehComentario: ehComentario,
+      motivo: m['motivo'] as String?,
+      postId: m['post_id'] as String?,
+      comentarioId: m['comentario_id'] as String?,
+      texto: fonte?['texto'] as String?,
+      midiaUrl: post?['midia_url'] as String?,
+      autorConteudo: (autor?['nome'] ?? aluno?['nome']) as String?,
+      alunoId: post?['aluno_id'] as String?,
+      ocultoAgora: fonte?['oculto'] as bool? ?? false,
+      resolvidaEm: DateTime.tryParse(m['resolvida_em'] as String? ?? ''),
+      resolucao: m['resolucao'] as String?,
+    );
+  }
+}
+
 /// As reações possíveis. Simples e positivas, como a especificação pede:
 /// não existe o equivalente a um "não gostei" num feed de treino.
 const reacoesDisponiveis = <({String valor, String rotulo, String emoji})>[
